@@ -11,7 +11,7 @@ import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
 import com.faber.core.annotation.SqlSearch;
 import com.faber.core.bean.BaseDelEntity;
-import com.faber.api.base.admin.enums.SexEnum;
+import com.faber.core.enums.SexEnum;
 import com.faber.core.config.validator.validator.TelNoValidator;
 import com.faber.core.config.validator.validator.Vg;
 import lombok.Data;
