@@ -39,8 +39,10 @@ public abstract class BaseJob implements Job {
             jobLog.setDuration(DateUtil.between(jobLog.getEndTime(), jobLog.getBeginTime(), DateUnit.SECOND));
             jobLog.setStatus(JobLogStatusEnum.DONE);
             jobLogBiz.updateById(jobLog);
+            log.info("{}：执行完毕=======================", this.getClass().getSimpleName());
         } catch (Exception e) {
             log.error(e.getMessage(), e);
+            log.info("{}：执行异常XXXXXXXXXXXXXXXXXXXXXXX{}", this.getClass().getSimpleName(), e.getMessage());
 
             // log error
             jobLog.setEndTime(new Date());

@@ -24,7 +24,6 @@ public class JobDemo1 extends BaseJob {
         if (RandomUtil.randomInt(100) > 50) {
             throw new RuntimeException("定时任务DEMO测试抛出异常信息");
         }
-        log.info("{}：执行完毕=======================", this.getClass().getSimpleName());
     }
 
 }
