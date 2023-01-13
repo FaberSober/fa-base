@@ -2,6 +2,7 @@ package com.faber.api.base.admin.biz;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.file.FileNameUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.xuyanwu.spring.file.storage.FileInfo;
@@ -15,6 +16,7 @@ import com.faber.core.service.StorageService;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.web.biz.BaseBiz;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.util.TempFile;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -60,6 +62,21 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         super.save(fileSave);
         return fileSave;
+    }
+
+    public File getFileObj(String fileId) {
+        FileSave fileSave = getById(fileId);
+        // 本地存储
+        if (fileSave.getPlatform().startsWith("local-")) {
+            LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
+            String fileFullPath = storage.getAbsolutePath(fileSave.getUrl());
+
+            return new File(fileFullPath);
+        } else {
+            String filePath = "." + File.separator + fileSave.getOriginalFilename();
+            fileStorageService.download(fileSave.getUrl()).file(filePath);
+            return new File(filePath);
+        }
     }
 
     public void getFile(String fileId) throws IOException {
