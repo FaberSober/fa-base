@@ -16,7 +16,7 @@ public class ConfigSysServiceImpl implements ConfigSysService {
     ConfigSysBiz configSysBiz;
 
     @Override
-    public String getStoreLocalPath() throws IOException {
+    public String getStoreLocalPath() {
         ConfigSys configSys = configSysBiz.getOne();
         if (configSys == null || configSys.getData() == null || StrUtil.isEmpty(configSys.getData().getStoreLocalPath())) {
             return ConfigSysService.super.getStoreLocalPath();

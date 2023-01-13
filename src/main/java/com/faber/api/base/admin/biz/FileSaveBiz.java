@@ -10,8 +10,11 @@ import cn.xuyanwu.spring.file.storage.UploadPretreatment;
 import cn.xuyanwu.spring.file.storage.platform.LocalPlusFileStorage;
 import com.faber.api.base.admin.entity.FileSave;
 import com.faber.api.base.admin.mapper.FileSaveMapper;
+import com.faber.core.service.ConfigSysService;
+import com.faber.core.service.StorageService;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.web.biz.BaseBiz;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -27,11 +30,15 @@ import java.io.IOException;
  * @email faberxu@gmail.com
  * @date 2019-08-19 10:09:36
  */
+@Slf4j
 @Service
-public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> {
+public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements StorageService {
 
     @Autowired
     private FileStorageService fileStorageService;
+
+    @Autowired
+    private ConfigSysService configSysService;
 
     public FileSave upload(MultipartFile file) {
         UploadPretreatment uploadPretreatment = fileStorageService.of(file);
@@ -85,6 +92,18 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> {
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
             response.sendRedirect(URLUtil.encode(fileSave.getThUrl()));
         }
+    }
+
+    @Override
+    public void syncStorageDatabaseConfig() {
+        log.info("------------------------ Scan Database Storage Config ------------------------");
+        LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
+        String storeLocalPath = configSysService.getStoreLocalPath();
+        if (!storeLocalPath.endsWith(File.separator)) {
+            storeLocalPath = storeLocalPath + File.separator;
+        }
+        log.info("storeLocalPath: {}", storeLocalPath);
+        storage.setStoragePath(storeLocalPath);
     }
 
 }

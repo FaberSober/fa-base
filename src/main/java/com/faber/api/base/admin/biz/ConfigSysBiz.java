@@ -5,7 +5,10 @@ import com.faber.api.base.admin.entity.ConfigSys;
 import com.faber.api.base.admin.mapper.ConfigSysMapper;
 import com.faber.api.base.admin.vo.ret.SystemConfigPo;
 import com.faber.core.constant.FaSetting;
+import com.faber.core.service.StorageService;
 import com.faber.core.web.biz.BaseBiz;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -21,6 +24,19 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
 
     @Resource
     private FaSetting faSetting;
+
+    @Lazy
+    @Autowired
+    private StorageService storageService;
+
+    @Override
+    public boolean updateById(ConfigSys entity) {
+        super.updateById(entity);
+
+        storageService.syncStorageDatabaseConfig();
+
+        return true;
+    }
 
     public ConfigSys getOne() {
         ConfigSys configSys = lambdaQuery().orderByDesc(ConfigSys::getId).last("limit 1").one();
