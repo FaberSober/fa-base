@@ -23,25 +23,52 @@ public class FileSave extends BaseDelEntity {
     @TableId(type = IdType.ASSIGN_UUID)
     private String id;
 
-    @ExcelProperty("文件名")
-    private String name;
-
-    @ExcelProperty("url")
+    @ExcelProperty("文件访问地址")
     private String url;
 
-    @ExcelProperty("img_preview")
-    private String imgPreview;
-
-    @ExcelProperty("附件大小")
+    @ExcelProperty("文件大小，单位字节")
     private Long size;
 
-    @ExcelProperty("存储类型")
-    private FileSaveDriveEnum drive;
+    @ExcelProperty("文件名")
+    private String filename;
 
-    /**
-     * 本地服务器访问路径。全部走本服务器的网络访问
-     */
-    @TableField(exist = false)
-    private String localUrl;
+    @ExcelProperty("原始文件名")
+    private String originalFilename;
+
+    @ExcelProperty("基础存储路径")
+    private String basePath;
+
+    @ExcelProperty("存储路径")
+    private String path;
+
+    @ExcelProperty("文件扩展名")
+    private String ext;
+
+    @ExcelProperty("MIME类型")
+    private String contentType;
+
+    @ExcelProperty("存储平台")
+    private String platform;
+
+    @ExcelProperty("缩略图访问路径")
+    private String thUrl;
+
+    @ExcelProperty("缩略图名称")
+    private String thFilename;
+
+    @ExcelProperty("缩略图大小，单位字节")
+    private Long thSize;
+
+    @ExcelProperty("缩略图MIME类型")
+    private String thContentType;
+
+    @ExcelProperty("文件所属对象id")
+    private String objectId;
+
+    @ExcelProperty("文件所属对象类型，例如用户头像，评价图片")
+    private String objectType;
+
+    @ExcelProperty("附加属性")
+    private String attr;
 
 }
