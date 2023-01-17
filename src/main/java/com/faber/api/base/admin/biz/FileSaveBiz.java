@@ -41,15 +41,15 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Autowired
     private ConfigSysService configSysService;
 
-    public FileSave upload(MultipartFile file) {
+    public FileSave upload(MultipartFile file) throws IOException {
         UploadPretreatment uploadPretreatment = fileStorageService.of(file);
 
         String extName = FileNameUtil.extName(file.getOriginalFilename());
         if (FaFileUtils.isImg(extName)) {
-            uploadPretreatment = uploadPretreatment
-                    .image(img -> img.size(1000,1000))  //将图片大小调整到 1000*1000
-                    .thumbnail(th -> th.size(200,200));  //再生成一张 200*200 的缩略图（这里操作缩略图）;
+            uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200,200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
         }
+
+        String md5 = DigestUtil.md5Hex(file.getBytes());
 
         FileInfo fileInfo = uploadPretreatment
                 .setPath(DateUtil.today() + "/")
@@ -59,14 +59,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         FileSave fileSave = new FileSave();
         BeanUtil.copyProperties(fileInfo, fileSave);
 
-        try {
-            String md5 = DigestUtil.md5Hex(file.getBytes());
-            fileSave.setMd5(md5);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-//        ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1")).setStoragePath();
+        fileSave.setMd5(md5);
 
         super.save(fileSave);
         return fileSave;
@@ -95,7 +88,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
             LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
             String fileFullPath = storage.getAbsolutePath(fileSave.getUrl());
 
-            FaFileUtils.downloadFile(new File(fileFullPath), fileSave.getOriginalFilename());
+            FaFileUtils.downloadFileShard(new File(fileFullPath), fileSave.getOriginalFilename());
         } else {
             // TO-DO 其他下载渠道直接返回URL
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
@@ -111,7 +104,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
             LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
             String fileFullPath = storage.getAbsolutePath(fileSave.getThUrl());
 
-            FaFileUtils.downloadFile(new File(fileFullPath), fileSave.getOriginalFilename());
+            FaFileUtils.downloadFileShard(new File(fileFullPath), fileSave.getOriginalFilename());
         } else {
             // TO-DO 其他下载渠道直接返回URL
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
