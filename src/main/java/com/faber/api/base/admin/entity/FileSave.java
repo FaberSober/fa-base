@@ -71,4 +71,7 @@ public class FileSave extends BaseDelEntity {
     @ExcelProperty("附加属性")
     private String attr;
 
+    @ExcelProperty("文件MD5")
+    private String md5;
+
 }

@@ -2,9 +2,9 @@ package com.faber.api.base.admin.biz;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.file.FileNameUtil;
 import cn.hutool.core.util.URLUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import cn.xuyanwu.spring.file.storage.FileInfo;
 import cn.xuyanwu.spring.file.storage.FileStorageService;
 import cn.xuyanwu.spring.file.storage.UploadPretreatment;
@@ -16,7 +16,6 @@ import com.faber.core.service.StorageService;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.web.biz.BaseBiz;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.util.TempFile;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -47,7 +46,9 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         String extName = FileNameUtil.extName(file.getOriginalFilename());
         if (FaFileUtils.isImg(extName)) {
-            uploadPretreatment = uploadPretreatment.thumbnail(200, 200);
+            uploadPretreatment = uploadPretreatment
+                    .image(img -> img.size(1000,1000))  //将图片大小调整到 1000*1000
+                    .thumbnail(th -> th.size(200,200));  //再生成一张 200*200 的缩略图（这里操作缩略图）;
         }
 
         FileInfo fileInfo = uploadPretreatment
@@ -57,6 +58,13 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         FileSave fileSave = new FileSave();
         BeanUtil.copyProperties(fileInfo, fileSave);
+
+        try {
+            String md5 = DigestUtil.md5Hex(file.getBytes());
+            fileSave.setMd5(md5);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
 //        ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1")).setStoragePath();
 
