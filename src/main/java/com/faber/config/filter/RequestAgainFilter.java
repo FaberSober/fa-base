@@ -103,9 +103,11 @@ public class RequestAgainFilter implements Filter {
 
             // 获取IP地址
             IpAddr ipAddr = IpUtils.getIpAddrByApi(log.getCrtHost());
-            log.setPro(ipAddr.getPro());
-            log.setCity(ipAddr.getCity());
-            log.setAddr(ipAddr.getAddr());
+            if (ipAddr != null) {
+                log.setPro(ipAddr.getPro());
+                log.setCity(ipAddr.getCity());
+                log.setAddr(ipAddr.getAddr());
+            }
 
             logApiBiz.save(log);
         }

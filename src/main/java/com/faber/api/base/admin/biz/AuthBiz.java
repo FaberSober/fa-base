@@ -56,9 +56,11 @@ public class AuthBiz {
 
         // 获取IP地址
         IpAddr ipAddr = IpUtils.getIpAddrByApi(BaseContextHandler.getIp());
-        logLogin.setPro(ipAddr.getPro());
-        logLogin.setCity(ipAddr.getCity());
-        logLogin.setAddr(ipAddr.getAddr());
+        if (ipAddr != null) {
+            logLogin.setPro(ipAddr.getPro());
+            logLogin.setCity(ipAddr.getCity());
+            logLogin.setAddr(ipAddr.getAddr());
+        }
 
         logLoginBiz.save(logLogin);
 
