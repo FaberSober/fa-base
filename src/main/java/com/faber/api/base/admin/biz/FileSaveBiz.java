@@ -65,6 +65,31 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         return fileSave;
     }
 
+
+    public FileSave upload(File file) throws IOException {
+        UploadPretreatment uploadPretreatment = fileStorageService.of(file);
+
+        String extName = FileNameUtil.extName(file.getName());
+        if (FaFileUtils.isImg(extName)) {
+            uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200,200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+        }
+
+        String md5 = DigestUtil.md5Hex(file);
+
+        FileInfo fileInfo = uploadPretreatment
+                .setPath(DateUtil.today() + "/")
+                .setSaveFilename(FaFileUtils.addTimestampToFileName(file.getName()))
+                .upload();
+
+        FileSave fileSave = new FileSave();
+        BeanUtil.copyProperties(fileInfo, fileSave);
+
+        fileSave.setMd5(md5);
+
+        super.save(fileSave);
+        return fileSave;
+    }
+
     public File getFileObj(String fileId) {
         FileSave fileSave = getById(fileId);
         // 本地存储
