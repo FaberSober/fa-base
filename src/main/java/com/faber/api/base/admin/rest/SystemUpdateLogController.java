@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @FaLogBiz("系统更新")
 @RestController
-@RequestMapping("/api/base/base/systemUpdateLog")
+@RequestMapping("/api/base/admin/systemUpdateLog")
 public class SystemUpdateLogController extends BaseController<SystemUpdateLogBiz, SystemUpdateLog, Integer> {
 
 }
