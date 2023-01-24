@@ -3,10 +3,12 @@ package com.faber.api.base.admin.biz;
 import cn.hutool.core.collection.IterUtil;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alicp.jetcache.anno.CacheInvalidate;
 import com.alicp.jetcache.anno.Cached;
 import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
+import com.faber.api.base.admin.entity.UserToken;
 import com.faber.api.base.admin.mapper.UserMapper;
 import com.faber.api.base.admin.vo.query.UserAccountVo;
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
@@ -14,6 +16,7 @@ import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.config.utils.user.UserCheckUtil;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.constant.CommonConstants;
+import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
@@ -27,8 +30,11 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +58,13 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     @Lazy
     @Resource
     private RbacUserRoleBiz rbacUserRoleBiz;
+
+    @Lazy
+    @Resource
+    private UserTokenBiz userTokenBiz;
+
+    @Resource
+    private FaSetting faSetting;
 
     private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
 
@@ -306,6 +319,16 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         ids.forEach(id -> {
             removeById(id);
         });
+    }
+
+    public User getUserFromApiToken() {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        String token = request.getHeader(faSetting.getApi().getTokenApiHeader());
+        if (StrUtil.isEmpty(token)) throw new BuzzException("Token Is Empty");
+        UserToken userToken = userTokenBiz.getById(token);
+        if (userToken == null || !userToken.getValid()) throw new BuzzException("Token Not Valid");
+
+        return super.getById(userToken.getUserId());
     }
 
 }

@@ -5,6 +5,7 @@ import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.vo.query.UserAccountVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
+import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.vo.msg.Ret;
 import com.faber.core.web.rest.BaseController;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,15 @@ public class UserController extends BaseController<UserBiz, User, String> {
     @RequestMapping(value = "/getLoginUser", method = RequestMethod.GET)
     @ResponseBody
     public Ret<User> getLoginUser() {
+        User o = baseBiz.getLoginUser();
+        return ok(o);
+    }
+
+    @FaLogOpr("获取API账户信息")
+    @RequestMapping(value = "/getApiUser", method = RequestMethod.GET)
+    @ResponseBody
+    @ApiToken
+    public Ret<User> getApiUser() {
         User o = baseBiz.getLoginUser();
         return ok(o);
     }
