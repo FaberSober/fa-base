@@ -52,6 +52,15 @@ public class LogApi extends BaseCrtEntity {
     @ExcelProperty("浏览器版本")
     private String version;
 
+    @ExcelProperty("客户端来源")
+    private String faFrom;
+
+    @ExcelProperty("客户端版本号")
+    private Long versionCode;
+
+    @ExcelProperty("客户端版本名")
+    private String versionName;
+
     @SqlEquals
     @ExcelProperty("是否为移动终端")
     private Boolean mobile;

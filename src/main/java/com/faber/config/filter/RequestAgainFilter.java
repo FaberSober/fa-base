@@ -7,6 +7,7 @@ import com.faber.api.base.admin.biz.LogApiBiz;
 import com.faber.api.base.admin.entity.LogApi;
 import com.faber.core.config.filter.wrapper.BodyHttpServletRequestWrapper;
 import com.faber.core.config.filter.wrapper.BodyHttpServletResponseWrapper;
+import com.faber.core.constant.CommonConstants;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.utils.IpUtils;
@@ -67,49 +68,58 @@ public class RequestAgainFilter implements Filter {
 
         if (!NO_LOG_APIS.contains(requestWrapper.getRequestURI())) {
             String logNoRet = responseWrapper.getHeader("LogNoRet");
-            LogApi log = new LogApi();
+            LogApi logApi = new LogApi();
 
-            log.setBiz(StrUtil.toString(requestWrapper.getAttribute("FaLogBiz")));
-            log.setOpr(StrUtil.toString(requestWrapper.getAttribute("FaLogOpr")));
-            log.setCrud((LogCrudEnum) requestWrapper.getAttribute("FaLogCrud"));
+            logApi.setBiz(StrUtil.toString(requestWrapper.getAttribute("FaLogBiz")));
+            logApi.setOpr(StrUtil.toString(requestWrapper.getAttribute("FaLogOpr")));
+            logApi.setCrud((LogCrudEnum) requestWrapper.getAttribute("FaLogCrud"));
 
             // request basic information
-            log.setUrl(requestWrapper.getRequestURI());
-            log.setMethod(requestWrapper.getMethod());
-            log.setAgent(requestWrapper.getHeader("User-Agent"));
+            logApi.setUrl(requestWrapper.getRequestURI());
+            logApi.setMethod(requestWrapper.getMethod());
+            logApi.setAgent(requestWrapper.getHeader("User-Agent"));
 
             // 解析agent字符串
-            UserAgent ua = UserAgentUtil.parse(log.getAgent());
-            log.setOs(ua.getOs().toString());
-            log.setBrowser(ua.getBrowser().toString());
-            log.setVersion(ua.getVersion());
-            log.setMobile(ua.isMobile() ? true : false);
+            UserAgent ua = UserAgentUtil.parse(logApi.getAgent());
+            logApi.setOs(ua.getOs().toString());
+            logApi.setBrowser(ua.getBrowser().toString());
+            logApi.setVersion(ua.getVersion());
+            logApi.setMobile(ua.isMobile() ? true : false);
 
-            log.setCrtHost(IpUtils.getRequestIp(requestWrapper));
-            log.setRequest(requestWrapper.getBody());
-            log.setReqSize(log.getRequest().length());
+            // 自定义Header信息
+            logApi.setFaFrom(requestWrapper.getHeader(CommonConstants.FA_FROM));
+            try {
+                logApi.setVersionCode(Long.parseLong(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE)));
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            }
+            logApi.setVersionName(requestWrapper.getHeader(CommonConstants.FA_VERSION_NAME));
 
-            log.setRetStatus(responseWrapper.getStatus());
+            logApi.setCrtHost(IpUtils.getRequestIp(requestWrapper));
+            logApi.setRequest(requestWrapper.getBody());
+            logApi.setReqSize(logApi.getRequest().length());
 
-            if ("1".equals(logNoRet) && !"200".equals(log.getRetStatus())) {
-                log.setResponse("");
+            logApi.setRetStatus(responseWrapper.getStatus());
+
+            if ("1".equals(logNoRet) && !"200".equals(logApi.getRetStatus())) {
+                logApi.setResponse("");
             } else {
-                log.setResponse(responseData);
+                logApi.setResponse(responseData);
             }
 
-            log.setRetSize(responseData.length());
+            logApi.setRetSize(responseData.length());
 
-            log.setDuration(System.currentTimeMillis() - startTime);
+            logApi.setDuration(System.currentTimeMillis() - startTime);
 
             // 获取IP地址
-            IpAddr ipAddr = IpUtils.getIpAddrByApi(log.getCrtHost());
+            IpAddr ipAddr = IpUtils.getIpAddrByApi(logApi.getCrtHost());
             if (ipAddr != null) {
-                log.setPro(ipAddr.getPro());
-                log.setCity(ipAddr.getCity());
-                log.setAddr(ipAddr.getAddr());
+                logApi.setPro(ipAddr.getPro());
+                logApi.setCity(ipAddr.getCity());
+                logApi.setAddr(ipAddr.getAddr());
             }
 
-            logApiBiz.save(log);
+            logApiBiz.save(logApi);
         }
 
         BaseContextHandler.remove(); // 销毁上下文中记录的登录用户信息
