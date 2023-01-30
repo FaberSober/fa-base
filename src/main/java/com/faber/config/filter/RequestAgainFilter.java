@@ -89,7 +89,9 @@ public class RequestAgainFilter implements Filter {
             // 自定义Header信息
             logApi.setFaFrom(requestWrapper.getHeader(CommonConstants.FA_FROM));
             try {
-                logApi.setVersionCode(Long.parseLong(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE)));
+                if (StrUtil.isNotEmpty(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE))) {
+                    logApi.setVersionCode(Long.parseLong(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE)));
+                }
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
             }
