@@ -2,6 +2,10 @@ package com.faber.api.base.admin.biz;
 
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
+import com.alicp.jetcache.Cache;
+import com.alicp.jetcache.CacheManager;
+import com.alicp.jetcache.anno.CacheType;
+import com.alicp.jetcache.template.QuickConfig;
 import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.api.base.admin.entity.User;
 import com.faber.config.utils.jwt.JWTInfo;
@@ -11,8 +15,10 @@ import com.faber.core.context.BaseContextHandler;
 import com.faber.core.utils.IpUtils;
 import com.faber.core.utils.RequestUtils;
 import com.faber.core.vo.utils.IpAddr;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
 @Service
@@ -26,6 +32,21 @@ public class AuthBiz {
 
     @Resource
     private LogLoginBiz logLoginBiz;
+
+    @Autowired
+    private CacheManager cacheManager;
+    private Cache<String, String> strCache;
+
+    @PostConstruct
+    public void init() {
+        QuickConfig qc = QuickConfig.newBuilder("oauthCache:")
+//                .expire(Duration.ofSeconds(-1))
+                .cacheType(CacheType.BOTH) // two level cache
+//                .localLimit(50)
+                .syncLocal(true) // invalidate local cache in all jvm process after update
+                .build();
+        strCache = cacheManager.getOrCreateCache(qc);
+    }
 
     /**
      * web登录，返回token
@@ -66,6 +87,9 @@ public class AuthBiz {
         }
 
         logLoginBiz.save(logLogin);
+
+        // 登录模式
+        strCache.put(user.getId() + ":from", source);
 
         return jwtTokenUtil.createToken(new JWTInfo(user.getId(), source));
     }
