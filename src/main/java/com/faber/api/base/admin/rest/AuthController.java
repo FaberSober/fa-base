@@ -6,6 +6,7 @@ import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.enums.LogCrudEnum;
+import com.faber.core.service.LogoutService;
 import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,9 @@ public class AuthController extends BaseResHandler {
     @Resource
     private AuthBiz authBiz;
 
+    @Resource
+    private LogoutService logoutService;
+
     @FaLogOpr(value = "登录", crud = LogCrudEnum.C)
     @RequestMapping(value = "/login", method = RequestMethod.POST)
     @IgnoreUserToken
@@ -35,10 +39,10 @@ public class AuthController extends BaseResHandler {
 
     @FaLogOpr(value = "登出", crud = LogCrudEnum.C)
     @RequestMapping(value = "/logout", method = RequestMethod.GET)
-    @IgnoreUserToken
     public Ret<String> logout() throws Exception {
-        // TODO 这里进行用户登出的操作
-        return ok();
+        // TO-DO 这里进行用户登出的操作
+        String url = logoutService.logout();
+        return ok(url);
     }
 
 }
