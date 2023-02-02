@@ -33,9 +33,12 @@ public class AuthBiz {
      * @return
      * @throws Exception
      */
-    public String login(AuthRequest authRequest) throws Exception {
+    public String login(AuthRequest authRequest) {
         User user = userBiz.validate(authRequest.getUsername(), authRequest.getPassword());
+        return login(user, "web");
+    }
 
+    public String login(User user, String source) {
         // 将用户放入上下文
         BaseContextHandler.setUserId(user.getId());
         BaseContextHandler.setName(user.getName());
@@ -64,7 +67,7 @@ public class AuthBiz {
 
         logLoginBiz.save(logLogin);
 
-        return jwtTokenUtil.createToken(new JWTInfo(user.getId(), "web"));
+        return jwtTokenUtil.createToken(new JWTInfo(user.getId(), source));
     }
 
 
