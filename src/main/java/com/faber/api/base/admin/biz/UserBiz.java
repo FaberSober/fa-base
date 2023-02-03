@@ -11,6 +11,7 @@ import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
 import com.faber.api.base.admin.mapper.UserMapper;
 import com.faber.api.base.admin.vo.query.UserAccountVo;
+import com.faber.api.base.admin.vo.query.UserBatchUpdateDeptVo;
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.config.utils.user.UserCheckUtil;
@@ -25,7 +26,11 @@ import com.faber.core.vo.query.QueryParams;
 import com.faber.core.web.biz.BaseBiz;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RKeys;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -65,6 +70,12 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
     @Resource
     private FaSetting faSetting;
+
+    @Autowired
+    private RedissonClient redisson;
+
+    @Value("${spring.redis.sysName}")
+    private String redisKeySysName;
 
     private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
 
@@ -285,6 +296,26 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         User user = getById(userId);
         user.setApiToken(UUID.fastUUID().toString(true));
         return super.updateById(user);
+    }
+
+    @Transactional
+    public void updateInfoBatch(UserBatchUpdateDeptVo params) {
+        lambdaUpdate()
+                .set(User::getDepartmentId, params.getDepartmentId())
+                .in(User::getId, params.getUserIds())
+                .update();
+
+        delUserCacheByIds(params.getUserIds());
+    }
+
+    public void delUserCacheByIds(List<String> userIds) {
+        userIds.forEach(i -> {
+            delUserCacheById(i);
+        });
+    }
+
+    public void delUserCacheById(String userId) {
+        redisson.getKeys().deleteByPattern(redisKeySysName + ":user:" + userId);
     }
 
     public void accountAdminUpdatePwd(Map<String, Object> params) {

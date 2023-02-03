@@ -3,6 +3,7 @@ package com.faber.api.base.admin.rest;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.vo.query.UserAccountVo;
+import com.faber.api.base.admin.vo.query.UserBatchUpdateDeptVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.ApiToken;
@@ -65,6 +66,14 @@ public class UserController extends BaseController<UserBiz, User, String> {
     @ResponseBody
     public Ret<Boolean> updateMyApiToken() {
         baseBiz.updateMyApiToken(getCurrentUserId());
+        return ok();
+    }
+
+    @FaLogOpr(value = "批量更新部门", crud = LogCrudEnum.C)
+    @RequestMapping(value = "/updateInfoBatch", method = RequestMethod.POST)
+    @ResponseBody
+    public Ret<Boolean> updateInfoBatch(@RequestBody UserBatchUpdateDeptVo params) {
+        baseBiz.updateInfoBatch(params);
         return ok();
     }
 
