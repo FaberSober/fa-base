@@ -52,4 +52,9 @@ public class SystemConfigPo implements Serializable {
      */
     private String socketUrl;
 
+    /**
+     * [安全]是否开启验证码
+     */
+    private Boolean safeCaptchaOn;
+
 }

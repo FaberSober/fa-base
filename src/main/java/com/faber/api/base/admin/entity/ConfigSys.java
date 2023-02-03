@@ -64,6 +64,10 @@ public class ConfigSys extends BaseDelEntity {
          */
         private String portalLink;
         /**
+         * [安全]是否开启验证码：
+         */
+        private Boolean safeCaptchaOn;
+        /**
          * [存储][本地]目录
          */
         private String storeLocalPath;
