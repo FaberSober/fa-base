@@ -4,6 +4,7 @@ import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.vo.query.UserAccountVo;
 import com.faber.api.base.admin.vo.query.UserBatchUpdateDeptVo;
+import com.faber.api.base.admin.vo.query.UserBatchUpdatePwdVo;
 import com.faber.api.base.admin.vo.query.UserBatchUpdateRoleVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
@@ -87,10 +88,10 @@ public class UserController extends BaseController<UserBiz, User, String> {
     }
 
     @FaLogOpr(value = "批量更新密码", crud = LogCrudEnum.C)
-    @RequestMapping(value = "/accountAdminUpdatePwd", method = RequestMethod.POST)
+    @RequestMapping(value = "/updateBatchPwd", method = RequestMethod.POST)
     @ResponseBody
-    public Ret<Boolean> accountAdminUpdatePwd(@RequestBody Map<String, Object> params) {
-        baseBiz.accountAdminUpdatePwd(params);
+    public Ret<Boolean> updateBatchPwd(@RequestBody UserBatchUpdatePwdVo params) {
+        baseBiz.updateBatchPwd(params);
         return ok();
     }
 

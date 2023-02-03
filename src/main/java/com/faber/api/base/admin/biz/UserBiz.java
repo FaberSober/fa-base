@@ -12,6 +12,7 @@ import com.faber.api.base.admin.entity.UserToken;
 import com.faber.api.base.admin.mapper.UserMapper;
 import com.faber.api.base.admin.vo.query.UserAccountVo;
 import com.faber.api.base.admin.vo.query.UserBatchUpdateDeptVo;
+import com.faber.api.base.admin.vo.query.UserBatchUpdatePwdVo;
 import com.faber.api.base.admin.vo.query.UserBatchUpdateRoleVo;
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.api.base.rbac.entity.RbacRole;
@@ -27,7 +28,6 @@ import com.faber.core.vo.query.QueryParams;
 import com.faber.core.web.biz.BaseBiz;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.redisson.api.RKeys;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,7 +78,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     @Value("${spring.redis.sysName}")
     private String redisKeySysName;
 
-    private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
+    private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(CommonConstants.PW_ENCODER_SALT);
 
     /**
      * 登录账户
@@ -105,7 +105,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         if (encoder.matches(password, user.getPassword())) {
             return;
         }
-        throw new UserInvalidException("密码验证失败");
+        throw new UserInvalidException("本账户密码验证失败");
     }
 
     public User getLoginUser() {
@@ -161,7 +161,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         this.checkBeanValid(entity);
 
         // 初始化密码888888
-        String password = new BCryptPasswordEncoder(CommonConstants.PW_ENCODER_SALT).encode(entity.getPassword());
+        String password = encoder.encode(entity.getPassword());
         entity.setPassword(password);
 
         super.save(entity);
@@ -249,7 +249,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         User beanDB = getById(id);
         if (beanDB == null) throw new NoDataException();
 
-        String password = new BCryptPasswordEncoder(CommonConstants.PW_ENCODER_SALT).encode(newPwd);
+        String password = encryptPwd(newPwd);
         beanDB.setPassword(password);
         return super.updateById(beanDB);
     }
@@ -287,7 +287,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
         this.validateCurrentUserPwd(oldPwd);
 
-        String password = new BCryptPasswordEncoder(CommonConstants.PW_ENCODER_SALT).encode(newPwd);
+        String password = encryptPwd(newPwd);
         user.setPassword(password);
         return super.updateById(user);
     }
@@ -318,6 +318,27 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         delUserCacheByIds(params.getUserIds());
     }
 
+    public void updateBatchPwd(UserBatchUpdatePwdVo params) {
+        this.validateCurrentUserPwd(params.getPasswordCheck());
+
+        String newPwd = params.getNewPwd();
+        if (StringUtils.isEmpty(newPwd)) {
+            throw new BuzzException("新密码不能为空");
+        }
+
+        // TODO 根据系统配置验证密码合法性
+//        if (newPwd.trim().length() < 6 || newPwd.trim().length() > 32) {
+//            throw new BuzzException("新密码长度错误");
+//        }
+
+        String password = encryptPwd(newPwd.trim());
+        params.getUserIds().forEach(id -> {
+            User user = getById(id);
+            user.setPassword(password);
+            super.updateById(user);
+        });
+    }
+
     public void delUserCacheByIds(List<String> userIds) {
         userIds.forEach(i -> {
             delUserCacheById(i);
@@ -328,27 +349,8 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         redisson.getKeys().deleteByPattern(redisKeySysName + ":user:" + userId);
     }
 
-    public void accountAdminUpdatePwd(Map<String, Object> params) {
-        String newPwd = (String) params.get("newPwd");
-        String passwordCheck = (String) params.get("passwordCheck");
-        List<Integer> ids = (List<Integer>) params.get("ids");
-
-        this.validateCurrentUserPwd(passwordCheck);
-
-        if (StringUtils.isEmpty(newPwd)) {
-            throw new BuzzException("新密码不能为空");
-        }
-
-        if (newPwd.trim().length() < 6 || newPwd.trim().length() > 32) {
-            throw new BuzzException("新密码长度错误");
-        }
-
-        String password = new BCryptPasswordEncoder(CommonConstants.PW_ENCODER_SALT).encode(newPwd.trim());
-        ids.forEach(id -> {
-            User user = getById(id);
-            user.setPassword(password);
-            super.updateById(user);
-        });
+    private String encryptPwd(String pwd) {
+        return encoder.encode(pwd);
     }
 
     public void accountAdminDelete(Map<String, Object> params) {
