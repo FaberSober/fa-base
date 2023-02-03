@@ -12,6 +12,7 @@ import com.faber.config.utils.jwt.JWTInfo;
 import com.faber.config.utils.user.AuthRequest;
 import com.faber.config.utils.user.JwtTokenUtil;
 import com.faber.core.context.BaseContextHandler;
+import com.faber.core.service.LogoutService;
 import com.faber.core.utils.IpUtils;
 import com.faber.core.utils.RequestUtils;
 import com.faber.core.vo.utils.IpAddr;
@@ -22,7 +23,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
 @Service
-public class AuthBiz {
+public class AuthBiz implements LogoutService {
 
     @Resource
     private JwtTokenUtil jwtTokenUtil;
