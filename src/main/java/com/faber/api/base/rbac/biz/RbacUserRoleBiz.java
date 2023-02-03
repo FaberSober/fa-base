@@ -1,5 +1,6 @@
 package com.faber.api.base.rbac.biz;
 
+import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alicp.jetcache.anno.Cached;
 import com.faber.api.base.rbac.entity.RbacMenu;
@@ -98,6 +99,10 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
         PageInfo<RbacUserRoleRetVo> info = PageHelper.startPage(query.getCurrent(), query.getPageSize())
                 .doSelectPageInfo(() -> baseMapper.pageVo(query.getQuery(), query.getSorter()));
         return new TableRet<>(info);
+    }
+
+    public void changeUserRoles(String userId, Long roleId) {
+        this.changeUserRoles(userId, ListUtil.toList(roleId));
     }
 
     /**

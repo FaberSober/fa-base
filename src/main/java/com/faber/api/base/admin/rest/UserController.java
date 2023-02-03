@@ -4,6 +4,7 @@ import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.vo.query.UserAccountVo;
 import com.faber.api.base.admin.vo.query.UserBatchUpdateDeptVo;
+import com.faber.api.base.admin.vo.query.UserBatchUpdateRoleVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.ApiToken;
@@ -70,10 +71,18 @@ public class UserController extends BaseController<UserBiz, User, String> {
     }
 
     @FaLogOpr(value = "批量更新部门", crud = LogCrudEnum.C)
-    @RequestMapping(value = "/updateInfoBatch", method = RequestMethod.POST)
+    @RequestMapping(value = "/updateBatchDept", method = RequestMethod.POST)
     @ResponseBody
-    public Ret<Boolean> updateInfoBatch(@RequestBody UserBatchUpdateDeptVo params) {
-        baseBiz.updateInfoBatch(params);
+    public Ret<Boolean> updateBatchDept(@RequestBody UserBatchUpdateDeptVo params) {
+        baseBiz.updateBatchDept(params);
+        return ok();
+    }
+
+    @FaLogOpr(value = "批量更新角色", crud = LogCrudEnum.C)
+    @RequestMapping(value = "/updateBatchRole", method = RequestMethod.POST)
+    @ResponseBody
+    public Ret<Boolean> updateBatchRole(@RequestBody UserBatchUpdateRoleVo params) {
+        baseBiz.updateBatchRole(params);
         return ok();
     }
 

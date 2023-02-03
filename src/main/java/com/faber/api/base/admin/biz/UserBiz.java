@@ -12,6 +12,7 @@ import com.faber.api.base.admin.entity.UserToken;
 import com.faber.api.base.admin.mapper.UserMapper;
 import com.faber.api.base.admin.vo.query.UserAccountVo;
 import com.faber.api.base.admin.vo.query.UserBatchUpdateDeptVo;
+import com.faber.api.base.admin.vo.query.UserBatchUpdateRoleVo;
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.config.utils.user.UserCheckUtil;
@@ -299,11 +300,20 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     }
 
     @Transactional
-    public void updateInfoBatch(UserBatchUpdateDeptVo params) {
+    public void updateBatchDept(UserBatchUpdateDeptVo params) {
         lambdaUpdate()
                 .set(User::getDepartmentId, params.getDepartmentId())
                 .in(User::getId, params.getUserIds())
                 .update();
+
+        delUserCacheByIds(params.getUserIds());
+    }
+
+    @Transactional
+    public void updateBatchRole(UserBatchUpdateRoleVo params) {
+        params.getUserIds().forEach(userId -> {
+            rbacUserRoleBiz.changeUserRoles(userId, params.getRoleIds());
+        });
 
         delUserCacheByIds(params.getUserIds());
     }
