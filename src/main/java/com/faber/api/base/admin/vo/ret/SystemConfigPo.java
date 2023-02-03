@@ -1,5 +1,6 @@
 package com.faber.api.base.admin.vo.ret;
 
+import com.faber.api.base.admin.enums.ConfigSysSafePasswordTypeEnum;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -56,5 +57,17 @@ public class SystemConfigPo implements Serializable {
      * [安全]是否开启验证码
      */
     private Boolean safeCaptchaOn;
+    /**
+     * [安全]密码类型
+     */
+    private ConfigSysSafePasswordTypeEnum safePasswordType;
+    /**
+     * [安全]密码最小长度
+     */
+    private Integer safePasswordLenMin;
+    /**
+     * [安全]密码最大长度
+     */
+    private Integer safePasswordLenMax;
 
 }

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.faber.api.base.admin.enums.ConfigSysSafePasswordTypeEnum;
 import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
 import com.faber.core.bean.BaseDelEntity;
@@ -64,9 +65,21 @@ public class ConfigSys extends BaseDelEntity {
          */
         private String portalLink;
         /**
-         * [安全]是否开启验证码：
+         * [安全]是否开启验证码
          */
         private Boolean safeCaptchaOn;
+        /**
+         * [安全]密码类型
+         */
+        private ConfigSysSafePasswordTypeEnum safePasswordType;
+        /**
+         * [安全]密码最小长度
+         */
+        private Integer safePasswordLenMin;
+        /**
+         * [安全]密码最大长度
+         */
+        private Integer safePasswordLenMax;
         /**
          * [存储][本地]目录
          */
