@@ -6,6 +6,7 @@ import com.faber.api.base.admin.vo.query.UserAccountVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.ApiToken;
+import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.vo.msg.Ret;
 import com.faber.core.web.rest.BaseController;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +36,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
         return ok(o);
     }
 
-    @FaLogOpr("重置密码")
+    @FaLogOpr(value = "重置密码", crud = LogCrudEnum.C)
     @RequestMapping(value = "/resetPwd", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> resetPwd(@RequestBody Map<String, Object> params) {
@@ -43,7 +44,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
         return ok();
     }
 
-    @FaLogOpr("更新个人信息")
+    @FaLogOpr(value = "更新个人信息", crud = LogCrudEnum.C)
     @RequestMapping(value = "/updateMine", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> updateMine(@Valid @RequestBody UserAccountVo vo) {
@@ -51,7 +52,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
         return ok();
     }
 
-    @FaLogOpr("更新个人密码")
+    @FaLogOpr(value = "更新个人密码", crud = LogCrudEnum.C)
     @RequestMapping(value = "/updateMyPwd", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> updateMyPwd(@RequestBody Map<String, Object> params) {
@@ -59,7 +60,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
         return ok();
     }
 
-    @FaLogOpr("更新个人ApiToken")
+    @FaLogOpr(value = "更新个人ApiToken", crud = LogCrudEnum.C)
     @RequestMapping(value = "/updateMyApiToken", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> updateMyApiToken() {
@@ -67,7 +68,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
         return ok();
     }
 
-    @FaLogOpr("批量更新密码")
+    @FaLogOpr(value = "批量更新密码", crud = LogCrudEnum.C)
     @RequestMapping(value = "/accountAdminUpdatePwd", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> accountAdminUpdatePwd(@RequestBody Map<String, Object> params) {
@@ -75,7 +76,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
         return ok();
     }
 
-    @FaLogOpr("批量删除账户")
+    @FaLogOpr(value = "批量删除账户", crud = LogCrudEnum.C)
     @RequestMapping(value = "/accountAdminDelete", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> accountAdminDelete(@RequestBody Map<String, Object> params) {
