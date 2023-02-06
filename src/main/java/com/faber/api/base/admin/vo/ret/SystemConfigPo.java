@@ -58,6 +58,10 @@ public class SystemConfigPo implements Serializable {
      */
     private Boolean safeCaptchaOn;
     /**
+     * [安全]是否开启注册
+     */
+    private Boolean safeRegistrationOn;
+    /**
      * [安全]密码类型
      */
     private ConfigSysSafePasswordTypeEnum safePasswordType;
