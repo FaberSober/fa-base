@@ -19,6 +19,7 @@ import lombok.Data;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Null;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -102,5 +103,10 @@ public class User extends BaseDelEntity {
     @ExcelProperty("部门")
     @TableField(exist = false)
     private String departmentName;
+
+    public void setRoleId(Long roleId) {
+        if (this.roleIds == null) this.roleIds = new ArrayList<>();
+        this.roleIds.add(roleId);
+    }
 
 }

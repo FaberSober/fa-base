@@ -3,6 +3,7 @@ package com.faber.api.base.rbac.biz;
 import com.faber.api.base.rbac.mapper.RbacRoleMapper;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.core.config.redis.annotation.FaCacheClear;
+import com.faber.core.exception.BuzzException;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +35,13 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     @Override
     public boolean removeById(Serializable id) {
         return super.removeById(id);
+    }
+
+    public RbacRole getRoleByName(String name) {
+        long count = lambdaQuery().eq(RbacRole::getName, name).count();
+        if (count != 1) throw new BuzzException("请联系管理检查角色配置：" + name);
+
+        return lambdaQuery().eq(RbacRole::getName, name).one();
     }
 
 }

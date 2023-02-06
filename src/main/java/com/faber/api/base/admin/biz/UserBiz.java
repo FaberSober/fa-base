@@ -10,10 +10,8 @@ import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
 import com.faber.api.base.admin.mapper.UserMapper;
-import com.faber.api.base.admin.vo.query.UserAccountVo;
-import com.faber.api.base.admin.vo.query.UserBatchUpdateDeptVo;
-import com.faber.api.base.admin.vo.query.UserBatchUpdatePwdVo;
-import com.faber.api.base.admin.vo.query.UserBatchUpdateRoleVo;
+import com.faber.api.base.admin.vo.query.*;
+import com.faber.api.base.rbac.biz.RbacRoleBiz;
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.config.utils.user.UserCheckUtil;
@@ -24,6 +22,7 @@ import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
 import com.faber.core.exception.auth.UserInvalidException;
+import com.faber.core.vo.msg.Ret;
 import com.faber.core.vo.query.QueryParams;
 import com.faber.core.web.biz.BaseBiz;
 import org.apache.commons.collections4.MapUtils;
@@ -36,6 +35,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -64,6 +64,10 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     @Lazy
     @Resource
     private RbacUserRoleBiz rbacUserRoleBiz;
+
+    @Lazy
+    @Resource
+    private RbacRoleBiz rbacRoleBiz;
 
     @Lazy
     @Resource
@@ -372,6 +376,36 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         if (userToken == null || !userToken.getValid()) throw new BuzzException("Token Not Valid");
 
         return super.getById(userToken.getUserId());
+    }
+
+    public Long jumpCount(UserJumpCountVo query) {
+        if (ObjectUtil.isAllEmpty(query.getUsername(), query.getTel())) return 0L;
+        return lambdaQuery()
+                .eq(query.getUsername() != null, User::getUsername, query.getUsername())
+                .eq(query.getTel() != null, User::getTel, query.getTel())
+                .count();
+    }
+
+    public void registry(UserRegistryVo params) {
+        User entity = new User();
+        BeanUtils.copyProperties(params, entity);
+
+        this.checkBeanValid(entity);
+
+        // 初始化密码888888
+        String password = encoder.encode(params.getPassword());
+        entity.setPassword(password);
+
+        entity.setStatus(true);
+        entity.setDepartmentId("1");
+
+        super.save(entity);
+
+        // 设置初始角色
+        RbacRole rbacRole = rbacRoleBiz.getRoleByName(CommonConstants.REGISTRY_USER_ROLE_NAME);
+        entity.setRoleId(rbacRole.getId());
+
+        this.updateUserRoles(entity);
     }
 
 }

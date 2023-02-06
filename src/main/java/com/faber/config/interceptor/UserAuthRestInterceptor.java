@@ -1,6 +1,7 @@
 package com.faber.config.interceptor;
 
 import com.faber.api.base.admin.biz.UserBiz;
+import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.api.base.admin.entity.User;
@@ -27,6 +28,14 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // 配置该注解，说明在上下文中注入当前操作用户为admin
+        AdminOpr adminOpr = getMethodAnno(handler, AdminOpr.class);
+        if (adminOpr != null) {
+            User user = userBiz.getById(1L);
+            setUserLogin(user);
+            return super.preHandle(request, response, handler);
+        }
+
         // 配置该注解，说明不进行用户拦截
         IgnoreUserToken ignoreUserToken = getMethodAnno(handler, IgnoreUserToken.class);
         if (ignoreUserToken != null) {

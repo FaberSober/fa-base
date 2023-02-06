@@ -2,16 +2,17 @@ package com.faber.api.base.admin.rest;
 
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
-import com.faber.api.base.admin.vo.query.UserAccountVo;
-import com.faber.api.base.admin.vo.query.UserBatchUpdateDeptVo;
-import com.faber.api.base.admin.vo.query.UserBatchUpdatePwdVo;
-import com.faber.api.base.admin.vo.query.UserBatchUpdateRoleVo;
+import com.faber.api.base.admin.vo.query.*;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
+import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
+import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.vo.msg.Ret;
+import com.faber.core.vo.query.QueryParams;
 import com.faber.core.web.rest.BaseController;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -100,6 +101,24 @@ public class UserController extends BaseController<UserBiz, User, String> {
     @ResponseBody
     public Ret<Boolean> accountAdminDelete(@RequestBody Map<String, Object> params) {
         baseBiz.accountAdminDelete(params);
+        return ok();
+    }
+
+    @FaLogOpr(value = "不鉴权计数", crud = LogCrudEnum.R)
+    @RequestMapping(value = "/jumpCount", method = RequestMethod.POST)
+    @ResponseBody
+    @IgnoreUserToken
+    public Ret<Long> jumpCount(@RequestBody UserJumpCountVo query) {
+        long count = baseBiz.jumpCount(query);
+        return ok(count);
+    }
+
+    @FaLogOpr(value = "注册", crud = LogCrudEnum.R)
+    @RequestMapping(value = "/registry", method = RequestMethod.POST)
+    @ResponseBody
+    @AdminOpr
+    public Ret<Boolean> registry(@Validated @RequestBody UserRegistryVo params) {
+        baseBiz.registry(params);
         return ok();
     }
 
