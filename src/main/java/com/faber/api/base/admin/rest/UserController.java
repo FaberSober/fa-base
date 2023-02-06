@@ -122,4 +122,13 @@ public class UserController extends BaseController<UserBiz, User, String> {
         return ok();
     }
 
+    @FaLogOpr(value = "重置密码", crud = LogCrudEnum.R)
+    @RequestMapping(value = "/forgetResetPwd", method = RequestMethod.POST)
+    @ResponseBody
+    @AdminOpr
+    public Ret<Boolean> forgetResetPwd(@Validated @RequestBody UserForgetResetPwdVo params) {
+        baseBiz.forgetResetPwd(params);
+        return ok();
+    }
+
 }

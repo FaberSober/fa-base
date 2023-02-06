@@ -6,6 +6,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alicp.jetcache.anno.CacheInvalidate;
 import com.alicp.jetcache.anno.Cached;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
@@ -35,6 +36,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -406,6 +408,22 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         entity.setRoleId(rbacRole.getId());
 
         this.updateUserRoles(entity);
+    }
+
+    public void forgetResetPwd(UserForgetResetPwdVo params) {
+        LambdaQueryChainWrapper<User> chainWrapper = lambdaQuery()
+                .eq(User::getUsername, params.getUsername())
+                .eq(User::getTel, params.getTel());
+        long count = chainWrapper.count();
+        if (count != 1) throw new BuzzException("未找到匹配账户，请确认账户、手机号");
+
+        User user = chainWrapper.one();
+
+        String password = encryptPwd(params.getPassword());
+        lambdaUpdate()
+                .set(User::getPassword, password)
+                .eq(User::getId, user.getId())
+                .update();
     }
 
 }
