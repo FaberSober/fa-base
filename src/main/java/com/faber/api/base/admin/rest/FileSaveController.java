@@ -46,6 +46,16 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
         baseBiz.getFilePreview(fileId);
     }
 
+    @FaLogOpr("文件字符获取")
+    @GetMapping("/getFileStr/{fileId}")
+    @ResponseBody
+    @IgnoreUserToken
+    @LogNoRet
+    public Ret<String> getFileStr(@PathVariable("fileId") String fileId) {
+        String data = baseBiz.getFileStr(fileId);
+        return ok(data);
+    }
+
 //    @FaLogOpr("七牛云token")
 //    @GetMapping("/getQiniuUploadToken")
 //    @ResponseBody

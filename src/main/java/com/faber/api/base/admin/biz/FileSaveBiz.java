@@ -26,6 +26,8 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author Farando
@@ -136,6 +138,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
             response.sendRedirect(URLUtil.encode(fileSave.getThUrl()));
         }
+    }
+
+    public String getFileStr(String fileId) {
+        File file = getFileObj(fileId);
+        return FileUtil.readString(file, StandardCharsets.UTF_8);
     }
 
     public FileSave createTmpFile(String prefix, String suffix) {
