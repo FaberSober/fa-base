@@ -2,6 +2,7 @@ package com.faber.api.base.admin.biz;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.file.FileNameUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.digest.DigestUtil;
@@ -135,6 +136,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
             response.sendRedirect(URLUtil.encode(fileSave.getThUrl()));
         }
+    }
+
+    public FileSave createTmpFile(String prefix, String suffix) {
+        File tmpFile = FileUtil.createTempFile(prefix, suffix, false);
+        return upload(tmpFile);
     }
 
     @Override
