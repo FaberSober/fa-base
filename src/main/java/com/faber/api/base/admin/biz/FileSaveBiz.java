@@ -66,7 +66,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     }
 
 
-    public FileSave upload(File file) throws IOException {
+    public FileSave upload(File file) {
         UploadPretreatment uploadPretreatment = fileStorageService.of(file);
 
         String extName = FileNameUtil.extName(file.getName());
