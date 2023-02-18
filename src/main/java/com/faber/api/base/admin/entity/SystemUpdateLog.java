@@ -28,6 +28,12 @@ public class SystemUpdateLog implements Serializable {
     @TableId(type = IdType.AUTO)
     private Integer id;
 
+    @ExcelProperty("模块编码")
+    private String no;
+
+    @ExcelProperty("模块名称")
+    private String name;
+
     @ExcelProperty("版本号")
     private Integer ver;
 
@@ -36,6 +42,9 @@ public class SystemUpdateLog implements Serializable {
 
     @ExcelProperty("备注信息")
     private String remark;
+
+    @ExcelProperty("SQL执行内容")
+    private String log;
 
     @ExcelProperty("升级日期")
     private Date crtTime;
