@@ -17,3 +17,7 @@ spring:
     host: ${REDIS_HOST:localhost}
     port: ${REDIS_PORT:6379}
     password: fa@redis#1276
+
+socketio:
+  host: 127.0.0.1
+  port: 18081
