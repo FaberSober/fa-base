@@ -1,4 +1,4 @@
-package utils;
+package com.faber.base.utils;
 
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
