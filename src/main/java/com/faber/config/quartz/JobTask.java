@@ -70,7 +70,7 @@ public class JobTask {
 //            scheduler.deleteJob(JobKey.jobKey(jonKeyName, Scheduler.DEFAULT_GROUP));
 //            log.info("---任务[" + triggerKey.getName() + "]删除成功-------");
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.error(e.getMessage(), e);
         }
         return false;
     }
@@ -98,7 +98,8 @@ public class JobTask {
                 log.info("---任务[{}]已经运行，请勿再次启动-------", triggerKey.getName());
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+//            throw new RuntimeException(e);
+            log.error(e.getMessage(), e);
         }
         return false;
     }
@@ -130,7 +131,7 @@ public class JobTask {
             log.info("---任务[{}]更新成功-------", triggerKey.getName());
             return true;
         } catch (SchedulerException e) {
-            e.printStackTrace();
+            log.error(e.getMessage(), e);
             throw new RuntimeException(e.getMessage());
         }
     }
