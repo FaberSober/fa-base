@@ -35,7 +35,7 @@ public class SystemUpdateLog implements Serializable {
     private String name;
 
     @ExcelProperty("版本号")
-    private Integer ver;
+    private Long ver;
 
     @ExcelProperty("版本编码")
     private String verNo;

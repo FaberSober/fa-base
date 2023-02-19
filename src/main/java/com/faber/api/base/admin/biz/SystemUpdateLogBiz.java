@@ -1,24 +1,36 @@
 package com.faber.api.base.admin.biz;
 
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.ClassUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
+import com.alibaba.druid.pool.DruidDataSource;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
 import com.faber.api.base.admin.mapper.SystemUpdateLogMapper;
+import com.faber.core.config.dbinit.DbInit;
+import com.faber.core.config.dbinit.vo.FaDdl;
+import com.faber.core.config.dbinit.vo.FaDdlTableCreate;
+import com.faber.core.utils.FaDateUtils;
+import com.faber.core.utils.FaDbUtils;
 import com.faber.core.web.biz.BaseBiz;
 import com.faber.core.utils.FaResourceUtils;
 import org.apache.ibatis.jdbc.ScriptRunner;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ResourceUtils;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import javax.sql.DataSource;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * BASE-系统版本更新日志表
@@ -30,51 +42,186 @@ import java.util.Date;
 @Service
 public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpdateLog> {
 
+    @Resource
+    DataSource dataSource;
+
+    /**
+     * 数据库名称
+     */
+    private String dbName;
+
+    @PostConstruct
+    public void init() {
+        DruidDataSource dataSource = SpringUtil.getBean(DruidDataSource.class);
+        dbName = FaDbUtils.getNameFromUrl(dataSource.getUrl());
+    }
+
+    public void initDb() {
+        ClassUtil.scanPackageBySuper("com.faber", DbInit.class)
+                .forEach(clazz -> {
+                    initOneBuzz((Class<DbInit>) clazz);
+                });
+    }
+
+    public void initOneBuzz(Class<DbInit> clazz) {
+        DbInit dbInit = SpringUtil.getBean(clazz);
+
+        // 1. 获取数据库操作信息
+        String no = dbInit.getNo();
+        String name = dbInit.getName();
+        List<FaDdl> list = dbInit.getDdlList();
+
+        // 2. 查询数据库当前记录最新的版本
+        SystemUpdateLog latestLog = this.getLatestByNo(no);
+
+        // 3. 过滤得到需要做更新的数据库操作list
+        List<FaDdl> todoList = list.stream().filter(i -> {
+            if (latestLog == null) return true;
+            if (i.getVer() > latestLog.getVer()) {
+                return true;
+            }
+            return false;
+        }).collect(Collectors.toList());
+
+        // 按ver版本号升序排列
+        todoList.sort(Comparator.comparing(FaDdl::getVer));
+
+        // 4. 循环执行数据库操作
+        for (FaDdl faDdl : todoList) {
+            try {
+                initOneFaDdl(no, name, faDdl);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public void initOneFaDdl(String no, String name, FaDdl faDdl) throws SQLException {
+        StringBuilder sb = new StringBuilder();
+
+        // 1. 执行导入sql-create table
+        for (FaDdlTableCreate tableCreate : faDdl.getTableCreateList()) {
+            try {
+                // 判断数据表是否存在
+                Map<String, Object> tableSchema = getTableSchema(tableCreate.getTableName());
+                if (tableSchema != null) {
+                    sb.append("-- " + FaDateUtils.nowLog() + "  WARN 表" + tableCreate.getTableName() + "已存在，不执行建表语句\r\n");
+                    continue;
+                }
+
+                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 创建表" + tableCreate.getTableName() + "--->>>\r\n");
+                String sqlStr = FaResourceUtils.getResourceString("classpath:" + tableCreate.getSqlPath());
+
+                // 执行建表语句
+                executeSql(sqlStr);
+
+                sb.append(sqlStr).append("\r\n");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        // 2. 记录升级日志
+        SystemUpdateLog updateLog = new SystemUpdateLog();
+        updateLog.setNo(no);
+        updateLog.setName(name);
+        updateLog.setVer(faDdl.getVer());
+        updateLog.setVerNo(faDdl.getVerNo());
+        updateLog.setLog(sb.toString());
+
+        super.save(updateLog);
+    }
+
+    public Map<String, Object> getTableSchema(String tableName) {
+        try {
+            return baseMapper.queryTableSchema(this.dbName, tableName);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+        return null;
+    }
+
+    /**
+     * 查询数据库当前记录最新的版本
+     * @param no
+     * @return
+     */
+    public SystemUpdateLog getLatestByNo(String no) {
+        try {
+            return lambdaQuery()
+                    .eq(SystemUpdateLog::getNo, no)
+                    .orderByDesc(SystemUpdateLog::getVer)
+                    .last("limit 1")
+                    .one();
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+        return null;
+    }
+
+    /**
+     * 执行sql脚本
+     * @param sql
+     * @throws SQLException
+     */
+    public void executeSql(String sql) throws SQLException {
+        Connection conn = dataSource.getConnection();
+        // 执行sql脚本
+        ScriptRunner runner = new ScriptRunner(conn);
+        runner.setFullLineDelimiter(false);
+        runner.setDelimiter(";");//语句结束符号设置
+        runner.setLogWriter(null);//日志数据输出，这样就不会输出过程
+        runner.setSendFullScript(false);
+        runner.setAutoCommit(true);
+        runner.setStopOnError(true);
+        runner.runScript(new StringReader(sql));
+    }
+
     /**
      * 初始化&更新数据库。
      * 读取src/main/resources/data/updateLog.json文件，执行导入sql。
      */
-    public void initAndUpdateDb() throws IOException, SQLException {
-        JSONObject json = FaResourceUtils.getResourceJson("classpath:data/updateLog.json");
-
-        // 获取配置的数据源
-        DataSource dataSource = SpringUtil.getBean(DataSource.class);
-        Connection conn = dataSource.getConnection();
-
-        int curVer = baseMapper.getCurVerId();
-        JSONArray logs = json.getJSONArray("logs");
-        for (int i = 0; i < logs.size(); i++) {
-            JSONObject log = logs.getJSONObject(i);
-
-            int ver = log.getInt("ver");
-            if (ver <= curVer) continue;
-
-            // 记录执行日志
-            String verNo = log.getStr("verNo");
-            String remark = log.getStr("remark");
-            String sql = log.getStr("sql");
-
-            SystemUpdateLog logEntity = new SystemUpdateLog();
-            logEntity.setVer(ver);
-            logEntity.setVerNo(verNo);
-            logEntity.setRemark(remark);
-            logEntity.setCrtTime(new Date());
-            save(logEntity);
-
-            // 按行读取
-            File sqlFile = ResourceUtils.getFile("classpath:data/sql/" + sql);
-
-            // 执行sql脚本
-            ScriptRunner runner = new ScriptRunner(conn);
-            runner.setFullLineDelimiter(false);
-            runner.setDelimiter(";");//语句结束符号设置
-            runner.setLogWriter(null);//日志数据输出，这样就不会输出过程
-            runner.setSendFullScript(false);
-            runner.setAutoCommit(true);
-            runner.setStopOnError(true);
-            runner.runScript(new InputStreamReader(new FileInputStream(sqlFile), "utf8"));
-            _logger.info(String.format("【%s】执行成功", sql));
-        }
-    }
+//    public void initAndUpdateDb() throws IOException, SQLException {
+//        JSONObject json = FaResourceUtils.getResourceJson("classpath:data/updateLog.json");
+//
+//        // 获取配置的数据源
+//        DataSource dataSource = SpringUtil.getBean(DataSource.class);
+//        Connection conn = dataSource.getConnection();
+//
+//        int curVer = baseMapper.getCurVerId();
+//        JSONArray logs = json.getJSONArray("logs");
+//        for (int i = 0; i < logs.size(); i++) {
+//            JSONObject log = logs.getJSONObject(i);
+//
+//            long ver = log.getLong("ver");
+//            if (ver <= curVer) continue;
+//
+//            // 记录执行日志
+//            String verNo = log.getStr("verNo");
+//            String remark = log.getStr("remark");
+//            String sql = log.getStr("sql");
+//
+//            SystemUpdateLog logEntity = new SystemUpdateLog();
+//            logEntity.setVer(ver);
+//            logEntity.setVerNo(verNo);
+//            logEntity.setRemark(remark);
+//            logEntity.setCrtTime(new Date());
+//            save(logEntity);
+//
+//            // 按行读取
+//            File sqlFile = ResourceUtils.getFile("classpath:data/sql/" + sql);
+//
+//            // 执行sql脚本
+//            ScriptRunner runner = new ScriptRunner(conn);
+//            runner.setFullLineDelimiter(false);
+//            runner.setDelimiter(";");//语句结束符号设置
+//            runner.setLogWriter(null);//日志数据输出，这样就不会输出过程
+//            runner.setSendFullScript(false);
+//            runner.setAutoCommit(true);
+//            runner.setStopOnError(true);
+//            runner.runScript(new InputStreamReader(new FileInputStream(sqlFile), "utf8"));
+//            _logger.info(String.format("【%s】执行成功", sql));
+//        }
+//    }
 
 }

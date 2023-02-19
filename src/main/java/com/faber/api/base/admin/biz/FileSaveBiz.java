@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.file.FileNameUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.xuyanwu.spring.file.storage.FileInfo;
@@ -155,7 +156,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         log.info("------------------------ Scan Database Storage Config ------------------------");
         LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
         String storeLocalPath = configSysService.getStoreLocalPath();
-        if (!storeLocalPath.endsWith(File.separator)) {
+        if (StrUtil.isNotEmpty(storeLocalPath) && !storeLocalPath.endsWith(File.separator)) {
             storeLocalPath = storeLocalPath + File.separator;
         }
         log.info("storeLocalPath: {}", storeLocalPath);

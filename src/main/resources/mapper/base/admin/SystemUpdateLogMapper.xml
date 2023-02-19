@@ -7,4 +7,8 @@
         SELECT IFNULL(max(ver), 1) as max_ver FROM base_system_update_log
     </select>
 
+    <select id="queryTableSchema" parameterType="map" resultType="map">
+        SELECT t.* FROM information_schema.`TABLES` t WHERE t.TABLE_SCHEMA = #{schema} AND t.TABLE_NAME = #{tableName} LIMIT 1
+    </select>
+
 </mapper>

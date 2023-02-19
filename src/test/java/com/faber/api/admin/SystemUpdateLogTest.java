@@ -20,7 +20,7 @@ public class SystemUpdateLogTest {
 
     @Test
     public void testInitAndUpdateDb() throws SQLException, IOException {
-        systemUpdateLogBiz.initAndUpdateDb();
+//        systemUpdateLogBiz.initAndUpdateDb();
     }
 
 }

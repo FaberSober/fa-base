@@ -2,6 +2,7 @@ package com.faber.config.quartz;
 
 import com.faber.api.base.admin.biz.JobBiz;
 import com.faber.api.base.admin.entity.Job;
+import com.faber.core.constant.FaSetting;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
@@ -24,8 +25,16 @@ public class DbJobsStartRunner implements CommandLineRunner {
     @Resource
     private JobTask jobTask;
 
+    @Resource
+    private FaSetting faSetting;
+
     @Override
     public void run(String... args) throws Exception {
+        if (!faSetting.getJob().getStartOnBoot()) {
+            log.warn("------------系统设置线程不开机启动------------");
+            return;
+        }
+
         log.info("------------线程启动------------");
         List<Job> jobList = jobBiz.getStartUpJobs();
 

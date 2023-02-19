@@ -4,11 +4,13 @@ import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.biz.ConfigSysBiz;
 import com.faber.api.base.admin.entity.ConfigSys;
 import com.faber.core.service.ConfigSysService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.io.IOException;
 
+@Slf4j
 @Service
 public class ConfigSysServiceImpl implements ConfigSysService {
 
@@ -17,11 +19,16 @@ public class ConfigSysServiceImpl implements ConfigSysService {
 
     @Override
     public String getStoreLocalPath() {
-        ConfigSys configSys = configSysBiz.getOne();
-        if (configSys == null || configSys.getData() == null || StrUtil.isEmpty(configSys.getData().getStoreLocalPath())) {
-            return ConfigSysService.super.getStoreLocalPath();
+        try {
+            ConfigSys configSys = configSysBiz.getOne();
+            if (configSys == null || configSys.getData() == null || StrUtil.isEmpty(configSys.getData().getStoreLocalPath())) {
+                return ConfigSysService.super.getStoreLocalPath();
+            }
+            return configSys.getData().getStoreLocalPath();
+        } catch (Exception e) {
+            log.error(e.getMessage(),e);
         }
-        return configSys.getData().getStoreLocalPath();
+        return null;
     }
 
 }

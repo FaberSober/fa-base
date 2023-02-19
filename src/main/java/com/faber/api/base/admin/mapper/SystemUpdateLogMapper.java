@@ -2,6 +2,9 @@ package com.faber.api.base.admin.mapper;
 
 import com.faber.core.config.mybatis.base.FaBaseMapper;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.Map;
 
 /**
  * BASE-系统版本更新日志表
@@ -17,5 +20,7 @@ public interface SystemUpdateLogMapper extends FaBaseMapper<SystemUpdateLog> {
      * @return
      */
     int getCurVerId();
+
+    Map<String, Object> queryTableSchema(@Param("schema") String schema, @Param("tableName") String tableName);
 
 }
