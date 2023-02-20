@@ -14,6 +14,7 @@ import com.faber.core.utils.FaDateUtils;
 import com.faber.core.utils.FaDbUtils;
 import com.faber.core.web.biz.BaseBiz;
 import com.faber.core.utils.FaResourceUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.jdbc.ScriptRunner;
 import org.springframework.stereotype.Service;
 
@@ -87,6 +88,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     }
 
     private void initOneFaDdl(String no, String name, FaDdl faDdl) {
+        _logger.info("init db no={} name={} ver={} verNo={}", no, name, faDdl.getVer(), faDdl.getVerNo());
         StringBuilder sb = new StringBuilder();
 
         // 1.1 执行导入sql-create table
@@ -107,7 +109,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
                 sb.append(sqlStr).append("\r\n");
             } catch (Exception e) {
-                log.error(e.getMessage(), e);
+                _logger.error(e.getMessage(), e);
                 sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 创建表" + tableCreate.getTableName() + "失败--->>>\r\n");
                 sb.append("-- " + e.getMessage() + "\r\n");
                 sb.append(e.getStackTrace().toString());
@@ -132,7 +134,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
                 sb.append(sqlStr).append("\r\n");
             } catch (Exception e) {
-                log.error(e.getMessage(), e);
+                _logger.error(e.getMessage(), e);
                 sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 新增表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "失败--->>>\r\n");
                 sb.append("-- " + e.getMessage() + "\r\n");
                 sb.append(e.getStackTrace().toString());
@@ -150,7 +152,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
                 sb.append(sqlStr).append("\r\n");
             } catch (Exception e) {
-                log.error(e.getMessage(), e);
+                _logger.error(e.getMessage(), e);
                 sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 执行SQL" + sql.getComment() + "失败--->>>\r\n");
                 sb.append("-- " + e.getMessage() + "\r\n");
                 sb.append(e.getStackTrace().toString());
@@ -163,6 +165,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         updateLog.setName(name);
         updateLog.setVer(faDdl.getVer());
         updateLog.setVerNo(faDdl.getVerNo());
+        updateLog.setRemark(faDdl.getRemark());
         updateLog.setLog(sb.toString());
 
         super.save(updateLog);
@@ -172,7 +175,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         try {
             return baseMapper.queryTableSchema(this.dbName, tableName);
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
+            _logger.error(e.getMessage(), e);
         }
         return null;
     }
@@ -181,7 +184,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         try {
             return baseMapper.queryColSchema(this.dbName, tableName, colName);
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
+            _logger.error(e.getMessage(), e);
         }
         return null;
     }
@@ -199,7 +202,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                     .last("limit 1")
                     .one();
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
+            _logger.error(e.getMessage(), e);
         }
         return null;
     }
