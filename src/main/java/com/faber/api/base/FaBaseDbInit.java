@@ -40,7 +40,8 @@ public class FaBaseDbInit implements DbInit {
         List<FaDdl> list = new ArrayList<>();
 
         list.add(new FaDdl(100_000_000L, "V1.0.0", "初始化")
-                .addSql(new FaDdlSql("初始化", "sql/1.0.0_base_full.sql")));
+                .addSql(new FaDdlSql("初始化表结构", "sql/1.0.0_base_full.sql"))
+                .addSql(new FaDdlSql("初始化表数据", "sql/1.0.0_base_data.sql")));
 
         return list;
     }
