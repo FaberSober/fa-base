@@ -2,6 +2,7 @@ package com.faber.api.base;
 
 import com.faber.core.config.dbinit.DbInit;
 import com.faber.core.config.dbinit.vo.FaDdl;
+import com.faber.core.config.dbinit.vo.FaDdlAddColumn;
 import com.faber.core.config.dbinit.vo.FaDdlTableCreate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

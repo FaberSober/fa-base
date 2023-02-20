@@ -1,24 +1,21 @@
 package com.faber.api.base.admin.biz;
 
-import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ClassUtil;
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import com.alibaba.druid.pool.DruidDataSource;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
 import com.faber.api.base.admin.mapper.SystemUpdateLogMapper;
 import com.faber.core.config.dbinit.DbInit;
 import com.faber.core.config.dbinit.vo.FaDdl;
+import com.faber.core.config.dbinit.vo.FaDdlSql;
 import com.faber.core.config.dbinit.vo.FaDdlTableCreate;
+import com.faber.core.config.dbinit.vo.FaDdlAddColumn;
 import com.faber.core.utils.FaDateUtils;
 import com.faber.core.utils.FaDbUtils;
 import com.faber.core.web.biz.BaseBiz;
 import com.faber.core.utils.FaResourceUtils;
 import org.apache.ibatis.jdbc.ScriptRunner;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ResourceUtils;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -27,7 +24,6 @@ import java.io.*;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -88,18 +84,14 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
         // 4. 循环执行数据库操作
         for (FaDdl faDdl : todoList) {
-            try {
-                initOneFaDdl(no, name, faDdl);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
+            initOneFaDdl(no, name, faDdl);
         }
     }
 
-    public void initOneFaDdl(String no, String name, FaDdl faDdl) throws SQLException {
+    public void initOneFaDdl(String no, String name, FaDdl faDdl) {
         StringBuilder sb = new StringBuilder();
 
-        // 1. 执行导入sql-create table
+        // 1.1 执行导入sql-create table
         for (FaDdlTableCreate tableCreate : faDdl.getTableCreateList()) {
             try {
                 // 判断数据表是否存在
@@ -116,8 +108,54 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                 executeSql(sqlStr);
 
                 sb.append(sqlStr).append("\r\n");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 创建表" + tableCreate.getTableName() + "失败--->>>\r\n");
+                sb.append("-- " + e.getMessage() + "\r\n");
+                sb.append(e.getStackTrace().toString());
+            }
+        }
+
+        // 1.2 执行更新sql-add column
+        for (FaDdlAddColumn addColumn : faDdl.getAddColumnList()) {
+            try {
+                // 判断字段是否存在
+                Map<String, Object> colSchema = getColSchema(addColumn.getTableName(), addColumn.getColName());
+                if (colSchema != null) {
+                    sb.append("-- " + FaDateUtils.nowLog() + "  WARN 表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "已存在，不执行add语句\r\n");
+                    continue;
+                }
+
+                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 新增表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "--->>>\r\n");
+                String sqlStr = FaResourceUtils.getResourceString("classpath:" + addColumn.getSqlPath());
+
+                // 执行语句
+                executeSql(sqlStr);
+
+                sb.append(sqlStr).append("\r\n");
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 新增表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "失败--->>>\r\n");
+                sb.append("-- " + e.getMessage() + "\r\n");
+                sb.append(e.getStackTrace().toString());
+            }
+        }
+
+        // 1.3 执行通用DDL语句
+        for (FaDdlSql sql : faDdl.getSqlList()) {
+            try {
+                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 执行SQL " + sql.getComment() + "--->>>\r\n");
+                String sqlStr = FaResourceUtils.getResourceString("classpath:" + sql.getSqlPath());
+
+                // 执行语句
+                executeSql(sqlStr);
+
+                sb.append(sqlStr).append("\r\n");
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 执行SQL" + sql.getComment() + "失败--->>>\r\n");
+                sb.append("-- " + e.getMessage() + "\r\n");
+                sb.append(e.getStackTrace().toString());
             }
         }
 
@@ -135,6 +173,15 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     public Map<String, Object> getTableSchema(String tableName) {
         try {
             return baseMapper.queryTableSchema(this.dbName, tableName);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+        return null;
+    }
+
+    public Map<String, Object> getColSchema(String tableName, String colName) {
+        try {
+            return baseMapper.queryColSchema(this.dbName, tableName, colName);
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }

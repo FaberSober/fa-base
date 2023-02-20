@@ -23,4 +23,6 @@ public interface SystemUpdateLogMapper extends FaBaseMapper<SystemUpdateLog> {
 
     Map<String, Object> queryTableSchema(@Param("schema") String schema, @Param("tableName") String tableName);
 
+    Map<String, Object> queryColSchema(@Param("schema") String schema, @Param("tableName") String tableName, @Param("colName") String colName);
+
 }
