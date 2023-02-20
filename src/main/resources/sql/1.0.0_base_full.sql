@@ -20,8 +20,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 -- Table structure for base_area
 -- ----------------------------
-DROP TABLE IF EXISTS `base_area`;
-CREATE TABLE `base_area` (
+
+CREATE TABLE IF NOT EXISTS `base_area` (
   `id` mediumint(7) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `level` tinyint(1) unsigned NOT NULL COMMENT '层级',
   `parent_code` bigint(14) unsigned NOT NULL DEFAULT '0' COMMENT '父级行政代码',
@@ -47,8 +47,8 @@ CREATE TABLE `base_area` (
 -- ----------------------------
 -- Table structure for base_config
 -- ----------------------------
-DROP TABLE IF EXISTS `base_config`;
-CREATE TABLE `base_config` (
+
+CREATE TABLE IF NOT EXISTS `base_config` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `biz` varchar(255) NOT NULL COMMENT '业务模块',
   `type` varchar(255) NOT NULL COMMENT '配置类型',
@@ -68,8 +68,8 @@ CREATE TABLE `base_config` (
 -- ----------------------------
 -- Table structure for base_config_scene
 -- ----------------------------
-DROP TABLE IF EXISTS `base_config_scene`;
-CREATE TABLE `base_config_scene` (
+
+CREATE TABLE IF NOT EXISTS `base_config_scene` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `biz` varchar(255) NOT NULL COMMENT '业务模块',
   `name` varchar(255) NOT NULL COMMENT '场景名称',
@@ -93,8 +93,8 @@ CREATE TABLE `base_config_scene` (
 -- ----------------------------
 -- Table structure for base_config_sys
 -- ----------------------------
-DROP TABLE IF EXISTS `base_config_sys`;
-CREATE TABLE `base_config_sys` (
+
+CREATE TABLE IF NOT EXISTS `base_config_sys` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `data` json NOT NULL COMMENT '配置JSON',
   `crt_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -112,8 +112,8 @@ CREATE TABLE `base_config_sys` (
 -- ----------------------------
 -- Table structure for base_department
 -- ----------------------------
-DROP TABLE IF EXISTS `base_department`;
-CREATE TABLE `base_department` (
+
+CREATE TABLE IF NOT EXISTS `base_department` (
   `id` varchar(32) NOT NULL COMMENT 'ID',
   `name` varchar(255) NOT NULL COMMENT '部门名称',
   `description` varchar(255) DEFAULT NULL COMMENT '备注',
@@ -136,8 +136,8 @@ CREATE TABLE `base_department` (
 -- ----------------------------
 -- Table structure for base_dict
 -- ----------------------------
-DROP TABLE IF EXISTS `base_dict`;
-CREATE TABLE `base_dict` (
+
+CREATE TABLE IF NOT EXISTS `base_dict` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `code` varchar(255) NOT NULL COMMENT '编码',
   `name` varchar(255) NOT NULL COMMENT '名称',
@@ -160,8 +160,8 @@ CREATE TABLE `base_dict` (
 -- ----------------------------
 -- Table structure for base_entity_log
 -- ----------------------------
-DROP TABLE IF EXISTS `base_entity_log`;
-CREATE TABLE `base_entity_log` (
+
+CREATE TABLE IF NOT EXISTS `base_entity_log` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `biz_type` varchar(255) NOT NULL COMMENT '业务类型',
   `biz_id` varchar(255) NOT NULL COMMENT '业务ID',
@@ -177,8 +177,8 @@ CREATE TABLE `base_entity_log` (
 -- ----------------------------
 -- Table structure for base_file_save
 -- ----------------------------
-DROP TABLE IF EXISTS `base_file_save`;
-CREATE TABLE `base_file_save` (
+
+CREATE TABLE IF NOT EXISTS `base_file_save` (
   `id` varchar(32) NOT NULL COMMENT 'ID',
   `url` varchar(512) NOT NULL COMMENT '文件访问地址',
   `size` bigint(20) NOT NULL COMMENT '文件大小，单位字节',
@@ -212,8 +212,8 @@ CREATE TABLE `base_file_save` (
 -- ----------------------------
 -- Table structure for base_job
 -- ----------------------------
-DROP TABLE IF EXISTS `base_job`;
-CREATE TABLE `base_job` (
+
+CREATE TABLE IF NOT EXISTS `base_job` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `job_name` varchar(255) NOT NULL COMMENT '任务名称',
   `cron` varchar(255) NOT NULL COMMENT 'cron表达式',
@@ -236,8 +236,8 @@ CREATE TABLE `base_job` (
 -- ----------------------------
 -- Table structure for base_job_log
 -- ----------------------------
-DROP TABLE IF EXISTS `base_job_log`;
-CREATE TABLE `base_job_log` (
+
+CREATE TABLE IF NOT EXISTS `base_job_log` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `job_id` int(11) NOT NULL COMMENT '任务ID',
   `begin_time` datetime NOT NULL COMMENT '创建时间',
@@ -252,8 +252,8 @@ CREATE TABLE `base_job_log` (
 -- ----------------------------
 -- Table structure for base_log_api
 -- ----------------------------
-DROP TABLE IF EXISTS `base_log_api`;
-CREATE TABLE `base_log_api` (
+
+CREATE TABLE IF NOT EXISTS `base_log_api` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `biz` varchar(255) DEFAULT NULL COMMENT '模块',
   `opr` varchar(255) DEFAULT NULL COMMENT '操作',
@@ -288,8 +288,8 @@ CREATE TABLE `base_log_api` (
 -- ----------------------------
 -- Table structure for base_log_login
 -- ----------------------------
-DROP TABLE IF EXISTS `base_log_login`;
-CREATE TABLE `base_log_login` (
+
+CREATE TABLE IF NOT EXISTS `base_log_login` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `agent` text COMMENT '访问客户端',
   `os` varchar(255) DEFAULT NULL COMMENT '操作系统',
@@ -315,8 +315,8 @@ CREATE TABLE `base_log_login` (
 -- ----------------------------
 -- Table structure for base_msg
 -- ----------------------------
-DROP TABLE IF EXISTS `base_msg`;
-CREATE TABLE `base_msg` (
+
+CREATE TABLE IF NOT EXISTS `base_msg` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `from_user_name` varchar(255) NOT NULL COMMENT '来源用户',
   `from_user_id` varchar(32) NOT NULL COMMENT '来源用户ID',
@@ -343,8 +343,8 @@ CREATE TABLE `base_msg` (
 -- ----------------------------
 -- Table structure for base_notice
 -- ----------------------------
-DROP TABLE IF EXISTS `base_notice`;
-CREATE TABLE `base_notice` (
+
+CREATE TABLE IF NOT EXISTS `base_notice` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `title` varchar(50) NOT NULL COMMENT '标题',
   `content` varchar(255) NOT NULL COMMENT '内容',
@@ -366,8 +366,8 @@ CREATE TABLE `base_notice` (
 -- ----------------------------
 -- Table structure for base_rbac_menu
 -- ----------------------------
-DROP TABLE IF EXISTS `base_rbac_menu`;
-CREATE TABLE `base_rbac_menu` (
+
+CREATE TABLE IF NOT EXISTS `base_rbac_menu` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `parent_id` int(11) NOT NULL COMMENT '父级ID',
   `name` varchar(255) NOT NULL COMMENT '名称',
@@ -393,8 +393,8 @@ CREATE TABLE `base_rbac_menu` (
 -- ----------------------------
 -- Table structure for base_rbac_role
 -- ----------------------------
-DROP TABLE IF EXISTS `base_rbac_role`;
-CREATE TABLE `base_rbac_role` (
+
+CREATE TABLE IF NOT EXISTS `base_rbac_role` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `name` varchar(255) NOT NULL COMMENT '角色名称',
   `remarks` varchar(255) DEFAULT NULL COMMENT '角色描述',
@@ -415,8 +415,8 @@ CREATE TABLE `base_rbac_role` (
 -- ----------------------------
 -- Table structure for base_rbac_role_menu
 -- ----------------------------
-DROP TABLE IF EXISTS `base_rbac_role_menu`;
-CREATE TABLE `base_rbac_role_menu` (
+
+CREATE TABLE IF NOT EXISTS `base_rbac_role_menu` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `role_id` int(11) NOT NULL COMMENT '角色ID',
   `menu_id` int(11) NOT NULL COMMENT '权限ID',
@@ -437,8 +437,8 @@ CREATE TABLE `base_rbac_role_menu` (
 -- ----------------------------
 -- Table structure for base_rbac_user_role
 -- ----------------------------
-DROP TABLE IF EXISTS `base_rbac_user_role`;
-CREATE TABLE `base_rbac_user_role` (
+
+CREATE TABLE IF NOT EXISTS `base_rbac_user_role` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `user_id` varchar(64) NOT NULL COMMENT '用户ID',
   `role_id` int(11) NOT NULL COMMENT '角色ID',
@@ -458,8 +458,8 @@ CREATE TABLE `base_rbac_user_role` (
 -- ----------------------------
 -- Table structure for base_sms_code
 -- ----------------------------
-DROP TABLE IF EXISTS `base_sms_code`;
-CREATE TABLE `base_sms_code` (
+
+CREATE TABLE IF NOT EXISTS `base_sms_code` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `phone` varchar(15) NOT NULL COMMENT '手机号',
   `code` varchar(6) NOT NULL COMMENT '短信验证码',
@@ -471,8 +471,8 @@ CREATE TABLE `base_sms_code` (
 -- ----------------------------
 -- Table structure for base_system_update_log
 -- ----------------------------
-DROP TABLE IF EXISTS `base_system_update_log`;
-CREATE TABLE `base_system_update_log` (
+
+CREATE TABLE IF NOT EXISTS `base_system_update_log` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `no` varchar(255) NOT NULL COMMENT '模块编码',
   `name` varchar(255) NOT NULL COMMENT '模块名称',
@@ -488,8 +488,8 @@ CREATE TABLE `base_system_update_log` (
 -- ----------------------------
 -- Table structure for base_user
 -- ----------------------------
-DROP TABLE IF EXISTS `base_user`;
-CREATE TABLE `base_user` (
+
+CREATE TABLE IF NOT EXISTS `base_user` (
   `id` varchar(32) NOT NULL COMMENT 'ID',
   `department_id` varchar(32) NOT NULL COMMENT '部门ID',
   `username` varchar(255) NOT NULL COMMENT '账户',
@@ -521,8 +521,8 @@ CREATE TABLE `base_user` (
 -- ----------------------------
 -- Table structure for base_user_token
 -- ----------------------------
-DROP TABLE IF EXISTS `base_user_token`;
-CREATE TABLE `base_user_token` (
+
+CREATE TABLE IF NOT EXISTS `base_user_token` (
   `id` varchar(32) NOT NULL COMMENT 'ID',
   `user_id` varchar(32) NOT NULL COMMENT '用户ID',
   `valid` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否有效',
