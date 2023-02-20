@@ -304,7 +304,6 @@ CREATE TABLE `base_job` (
 -- ----------------------------
 BEGIN;
 INSERT INTO `base_job` (`id`, `job_name`, `cron`, `status`, `clazz_path`, `job_desc`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (1, '测试任务1', '0 0/5 * * * ?', 0, 'com.faber.config.quartz.customer.JobDemo1', '测试任务111111', '2022-09-29 15:46:31', '1', 'admin', '127.0.0.1', '2022-09-07 17:22:54', '1', 'admin', '127.0.0.1', 0);
-INSERT INTO `base_job` (`id`, `job_name`, `cron`, `status`, `clazz_path`, `job_desc`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (2, '[网盘][文件库]同步文件库信息', '0 0/1 * * * ?', 1, 'com.faber.api.disk.store.jobs.JobSyncBucketInfo', NULL, '2022-12-30 16:33:47', '1', '超级管理员', '127.0.0.1', '2022-12-30 16:34:10', '1', '超级管理员', '127.0.0.1', 0);
 COMMIT;
 
 -- ----------------------------

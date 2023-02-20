@@ -1,11 +1,13 @@
-package com.faber.config.quartz;
+package com.faber.config.runner;
 
 import com.faber.api.base.admin.biz.JobBiz;
 import com.faber.api.base.admin.entity.Job;
+import com.faber.config.quartz.JobTask;
 import com.faber.core.constant.FaSetting;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -15,6 +17,7 @@ import java.util.List;
  * @author xu.pengfei
  * @create 2022/09/29
  */
+@Order(value=10)
 @Slf4j
 @Configuration
 public class DbJobsStartRunner implements CommandLineRunner {
@@ -30,12 +33,12 @@ public class DbJobsStartRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        if (!faSetting.getJob().getStartOnBoot()) {
-            log.warn("------------系统设置线程不开机启动------------");
+        if (!faSetting.getConfig().getStartJobsOnBoot()) {
+            log.warn("------------ 系统设置开机启动不执行：扫描数据库中已经开启的定时任务 ------------");
             return;
         }
 
-        log.info("------------线程启动------------");
+        log.warn("------------ 系统设置开机启动执行：扫描数据库中已经开启的定时任务 BEGIN ------------");
         List<Job> jobList = jobBiz.getStartUpJobs();
 
         jobList.forEach(job -> {
@@ -48,6 +51,7 @@ public class DbJobsStartRunner implements CommandLineRunner {
         } else {
             log.info("------------任务启动完毕------------");
         }
+        log.warn("------------ 系统设置开机启动执行：扫描数据库中已经开启的定时任务 END ------------");
     }
 
 }

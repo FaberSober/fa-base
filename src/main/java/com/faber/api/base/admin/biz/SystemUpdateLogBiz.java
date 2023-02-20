@@ -59,7 +59,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                 .forEach(i -> initOneBuzz(i));
     }
 
-    public void initOneBuzz(DbInit dbInit) {
+    private void initOneBuzz(DbInit dbInit) {
         // 1. 获取数据库操作信息
         String no = dbInit.getNo();
         String name = dbInit.getName();
@@ -86,7 +86,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         }
     }
 
-    public void initOneFaDdl(String no, String name, FaDdl faDdl) {
+    private void initOneFaDdl(String no, String name, FaDdl faDdl) {
         StringBuilder sb = new StringBuilder();
 
         // 1.1 执行导入sql-create table
