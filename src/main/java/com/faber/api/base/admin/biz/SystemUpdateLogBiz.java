@@ -54,14 +54,12 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
     public void initDb() {
         ClassUtil.scanPackageBySuper("com.faber", DbInit.class)
-                .forEach(clazz -> {
-                    initOneBuzz((Class<DbInit>) clazz);
-                });
+                .stream().map(clazz -> (DbInit) SpringUtil.getBean(clazz))
+                .sorted(Comparator.comparing(DbInit::getOrder))
+                .forEach(i -> initOneBuzz(i));
     }
 
-    public void initOneBuzz(Class<DbInit> clazz) {
-        DbInit dbInit = SpringUtil.getBean(clazz);
-
+    public void initOneBuzz(DbInit dbInit) {
         // 1. 获取数据库操作信息
         String no = dbInit.getNo();
         String name = dbInit.getName();
