@@ -73,9 +73,9 @@ COMMIT;
 -- ----------------------------
 BEGIN;
 -- 系统设置
-INSERT INTO `base_rbac_role_menu` (`id`, `role_id`, `menu_id`, `half_checked`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (1, 1, 3, 0, '2023-02-20 16:16:32', '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
+INSERT INTO `base_rbac_role_menu` (`id`, `role_id`, `menu_id`, `half_checked`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (1, 1, 3, 1, '2023-02-20 16:16:32', '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
 -- 智能人事
-INSERT INTO `base_rbac_role_menu` (`id`, `role_id`, `menu_id`, `half_checked`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (2, 1, 4, 0, '2023-02-20 16:16:32', '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
+INSERT INTO `base_rbac_role_menu` (`id`, `role_id`, `menu_id`, `half_checked`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (2, 1, 4, 1, '2023-02-20 16:16:32', '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
 -- 角色权限管理
 INSERT INTO `base_rbac_role_menu` (`id`, `role_id`, `menu_id`, `half_checked`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (3, 1, 9, 0, '2023-02-20 16:16:32', '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
 COMMIT;
