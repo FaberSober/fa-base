@@ -1,12 +1,14 @@
 package com.faber.api.base.rbac.biz;
 
-import com.faber.api.base.rbac.mapper.RbacRoleMenuMapper;
 import com.faber.api.base.rbac.entity.RbacRoleMenu;
+import com.faber.api.base.rbac.mapper.RbacRoleMenuMapper;
 import com.faber.api.base.rbac.vo.RoleMenuVo;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.web.biz.BaseBiz;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +23,10 @@ import java.util.stream.Collectors;
  */
 @Service
 public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
+
+    @Lazy
+    @Resource
+    RbacMenuBiz rbacMenuBiz;
 
     @FaCacheClear(pre = "rbac:")
     @Override
@@ -53,8 +59,8 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
     public RoleMenuVo getRoleMenu(Long roleId) {
         RoleMenuVo vo = new RoleMenuVo();
         vo.setRoleId(roleId);
-        vo.setCheckedRoleIds(this.getMenuIdsWithHalfCheck(roleId, false));
-        vo.setHalfCheckedRoleIds(this.getMenuIdsWithHalfCheck(roleId, true));
+        vo.setCheckedMenuIds(this.getMenuIdsWithHalfCheck(roleId, false));
+        vo.setHalfCheckedMenuIds(this.getMenuIdsWithHalfCheck(roleId, true));
         return vo;
     }
 
@@ -65,14 +71,28 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         lambdaUpdate().eq(RbacRoleMenu::getRoleId, roleId).remove();
 
         List<RbacRoleMenu> list = new ArrayList<>();
-        for (Long menuId : roleMenuVo.getCheckedRoleIds()) {
+        for (Long menuId : roleMenuVo.getCheckedMenuIds()) {
             list.add(new RbacRoleMenu(null, roleId, menuId, false));
         }
-        for (Long menuId : roleMenuVo.getHalfCheckedRoleIds()) {
+        for (Long menuId : roleMenuVo.getHalfCheckedMenuIds()) {
             list.add(new RbacRoleMenu(null, roleId, menuId, true));
         }
 
         this.saveBatch(list);
+    }
+
+    /**
+     * 系统第一次启动时，初始化"超级管理员"角色的权限（赋全部权限）
+     */
+    public void initAdminRoleMenu() {
+        // 如果角色权限表已经有数据，则不做初始化
+        if (this.count() > 0) return;
+
+        List<RbacRoleMenu> roleMenuList = rbacMenuBiz.list().stream().map(i -> {
+            return new RbacRoleMenu(null, 1L, i.getId(), true);
+        }).collect(Collectors.toList());
+
+        this.saveBatch(roleMenuList);
     }
 
 }

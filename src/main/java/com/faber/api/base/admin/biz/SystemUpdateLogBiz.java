@@ -5,23 +5,24 @@ import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.druid.pool.DruidDataSource;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
 import com.faber.api.base.admin.mapper.SystemUpdateLogMapper;
+import com.faber.api.base.rbac.biz.RbacRoleMenuBiz;
 import com.faber.core.config.dbinit.DbInit;
 import com.faber.core.config.dbinit.vo.FaDdl;
+import com.faber.core.config.dbinit.vo.FaDdlAddColumn;
 import com.faber.core.config.dbinit.vo.FaDdlSql;
 import com.faber.core.config.dbinit.vo.FaDdlTableCreate;
-import com.faber.core.config.dbinit.vo.FaDdlAddColumn;
+import com.faber.core.context.BaseContextHandler;
 import com.faber.core.utils.FaDateUtils;
 import com.faber.core.utils.FaDbUtils;
-import com.faber.core.web.biz.BaseBiz;
 import com.faber.core.utils.FaResourceUtils;
-import lombok.extern.slf4j.Slf4j;
+import com.faber.core.web.biz.BaseBiz;
 import org.apache.ibatis.jdbc.ScriptRunner;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.sql.DataSource;
-import java.io.*;
+import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Comparator;
@@ -42,6 +43,9 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     @Resource
     DataSource dataSource;
 
+    @Resource
+    RbacRoleMenuBiz rbacRoleMenuBiz;
+
     /**
      * 数据库名称
      */
@@ -54,10 +58,16 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     }
 
     public void initDb() {
+        BaseContextHandler.useAdmin();
+
+        // 1. 初始化数据
         ClassUtil.scanPackageBySuper("com.faber", DbInit.class)
                 .stream().map(clazz -> (DbInit) SpringUtil.getBean(clazz))
                 .sorted(Comparator.comparing(DbInit::getOrder))
                 .forEach(i -> initOneBuzz(i));
+
+        // 2. 给超级管理员角色赋权限
+        rbacRoleMenuBiz.initAdminRoleMenu();
     }
 
     private void initOneBuzz(DbInit dbInit) {
