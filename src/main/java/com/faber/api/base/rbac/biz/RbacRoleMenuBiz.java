@@ -89,7 +89,7 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         if (this.count() > 0) return;
 
         List<RbacRoleMenu> roleMenuList = rbacMenuBiz.list().stream().map(i -> {
-            return new RbacRoleMenu(null, 1L, i.getId(), true);
+            return new RbacRoleMenu(null, 1L, i.getId(), false);
         }).collect(Collectors.toList());
 
         this.saveBatch(roleMenuList);
