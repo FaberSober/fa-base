@@ -431,7 +431,7 @@ CREATE TABLE IF NOT EXISTS `base_rbac_role_menu` (
   `upd_host` varchar(255) DEFAULT NULL COMMENT '更新IP',
   `deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否删除',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=1378 DEFAULT CHARSET=utf8mb4 COMMENT='BASE-角色权限对应表';
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='BASE-角色权限对应表';
 
 
 -- ----------------------------
