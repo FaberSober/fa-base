@@ -79,7 +79,7 @@ public class EntityLogBiz extends BaseBiz<EntityLogMapper, EntityLog> {
      * @param after
      * @param <T>
      */
-    public <T> EntityLog saveUpdateLog(T before, T after, BiFunction<Field, Object, String> transValue) {
+    public <T> EntityLog saveUpdateLog(T before, T after, BiFunction<Field, Object, String> transValue, String... ignoreFieldNames) {
         if (before.getClass() != after.getClass()) throw new BuzzException("两个实体Class类型不一致");
 
         String id = this.getId(after);
@@ -92,8 +92,12 @@ public class EntityLogBiz extends BaseBiz<EntityLogMapper, EntityLog> {
             return true;
         });
 
+        List<String> ignoreFieldNameList = Arrays.asList(ignoreFieldNames);
+
         JSONArray array = new JSONArray();
         for (Field field : fields) {
+            if (ignoreFieldNameList.contains(field.getName())) continue;
+
             Object oldValue = ReflectUtil.getFieldValue(before, field);
             Object newValue = ReflectUtil.getFieldValue(after, field);
             if (ObjectUtil.equal(oldValue, newValue)) continue;
