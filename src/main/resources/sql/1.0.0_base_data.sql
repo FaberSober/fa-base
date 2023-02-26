@@ -21,7 +21,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- Records of base_config_sys
 -- ----------------------------
 BEGIN;
-INSERT INTO `base_config_sys` (`id`, `data`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (2, '{\"cop\": \"Dward\", \"logo\": \"44314b38e94a661402fedc5087bc47f9\", \"title\": \"文件管理平台\", \"subTitle\": \"文件管理平台\", \"portalLink\": null, \"logoWithText\": \"7799d8522d7d0fc0df91190ee31c7005\", \"safeCaptchaOn\": true, \"storeLocalPath\": \"/Users/xupengfei/tmp/file\", \"safePasswordType\": 1, \"safePasswordLenMax\": 30, \"safePasswordLenMin\": 3, \"safeRegistrationOn\": true}', '2023-02-06 09:59:40', '1', '超级管理员', '127.0.0.1', '2023-02-06 09:59:41', '1', '超级管理员', '127.0.0.1', 0);
+INSERT INTO `base_config_sys` (`id`, `data`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (1, '{\"cop\": \"Dward\", \"logo\": \"44314b38e94a661402fedc5087bc47f9\", \"title\": \"文件管理平台\", \"subTitle\": \"文件管理平台\", \"portalLink\": null, \"logoWithText\": \"7799d8522d7d0fc0df91190ee31c7005\", \"safeCaptchaOn\": true, \"storeLocalPath\": \"/Users/xupengfei/tmp/file\", \"safePasswordType\": 1, \"safePasswordLenMax\": 30, \"safePasswordLenMin\": 3, \"safeRegistrationOn\": true}', '2023-02-06 09:59:40', '1', '超级管理员', '127.0.0.1', '2023-02-06 09:59:41', '1', '超级管理员', '127.0.0.1', 0);
 COMMIT;
 
 -- ----------------------------
