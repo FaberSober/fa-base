@@ -495,7 +495,7 @@ CREATE TABLE IF NOT EXISTS `base_user` (
   `username` varchar(255) NOT NULL COMMENT '账户',
   `password` varchar(255) DEFAULT NULL COMMENT '密码',
   `name` varchar(255) NOT NULL COMMENT '姓名',
-  `tel` varchar(20) DEFAULT NULL COMMENT '手机号',
+  `tel` varchar(20) NOT NULL COMMENT '手机号',
   `birthday` date DEFAULT NULL COMMENT '生日',
   `sex` tinyint(4) DEFAULT NULL COMMENT '性别0-女1-男2-未知',
   `address` varchar(255) DEFAULT NULL COMMENT '地址',
