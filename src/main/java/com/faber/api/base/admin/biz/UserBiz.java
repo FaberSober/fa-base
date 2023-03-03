@@ -166,7 +166,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     public boolean save(User entity) {
         this.checkBeanValid(entity);
 
-        // 初始化密码888888
+        // 密码加密存储
         String password = encoder.encode(entity.getPassword());
         entity.setPassword(password);
 
