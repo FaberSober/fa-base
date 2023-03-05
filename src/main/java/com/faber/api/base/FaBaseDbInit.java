@@ -44,6 +44,9 @@ public class FaBaseDbInit implements DbInit {
                 .addSql(new FaDdlSql("初始化menu表数据", "sql/1.0.0_base_rbac_menu.sql"))
                 .addSql(new FaDdlSql("初始化表数据", "sql/1.0.0_base_data.sql")));
 
+        list.add(new FaDdl(100_000_001L, "V1.0.1", "增加BaseFileBiz通用业务附件表")
+                .addSql(new FaDdlSql("初始化表结构", "sql/1.0.1_base_ddl.sql")));
+
         return list;
     }
 }
