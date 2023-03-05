@@ -14,7 +14,8 @@ import lombok.Getter;
 public enum EntityLogActionEnum implements IEnum<Integer> {
     ADD(1, "新增"),
     UPDATE(2, "更新"),
-    DEL(3, "删除");
+    DEL(3, "删除"),
+    MSG(4, "操作");
 
     @JsonValue
     @EnumValue

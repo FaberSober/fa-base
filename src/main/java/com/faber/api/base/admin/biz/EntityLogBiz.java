@@ -133,4 +133,16 @@ public class EntityLogBiz extends BaseBiz<EntityLogMapper, EntityLog> {
         return log;
     }
 
+    public <T> EntityLog saveMsgLog(T item, String msg) {
+        String id = this.getId(item);
+
+        EntityLog log = new EntityLog();
+        log.setBizType(item.getClass().getTypeName());
+        log.setBizId(id);
+        log.setAction(EntityLogActionEnum.MSG);
+        log.setContent(msg);
+        super.save(log);
+        return log;
+    }
+
 }
