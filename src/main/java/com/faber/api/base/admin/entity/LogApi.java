@@ -21,6 +21,7 @@ import lombok.ToString;
 @ToString
 public class LogApi extends BaseCrtEntity {
 
+    @ExcelProperty("ID")
     @TableId(type = IdType.AUTO)
     private Long id;
 

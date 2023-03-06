@@ -32,7 +32,7 @@ public class AuthController extends BaseResHandler {
     @FaLogOpr(value = "登录", crud = LogCrudEnum.C)
     @RequestMapping(value = "/login", method = RequestMethod.POST)
     @IgnoreUserToken
-    public Ret<String> login(@RequestBody AuthRequest authRequest) throws Exception {
+    public Ret<String> login(@RequestBody AuthRequest authRequest) {
         String token = authBiz.login(authRequest);
         return ok(token);
     }
