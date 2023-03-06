@@ -85,6 +85,10 @@ public class ConfigSys extends BaseDelEntity {
          */
         private Integer safePasswordLenMax;
         /**
+         * [安全]token有效时长(小时)
+         */
+        private Integer safeTokenExpireHour;
+        /**
          * [存储][本地]目录
          */
         private String storeLocalPath;
