@@ -28,7 +28,11 @@ public abstract class AbstractInterceptor implements HandlerInterceptor {
         return annotation;
     }
 
-    protected JWTInfo getJwtInfo(HttpServletRequest request) throws Exception {
+    protected String getToken(HttpServletRequest request) {
+        return request.getHeader(jwtTokenUtil.getTokenHeader());
+    }
+
+    protected JWTInfo getJwtInfo(HttpServletRequest request) {
         String token = request.getHeader(jwtTokenUtil.getTokenHeader());
         if (StringUtils.isEmpty(token)) {
             if (request.getCookies() != null) {
