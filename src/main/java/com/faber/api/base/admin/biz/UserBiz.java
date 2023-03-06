@@ -352,7 +352,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         redisson.getKeys().deleteByPattern(redisKeySysName + ":user:" + userId);
     }
 
-    private String encryptPwd(String pwd) {
+    public String encryptPwd(String pwd) {
         return encoder.encode(pwd);
     }
 

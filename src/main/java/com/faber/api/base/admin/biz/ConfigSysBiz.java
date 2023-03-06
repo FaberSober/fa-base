@@ -29,11 +29,14 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
     @Autowired
     private StorageService storageService;
 
+    ConfigSys configSysCache;
+
     @Override
     public boolean updateById(ConfigSys entity) {
         super.updateById(entity);
 
         storageService.syncStorageDatabaseConfig();
+        this.refreshConfigSysCache();
 
         return true;
     }
@@ -49,6 +52,17 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
             save(configSys);
         }
         return configSys;
+    }
+
+    public ConfigSys.Config getConfig() {
+        if (configSysCache == null) {
+            configSysCache = this.getOne();
+        }
+        return configSysCache.getData();
+    }
+
+    public void refreshConfigSysCache() {
+        configSysCache = this.getOne();
     }
 
     /**

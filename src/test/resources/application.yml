@@ -6,7 +6,7 @@ server:
     mime-types: application/json,application/xml,text/html,text/plain,text/css,application/x-javascript
 spring:
   application:
-    name: fa-admin
+    name: file-web-dev
   profiles:
     active: dev
   web:
@@ -22,7 +22,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     druid:
       name: faber-admin
-      url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DBNAME:faber_admin}?useUnicode=true&characterEncoding=UTF8&serverTimezone=GMT%2B8&useSSL=false
+      url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DBNAME:file_web}?useUnicode=true&characterEncoding=UTF8&serverTimezone=GMT%2B8&useSSL=false
       username: ${MYSQL_USERNAME:root}
       password: ${MYSQL_PASSWORD:123456}
       filters: stat
@@ -107,7 +107,7 @@ jetcache:
       type: redisson
       keyConvertor: fastjson2
       broadcastChannel: file-web
-      keyPrefix: "fa-admin:"
+      keyPrefix: "file-web:"
       valueEncoder: kryo5
       valueDecoder: kryo5
       defaultExpireInMillis: 5000000
@@ -170,6 +170,12 @@ fa:
     aes:
       key: 2345ASDC89ABCSEQ
       salt: DYgaREIsYrj24QxN
+    # 系统设置
+    config:
+      # 系统启动时执行数据库初始化脚本
+      startDbInitOnBoot: true
+      # 系统启动时扫描任务class并启动
+      startJobsOnBoot: true
     url:
       phpRedisAdmin: http://127.0.0.1:8182
       socketUrl: 127.0.0.1:8081

@@ -8,14 +8,13 @@ spring:
 
   datasource:
     druid:
-      name: faber-admin
-      url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DBNAME:faber_admin}?useUnicode=true&characterEncoding=UTF8&serverTimezone=GMT%2B8&useSSL=false
-      username: ${MYSQL_USERNAME:root}
-      password: ${MYSQL_PASSWORD:123456}
+      url: jdbc:mysql://${MYSQL_HOST:8.142.130.28}:${MYSQL_PORT:18306}/${MYSQL_DBNAME:tenant}?useUnicode=true&characterEncoding=UTF8&serverTimezone=GMT%2B8&useSSL=false
+      username: ${MYSQL_USERNAME:tenant}
+      password: ${MYSQL_PASSWORD:tenant@Dward#3458}
 
   redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
+    host: ${REDIS_HOST:8.142.130.28}
+    port: ${REDIS_PORT:18901}
     password: fa@redis#1276
 
 socketio:
