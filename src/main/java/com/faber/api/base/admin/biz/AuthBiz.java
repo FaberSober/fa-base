@@ -1,5 +1,6 @@
 package com.faber.api.base.admin.biz;
 
+import cn.hutool.core.lang.UUID;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
 import com.alicp.jetcache.Cache;
@@ -13,6 +14,8 @@ import com.faber.config.utils.user.AuthRequest;
 import com.faber.config.utils.user.JwtTokenUtil;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.service.LogoutService;
+import com.faber.core.utils.FaKeyUtils;
+import com.faber.core.utils.FaRedisUtils;
 import com.faber.core.utils.IpUtils;
 import com.faber.core.utils.RequestUtils;
 import com.faber.core.vo.utils.IpAddr;
@@ -21,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthBiz implements LogoutService {
@@ -33,6 +37,12 @@ public class AuthBiz implements LogoutService {
 
     @Resource
     private LogLoginBiz logLoginBiz;
+
+    @Resource
+    FaRedisUtils faRedisUtils;
+
+    @Resource
+    ConfigSysBiz configSysBiz;
 
     @Autowired
     private CacheManager cacheManager;
@@ -92,7 +102,11 @@ public class AuthBiz implements LogoutService {
         // 登录模式
         strCache.put(user.getId() + ":from", source);
 
-        return jwtTokenUtil.createToken(new JWTInfo(user.getId(), source));
+        // 返回token：token暂时使用uuid，存放到redis缓存中
+        String token = UUID.fastUUID().toString(true);
+        faRedisUtils.set(FaKeyUtils.getTokenKey(token), user.getId() + "", configSysBiz.getConfig().getSafeTokenExpireHour(), TimeUnit.HOURS);
+
+        return token;
     }
 
 
