@@ -23,6 +23,7 @@ import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
 import com.faber.core.exception.auth.UserInvalidException;
+import com.faber.core.utils.FaPwdUtils;
 import com.faber.core.vo.query.QueryParams;
 import com.faber.core.web.biz.BaseBiz;
 import org.apache.commons.collections4.MapUtils;
@@ -85,6 +86,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
     /**
      * 登录账户
+     *
      * @param account
      * @param password
      * @return
@@ -120,6 +122,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
     /**
      * 新增、编辑时，校验数据合理性
+     *
      * @param entity
      */
     private void checkBeanValid(User entity) {
@@ -140,6 +143,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
     /**
      * 更新用户角色
+     *
      * @param entity
      */
     public void updateUserRoles(User entity) {
@@ -153,7 +157,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         entity.setRoleNames(roleNames);
     }
 
-    @Cached(name="user:", key="#id")
+    @Cached(name = "user:", key = "#id")
     @Override
     public User getById(Serializable id) {
         return super.getById(id);
@@ -174,7 +178,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return true;
     }
 
-    @CacheInvalidate(name="user:", key="#entity.id")
+    @CacheInvalidate(name = "user:", key = "#entity.id")
     @FaCacheClear(pre = "rbac:userMenus:", key = "id")
     @Override
     public boolean updateById(User entity) {
@@ -191,7 +195,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return super.updateById(entity);
     }
 
-    @CacheInvalidate(name="user:", key="#id")
+    @CacheInvalidate(name = "user:", key = "#id")
     @Override
     public boolean removeById(Serializable id) {
         // 不能删除自身账户和admin账户
@@ -252,12 +256,12 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         User beanDB = getById(id);
         if (beanDB == null) throw new NoDataException();
 
-        String password = encryptPwd(newPwd);
+        String password = FaPwdUtils.encryptPwd(newPwd);
         beanDB.setPassword(password);
         return super.updateById(beanDB);
     }
 
-    @CacheInvalidate(name="user:", key="#userId")
+    @CacheInvalidate(name = "user:", key = "#userId")
     public boolean updateMine(String userId, UserAccountVo vo) {
         // 插入时校验手机号是否重复
         long telCount = lambdaQuery()
@@ -279,7 +283,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return super.updateById(user);
     }
 
-    @CacheInvalidate(name="user:", key="#userId")
+    @CacheInvalidate(name = "user:", key = "#userId")
     public boolean updateMyPwd(String userId, Map<String, Object> params) {
         String oldPwd = (String) params.get("oldPwd");
         String newPwd = (String) params.get("newPwd");
@@ -290,12 +294,12 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
         this.validateCurrentUserPwd(oldPwd);
 
-        String password = encryptPwd(newPwd);
+        String password = FaPwdUtils.encryptPwd(newPwd);
         user.setPassword(password);
         return super.updateById(user);
     }
 
-    @CacheInvalidate(name="user:", key="#userId")
+    @CacheInvalidate(name = "user:", key = "#userId")
     public boolean updateMyApiToken(String userId) {
         User user = getById(userId);
         user.setApiToken(UUID.fastUUID().toString(true));
@@ -334,7 +338,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 //            throw new BuzzException("新密码长度错误");
 //        }
 
-        String password = encryptPwd(newPwd.trim());
+        String password = FaPwdUtils.encryptPwd(newPwd.trim());
         params.getUserIds().forEach(id -> {
             User user = getById(id);
             user.setPassword(password);
@@ -350,10 +354,6 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
     public void delUserCacheById(String userId) {
         redisson.getKeys().deleteByPattern(redisKeySysName + ":user:" + userId);
-    }
-
-    public String encryptPwd(String pwd) {
-        return encoder.encode(pwd);
     }
 
     public void accountAdminDelete(Map<String, Object> params) {
@@ -416,7 +416,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
         User user = chainWrapper.one();
 
-        String password = encryptPwd(params.getPassword());
+        String password = FaPwdUtils.encryptPwd(params.getPassword());
         lambdaUpdate()
                 .set(User::getPassword, password)
                 .eq(User::getId, user.getId())
