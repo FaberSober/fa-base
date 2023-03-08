@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.faber.core.annotation.FaModalName;
+import com.faber.core.annotation.SqlEquals;
 import com.faber.core.bean.BaseDelEntity;
 import lombok.Data;
 
@@ -25,9 +26,11 @@ public class RbacUserRole extends BaseDelEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    @SqlEquals
     @ExcelProperty("用户ID")
     private String userId;
 
+    @SqlEquals
     @ExcelProperty("角色ID")
     private Long roleId;
 

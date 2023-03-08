@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.faber.core.annotation.FaModalName;
+import com.faber.core.annotation.SqlEquals;
 import com.faber.core.bean.BaseDelEntity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,12 +30,15 @@ public class RbacRoleMenu extends BaseDelEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    @SqlEquals
     @ExcelProperty("角色ID")
     private Long roleId;
 
+    @SqlEquals
     @ExcelProperty("权限ID")
     private Long menuId;
 
+    @SqlEquals
     @ExcelProperty("是否半勾选")
     private Boolean halfChecked;
 

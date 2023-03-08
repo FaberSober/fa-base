@@ -29,6 +29,7 @@ public class RbacMenu extends BaseDelEntity {
     private Long id;
 
     @SqlTreeParentId
+    @SqlEquals
     @ExcelProperty("父级ID")
     private Long parentId;
 

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.faber.core.annotation.FaModalName;
+import com.faber.core.annotation.SqlEquals;
 import com.faber.core.bean.BaseDelEntity;
 import lombok.Data;
 import lombok.ToString;
@@ -35,6 +36,7 @@ public class RbacRole extends BaseDelEntity {
     @ExcelProperty("角色描述")
     private String remarks;
 
+    @SqlEquals
     @ExcelProperty("是否启用")
     private Boolean status;
 

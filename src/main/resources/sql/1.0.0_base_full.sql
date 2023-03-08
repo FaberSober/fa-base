@@ -440,7 +440,7 @@ CREATE TABLE IF NOT EXISTS `base_rbac_role_menu` (
 
 CREATE TABLE IF NOT EXISTS `base_rbac_user_role` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
-  `user_id` varchar(64) NOT NULL COMMENT '用户ID',
+  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
   `role_id` int(11) NOT NULL COMMENT '角色ID',
   `crt_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '创建时间',
   `crt_user` varchar(32) NOT NULL COMMENT '创建用户ID',
