@@ -89,7 +89,7 @@ public class GeneratorUtils {
         String className = tableToJava(table.getTableName(), codeGenReqVo.getTablePrefix());
 
         //列信息
-        String pkCol = null;
+        ColumnVo pkCol = null;
         for (ColumnVo column : columns) {
             //列名转换成Java属性名
             String attrName = columnToJava(column.getColumnName());
@@ -102,13 +102,13 @@ public class GeneratorUtils {
 
             //是否主键
             if ("PRI".equalsIgnoreCase(column.getColumnKey())) {
-                pkCol = column.getColumnName();
+                pkCol = column;
             }
         }
 
         //没主键，则第一个字段为主键
         if (pkCol == null) {
-            pkCol = columns.get(0).getColumnName();
+            pkCol = columns.get(0);
         }
 
         //设置velocity资源加载器
@@ -164,7 +164,7 @@ public class GeneratorUtils {
     public static String getJavaCopyPath(CodeGenReqVo codeGenReqVo) throws IOException {
         String rootDir = FaFileUtils.getProjectRootDir();
 
-        String packagePath = "main" + File.separator + "java" + File.separator;
+        String packagePath = "src" + File.separator + "main" + File.separator + "java" + File.separator;
 
         if (StringUtils.isNotBlank(codeGenReqVo.getPackageName())) {
             packagePath += codeGenReqVo.getPackageName().replace(".", File.separator) + File.separator;
