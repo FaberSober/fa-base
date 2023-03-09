@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.faber.core.annotation.FaModalName;
+import com.faber.core.bean.BaseDelEntity;
 import lombok.Data;
 
     ###if(${hasBigDecimal})
@@ -20,17 +21,16 @@ import lombok.Data;
 @FaModalName(name = "${comments}")
 @TableName("${tableName}")
 @Data
-public class ${className} implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class ${className} extends BaseDelEntity {
 	
 #foreach ($column in $columns)
 #if($column.columnName == $pk.columnName)
-    @ExcelProperty("$column.comments")
+    @ExcelProperty("$column.columnComment")
     @TableId(type = IdType.AUTO)
     private $column.attrType $column.attrname;
 
-#else
-    @ExcelProperty("$column.comments")
+#elseif ($column.attrname != 'crtTime' and $column.attrname != 'crtUser' and $column.attrname != 'crtName' and $column.attrname != 'crtHost' and $column.attrname != 'updTime' and $column.attrname != 'updUser' and $column.attrname != 'updName' and $column.attrname != 'updHost' and $column.attrname != 'deleted')
+    @ExcelProperty("$column.columnComment")
     private $column.attrType $column.attrname;
 
 #end

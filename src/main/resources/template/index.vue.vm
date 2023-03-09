@@ -15,7 +15,7 @@
       </template>
     </el-table-column>
   #else
-    <el-table-column width="200px" align="center" label="${column.comments}">
+    <el-table-column width="200px" align="center" label="${column.columnComment}">
       <template scope="scope">
         <span>{{scope.row.${column.attrname}}}</span>
       </template>
@@ -36,8 +36,8 @@
       <el-form :model="form" :rules="rules" ref="form" label-width="100px">
 #foreach($column in $columns)
   #if($column.columnName != $pk.columnName)
-    <el-form-item label="${column.comments}" prop="${column.attrname}">
-      <el-input v-model="form.${column.attrname}" placeholder="请输入${column.comments}"></el-input>
+    <el-form-item label="${column.columnComment}" prop="${column.attrname}">
+      <el-input v-model="form.${column.attrname}" placeholder="请输入${column.columnComment}"></el-input>
     </el-form-item>
   #end
 #end
@@ -77,7 +77,7 @@
 ${column.attrname}: [
   {
     required: true,
-    message: '请输入${column.comments}',
+    message: '请输入${column.columnComment}',
     trigger: 'blur'
   },
   {

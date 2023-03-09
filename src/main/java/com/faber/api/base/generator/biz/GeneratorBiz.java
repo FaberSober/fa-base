@@ -2,9 +2,11 @@ package com.faber.api.base.generator.biz;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.faber.api.base.generator.mapper.GeneratorMapper;
+import com.faber.api.base.generator.utils.GeneratorUtils;
 import com.faber.api.base.generator.vo.req.CodeGenReqVo;
 import com.faber.api.base.generator.vo.req.TableQueryVo;
 import com.faber.api.base.generator.vo.ret.CodeGenRetVo;
+import com.faber.api.base.generator.vo.ret.ColumnVo;
 import com.faber.api.base.generator.vo.ret.TableVo;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.BasePageQuery;
@@ -13,6 +15,7 @@ import com.github.pagehelper.PageInfo;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.List;
 
 /**
  * @author Farando
@@ -35,6 +38,11 @@ public class GeneratorBiz {
         CodeGenRetVo retVo = new CodeGenRetVo();
         BeanUtil.copyProperties(codeGenReqVo, retVo);
 
+        List<ColumnVo> columnVoList = generatorMapper.queryColumns(codeGenReqVo.getTableName());
+
+        TableVo tableVo = generatorMapper.getTableByName(codeGenReqVo.getTableName());
+        String code = GeneratorUtils.generatorCode(codeGenReqVo, tableVo, columnVoList);
+        retVo.setCode(code);
 
         return retVo;
     }

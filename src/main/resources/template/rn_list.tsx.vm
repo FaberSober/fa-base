@@ -27,9 +27,9 @@ export default function ${className}List() {
     return [
 #foreach ($column in $columns)
 #if($column.columnName == $pk.columnName)
-      BaseTableUtils.genIdColumn('${column.comments}', '${column.attrname}', 70, sorter),
+      BaseTableUtils.genIdColumn('${column.columnComment}', '${column.attrname}', 70, sorter),
 #elseif ($column.attrname != 'crtTime' and $column.attrname != 'crtUser' and $column.attrname != 'crtName' and $column.attrname != 'crtHost' and $column.attrname != 'updTime' and $column.attrname != 'updUser' and $column.attrname != 'updName' and $column.attrname != 'updHost' and $column.attrname != 'deleted')
-      BaseTableUtils.genSimpleSorterColumn('${column.comments}', '${column.attrname}', 100, sorter),
+      BaseTableUtils.genSimpleSorterColumn('${column.columnComment}', '${column.attrname}', 100, sorter),
 #end
 #end
       ...BaseTableUtils.genCtrColumns(sorter),
