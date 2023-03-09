@@ -49,12 +49,12 @@ export default function ${className}Modal({ children, title, record, fetchFinish
 
   function getInitialValues() {
     return {
-        #foreach($column in $columns)
-            #if($column.columnName == $pk.columnName)
-            #elseif ($column.attrname != 'crtTime' and $column.attrname != 'crtUser' and $column.attrname != 'crtName' and $column.attrname != 'crtHost' and $column.attrname != 'updTime' and $column.attrname != 'updUser' and $column.attrname != 'updName' and $column.attrname != 'updHost' and $column.attrname != 'deleted')
-                    ${column.attrname}: get(record, '${column.attrname}'),
-            #end
-        #end
+#foreach($column in $columns)
+#if($column.columnName == $pk.columnName)
+#elseif ($column.attrname != 'crtTime' and $column.attrname != 'crtUser' and $column.attrname != 'crtName' and $column.attrname != 'crtHost' and $column.attrname != 'updTime' and $column.attrname != 'updUser' and $column.attrname != 'updName' and $column.attrname != 'updHost' and $column.attrname != 'deleted')
+      ${column.attrname}: get(record, '${column.attrname}'),
+#end
+#end
     }
   }
 

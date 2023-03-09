@@ -10,7 +10,15 @@ import lombok.Getter;
  */
 @Getter
 public enum GeneratorTypeEnum implements IEnum<String> {
-    JAVA_ENTITY("java.entity", "entity.java.vm");
+    JAVA_ENTITY("java.entity", "entity.java.vm"),
+    JAVA_MAPPER("java.mapper", "mapper.java.vm"),
+    JAVA_BIZ("java.biz", "biz.java.vm"),
+    JAVA_CONTROLLER("java.controller", "controller.java.vm"),
+    XML_MAPPER("xml.mapper", "mapper.xml.vm"),
+    RN_PROPS("rn.props", "rn_prop.ts.vm"),
+    RN_SERVICE("rn.service", "rn_service.ts.vm"),
+    RN_MODAL("rn.modal", "rn_modal.tsx.vm"),
+    RN_LIST("rn.list", "rn_list.tsx.vm");
 
     @JsonValue
     @EnumValue
