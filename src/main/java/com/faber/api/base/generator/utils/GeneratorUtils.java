@@ -184,6 +184,11 @@ public class GeneratorUtils {
                 return javaPath + "rest" + File.separator + className + "Controller.java";
             case XML_MAPPER:
                 return resourcePath + "mapper" + File.separator + codeGenReqVo.getMainModule().replaceAll("\\.", "/") + File.separator + className + "Mapper.xml";
+
+            case RN_MODAL:
+                return rootDir + File.separator + codeGenReqVo.getRnCopyPath() + File.separator + "modal" + File.separator + className + "Modal.tsx";
+            case RN_LIST:
+                return rootDir + File.separator + codeGenReqVo.getRnCopyPath() + File.separator + className + "List.tsx";
         }
         return "";
     }

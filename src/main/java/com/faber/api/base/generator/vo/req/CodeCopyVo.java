@@ -48,4 +48,9 @@ public class CodeCopyVo implements Serializable {
      */
     private String javaCopyPath;
 
+    /**
+     * 前端复制目录
+     */
+    private String rnCopyPath;
+
 }

@@ -49,12 +49,21 @@ public class GeneratorController extends BaseResHandler {
         return ok(data);
     }
 
-    @FaLogOpr(value = "复制全部java文件", crud = LogCrudEnum.R)
+    @FaLogOpr(value = "复制当前文件", crud = LogCrudEnum.R)
     @LogNoRet
-    @RequestMapping(value = "/copyJava", method = RequestMethod.POST)
+    @RequestMapping(value = "/copyOne", method = RequestMethod.POST)
     @ResponseBody
-    public Ret<Boolean> copyJava(@RequestBody CodeCopyVo codeCopyVo) throws IOException {
-        generatorBiz.copyJava(codeCopyVo);
+    public Ret<Boolean> copyOne(@RequestBody CodeGenReqVo codeGenReqVo) throws IOException {
+        generatorBiz.copyOne(codeGenReqVo);
+        return ok();
+    }
+
+    @FaLogOpr(value = "复制全部文件", crud = LogCrudEnum.R)
+    @LogNoRet
+    @RequestMapping(value = "/copyAll", method = RequestMethod.POST)
+    @ResponseBody
+    public Ret<Boolean> copyAll(@RequestBody CodeCopyVo codeCopyVo) throws IOException {
+        generatorBiz.copyAll(codeCopyVo);
         return ok();
     }
 

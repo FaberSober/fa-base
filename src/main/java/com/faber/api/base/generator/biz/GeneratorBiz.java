@@ -58,7 +58,20 @@ public class GeneratorBiz {
         return retVo;
     }
 
-    public void copyJava(CodeCopyVo codeCopyVo) throws IOException {
+    public void copyOne(CodeGenReqVo codeGenReqVo) throws IOException {
+        switch (codeGenReqVo.getType()) {
+            case RN_PROPS:
+            case RN_SERVICE:
+                throw new BuzzException("暂不支持此类型文件自动复制，请手动添加");
+        }
+
+        List<ColumnVo> columnVoList = generatorMapper.queryColumns(codeGenReqVo.getTableName());
+        TableVo tableVo = generatorMapper.getTableByName(codeGenReqVo.getTableName());
+
+        copyOneJava(codeGenReqVo, columnVoList, tableVo, codeGenReqVo.getType());
+    }
+
+    public void copyAll(CodeCopyVo codeCopyVo) throws IOException {
         if (codeCopyVo.getTableNames() == null || codeCopyVo.getTableNames().isEmpty()) {
             throw new BuzzException("请选择表");
         }
@@ -71,11 +84,16 @@ public class GeneratorBiz {
             List<ColumnVo> columnVoList = generatorMapper.queryColumns(codeGenReqVo.getTableName());
             TableVo tableVo = generatorMapper.getTableByName(codeGenReqVo.getTableName());
 
+            log.debug("----- 复制java代码 ----->>>>");
             copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.JAVA_ENTITY);
             copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.JAVA_MAPPER);
             copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.JAVA_BIZ);
             copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.JAVA_CONTROLLER);
             copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.XML_MAPPER);
+
+            log.debug("----- 复制前端代码 ----->>>>");
+            copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.RN_MODAL);
+            copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.RN_LIST);
         }
     }
 

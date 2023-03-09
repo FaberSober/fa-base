@@ -53,4 +53,9 @@ public class CodeGenReqVo implements Serializable {
      */
     private String javaCopyPath;
 
+    /**
+     * 前端复制目录
+     */
+    private String rnCopyPath;
+
 }
