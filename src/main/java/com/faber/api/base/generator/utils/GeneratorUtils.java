@@ -171,10 +171,19 @@ public class GeneratorUtils {
         }
 
         String className = tableToJava(codeGenReqVo.getTableName(), codeGenReqVo.getTablePrefix());
-
+        String javaPath = rootDir + File.separator + codeGenReqVo.getJavaCopyPath() + File.separator + packagePath;
+        String resourcePath = rootDir + File.separator + codeGenReqVo.getJavaCopyPath() + File.separator + "src" + File.separator + "main" + File.separator + "resources" + File.separator;
         switch (codeGenReqVo.getType()) {
             case JAVA_ENTITY:
-                return rootDir + File.separator + codeGenReqVo.getJavaCopyPath() + File.separator + packagePath + "entity" + File.separator + className + ".java";
+                return javaPath + "entity" + File.separator + className + ".java";
+            case JAVA_MAPPER:
+                return javaPath + "mapper" + File.separator + className + "Mapper.java";
+            case JAVA_BIZ:
+                return javaPath + "biz" + File.separator + className + "Biz.java";
+            case JAVA_CONTROLLER:
+                return javaPath + "rest" + File.separator + className + "Controller.java";
+            case XML_MAPPER:
+                return resourcePath + "mapper" + File.separator + codeGenReqVo.getMainModule().replaceAll("\\.", "/") + File.separator + className + "Mapper.xml";
         }
         return "";
     }

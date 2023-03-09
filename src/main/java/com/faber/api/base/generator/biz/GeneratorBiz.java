@@ -71,13 +71,21 @@ public class GeneratorBiz {
             List<ColumnVo> columnVoList = generatorMapper.queryColumns(codeGenReqVo.getTableName());
             TableVo tableVo = generatorMapper.getTableByName(codeGenReqVo.getTableName());
 
-            codeGenReqVo.setType(GeneratorTypeEnum.JAVA_ENTITY);
-            String code = GeneratorUtils.generatorCode(codeGenReqVo, tableVo, columnVoList);
-            String path = GeneratorUtils.getJavaCopyPath(codeGenReqVo);
-            log.debug("---->>> {}", path);
-
-            FileUtil.writeString(code, path, StandardCharsets.UTF_8);
+            copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.JAVA_ENTITY);
+            copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.JAVA_MAPPER);
+            copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.JAVA_BIZ);
+            copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.JAVA_CONTROLLER);
+            copyOneJava(codeGenReqVo, columnVoList, tableVo, GeneratorTypeEnum.XML_MAPPER);
         }
+    }
+
+    public void copyOneJava(CodeGenReqVo codeGenReqVo, List<ColumnVo> columnVoList, TableVo tableVo, GeneratorTypeEnum type) throws IOException {
+        codeGenReqVo.setType(type);
+        String code = GeneratorUtils.generatorCode(codeGenReqVo, tableVo, columnVoList);
+        String path = GeneratorUtils.getJavaCopyPath(codeGenReqVo);
+        log.debug("---->>> {}", path);
+
+        FileUtil.writeString(code, path, StandardCharsets.UTF_8);
     }
 
 }
