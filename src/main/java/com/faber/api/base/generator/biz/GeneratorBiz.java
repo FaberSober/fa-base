@@ -1,7 +1,10 @@
 package com.faber.api.base.generator.biz;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.faber.api.base.generator.mapper.GeneratorMapper;
+import com.faber.api.base.generator.vo.req.CodeGenReqVo;
 import com.faber.api.base.generator.vo.req.TableQueryVo;
+import com.faber.api.base.generator.vo.ret.CodeGenRetVo;
 import com.faber.api.base.generator.vo.ret.TableVo;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.BasePageQuery;
@@ -27,4 +30,13 @@ public class GeneratorBiz {
                 .doSelectPageInfo(() -> generatorMapper.queryTable(query.getQuery(), query.getSorter()));
         return new TableRet<>(info);
     }
+
+    public CodeGenRetVo preview(CodeGenReqVo codeGenReqVo) {
+        CodeGenRetVo retVo = new CodeGenRetVo();
+        BeanUtil.copyProperties(codeGenReqVo, retVo);
+
+
+        return retVo;
+    }
+
 }

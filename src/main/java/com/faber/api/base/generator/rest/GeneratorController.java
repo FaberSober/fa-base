@@ -1,13 +1,16 @@
 package com.faber.api.base.generator.rest;
 
 import com.faber.api.base.generator.biz.GeneratorBiz;
+import com.faber.api.base.generator.vo.req.CodeGenReqVo;
 import com.faber.api.base.generator.vo.req.TableQueryVo;
+import com.faber.api.base.generator.vo.ret.CodeGenRetVo;
 import com.faber.api.base.generator.vo.ret.TableVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.annotation.LogNoRet;
 import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.utils.BaseResHandler;
+import com.faber.core.vo.msg.Ret;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.BasePageQuery;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +36,15 @@ public class GeneratorController extends BaseResHandler {
     @ResponseBody
     public TableRet<TableVo> pageTable(@RequestBody BasePageQuery<TableQueryVo> query) {
         return generatorBiz.pageTable(query);
+    }
+
+    @FaLogOpr(value = "预览代码", crud = LogCrudEnum.R)
+    @LogNoRet
+    @RequestMapping(value = "/preview", method = RequestMethod.POST)
+    @ResponseBody
+    public Ret<CodeGenRetVo> preview(@RequestBody CodeGenReqVo codeGenReqVo) {
+        CodeGenRetVo data = generatorBiz.preview(codeGenReqVo);
+        return ok(data);
     }
 
 }
