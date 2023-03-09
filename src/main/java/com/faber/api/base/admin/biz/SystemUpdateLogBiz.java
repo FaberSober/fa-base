@@ -2,7 +2,6 @@ package com.faber.api.base.admin.biz;
 
 import cn.hutool.core.util.ClassUtil;
 import cn.hutool.extra.spring.SpringUtil;
-import com.alibaba.druid.pool.DruidDataSource;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
 import com.faber.api.base.admin.mapper.SystemUpdateLogMapper;
 import com.faber.api.base.rbac.biz.RbacRoleMenuBiz;
@@ -13,13 +12,11 @@ import com.faber.core.config.dbinit.vo.FaDdlSql;
 import com.faber.core.config.dbinit.vo.FaDdlTableCreate;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.utils.FaDateUtils;
-import com.faber.core.utils.FaDbUtils;
 import com.faber.core.utils.FaResourceUtils;
 import com.faber.core.web.biz.BaseBiz;
 import org.apache.ibatis.jdbc.ScriptRunner;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.sql.DataSource;
 import java.io.StringReader;
@@ -45,17 +42,6 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
     @Resource
     RbacRoleMenuBiz rbacRoleMenuBiz;
-
-    /**
-     * 数据库名称
-     */
-    private String dbName;
-
-    @PostConstruct
-    public void init() {
-        DruidDataSource dataSource = SpringUtil.getBean(DruidDataSource.class);
-        dbName = FaDbUtils.getNameFromUrl(dataSource.getUrl());
-    }
 
     public void initDb() {
         BaseContextHandler.useAdmin();
@@ -183,7 +169,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
     public Map<String, Object> getTableSchema(String tableName) {
         try {
-            return baseMapper.queryTableSchema(this.dbName, tableName);
+            return baseMapper.queryTableSchema(tableName);
         } catch (Exception e) {
             _logger.error(e.getMessage(), e);
         }
@@ -192,7 +178,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
     public Map<String, Object> getColSchema(String tableName, String colName) {
         try {
-            return baseMapper.queryColSchema(this.dbName, tableName, colName);
+            return baseMapper.queryColSchema(tableName, colName);
         } catch (Exception e) {
             _logger.error(e.getMessage(), e);
         }
@@ -201,6 +187,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
     /**
      * 查询数据库当前记录最新的版本
+     *
      * @param no
      * @return
      */
@@ -219,6 +206,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
     /**
      * 执行sql脚本
+     *
      * @param sql
      * @throws SQLException
      */

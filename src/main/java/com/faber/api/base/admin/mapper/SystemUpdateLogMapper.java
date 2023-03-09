@@ -2,6 +2,7 @@ package com.faber.api.base.admin.mapper;
 
 import com.faber.core.config.mybatis.base.FaBaseMapper;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
+import org.apache.ibatis.annotations.MapKey;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.Map;
@@ -21,8 +22,10 @@ public interface SystemUpdateLogMapper extends FaBaseMapper<SystemUpdateLog> {
      */
     int getCurVerId();
 
-    Map<String, Object> queryTableSchema(@Param("schema") String schema, @Param("tableName") String tableName);
+    @MapKey("id")
+    Map<String, Object> queryTableSchema(@Param("tableName") String tableName);
 
-    Map<String, Object> queryColSchema(@Param("schema") String schema, @Param("tableName") String tableName, @Param("colName") String colName);
+    @MapKey("id")
+    Map<String, Object> queryColSchema(@Param("tableName") String tableName, @Param("colName") String colName);
 
 }
