@@ -1,9 +1,9 @@
 package com.faber.api.base.generator.vo.req;
 
-import com.faber.api.base.generator.enums.GeneratorTypeEnum;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * @author Farando
@@ -11,7 +11,7 @@ import java.io.Serializable;
  * @description
  */
 @Data
-public class CodeGenReqVo implements Serializable {
+public class CodeCopyVo implements Serializable {
 
     /**
      * 包名
@@ -29,14 +29,9 @@ public class CodeGenReqVo implements Serializable {
     private String mainModule;
 
     /**
-     * 生成的表名
+     * 生成的表名s
      */
-    private String tableName;
-
-    /**
-     * 生成代码类型
-     */
-    private GeneratorTypeEnum type;
+    private List<String> tableNames;
 
     /**
      * 作者

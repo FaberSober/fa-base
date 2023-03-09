@@ -1,6 +1,7 @@
 package com.faber.api.base.generator.rest;
 
 import com.faber.api.base.generator.biz.GeneratorBiz;
+import com.faber.api.base.generator.vo.req.CodeCopyVo;
 import com.faber.api.base.generator.vo.req.CodeGenReqVo;
 import com.faber.api.base.generator.vo.req.TableQueryVo;
 import com.faber.api.base.generator.vo.ret.CodeGenRetVo;
@@ -16,6 +17,7 @@ import com.faber.core.vo.query.BasePageQuery;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.io.IOException;
 
 /**
  * @author Farando
@@ -45,6 +47,15 @@ public class GeneratorController extends BaseResHandler {
     public Ret<CodeGenRetVo> preview(@RequestBody CodeGenReqVo codeGenReqVo) {
         CodeGenRetVo data = generatorBiz.preview(codeGenReqVo);
         return ok(data);
+    }
+
+    @FaLogOpr(value = "复制全部java文件", crud = LogCrudEnum.R)
+    @LogNoRet
+    @RequestMapping(value = "/copyJava", method = RequestMethod.POST)
+    @ResponseBody
+    public Ret<Boolean> copyJava(@RequestBody CodeCopyVo codeCopyVo) throws IOException {
+        generatorBiz.copyJava(codeCopyVo);
+        return ok();
     }
 
 }

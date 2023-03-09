@@ -1,8 +1,10 @@
 package com.faber.api.base.generator.utils;
 
+import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.generator.vo.req.CodeGenReqVo;
 import com.faber.api.base.generator.vo.ret.ColumnVo;
 import com.faber.api.base.generator.vo.ret.TableVo;
+import com.faber.core.utils.FaFileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.WordUtils;
 import org.apache.velocity.Template;
@@ -10,6 +12,7 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.*;
 import java.util.zip.ZipOutputStream;
@@ -123,11 +126,12 @@ public class GeneratorUtils {
         map.put("pathName", className.toLowerCase());
         map.put("columns", columns);
         map.put("package", codeGenReqVo.getPackageName());
-        map.put("author", "author");
-        map.put("email", "email");
+        map.put("author", codeGenReqVo.getAuthor());
+        map.put("email", codeGenReqVo.getEmail());
         map.put("datetime", DateUtils.format(new Date(), DateUtils.DATE_TIME_PATTERN));
         map.put("moduleName", codeGenReqVo.getMainModule());
-        map.put("moduleNameUpperCaseFirstOne", toUpperCaseFirstOne(codeGenReqVo.getMainModule()));
+        map.put("moduleNameSlash", codeGenReqVo.getMainModule().replaceAll("\\.", "/")); // 将前端模块base.admin ---> base/admin，用于controller的路径中
+        map.put("moduleNameUpperCaseFirstOne", toUpperCaseFirstOne(StrUtil.toCamelCase(codeGenReqVo.getMainModule(), '.')));
         map.put("secondModuleName", toLowerCaseFirstOne(className));
         VelocityContext context = new VelocityContext(map);
 
@@ -155,6 +159,24 @@ public class GeneratorUtils {
             tableName = tableName.replace(tablePrefix, "");
         }
         return columnToJava(tableName);
+    }
+
+    public static String getJavaCopyPath(CodeGenReqVo codeGenReqVo) throws IOException {
+        String rootDir = FaFileUtils.getProjectRootDir();
+
+        String packagePath = "main" + File.separator + "java" + File.separator;
+
+        if (StringUtils.isNotBlank(codeGenReqVo.getPackageName())) {
+            packagePath += codeGenReqVo.getPackageName().replace(".", File.separator) + File.separator;
+        }
+
+        String className = tableToJava(codeGenReqVo.getTableName(), codeGenReqVo.getTablePrefix());
+
+        switch (codeGenReqVo.getType()) {
+            case JAVA_ENTITY:
+                return rootDir + File.separator + codeGenReqVo.getJavaCopyPath() + File.separator + packagePath + "entity" + File.separator + className + ".java";
+        }
+        return "";
     }
 
     /**
