@@ -24,7 +24,7 @@ public class GeneratorBiz {
 
     public TableRet<TableVo> pageTable(BasePageQuery<TableQueryVo> query) {
         PageInfo<TableVo> info = PageHelper.startPage(query.getCurrent(), query.getPageSize())
-                .doSelectPageInfo(() -> generatorMapper.queryTable(query.getQuery()));
+                .doSelectPageInfo(() -> generatorMapper.queryTable(query.getQuery(), query.getSorter()));
         return new TableRet<>(info);
     }
 }

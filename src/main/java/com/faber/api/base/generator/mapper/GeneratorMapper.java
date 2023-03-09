@@ -2,6 +2,7 @@ package com.faber.api.base.generator.mapper;
 
 import com.faber.api.base.generator.vo.req.TableQueryVo;
 import com.faber.api.base.generator.vo.ret.TableVo;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -12,6 +13,6 @@ import java.util.List;
  */
 public interface GeneratorMapper {
 
-    List<TableVo> queryTable(TableQueryVo tableQueryVo);
+    List<TableVo> queryTable(@Param("query") TableQueryVo tableQueryVo, @Param("sorter") String sorter);
 
 }

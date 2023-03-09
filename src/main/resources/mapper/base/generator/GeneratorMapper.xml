@@ -7,10 +7,12 @@
         select table_name, engine, table_comment, create_time
         from information_schema.tables
         where table_schema = (select database())
-        <if test="tableName != null and tableName.trim() != ''">
-            and table_name like concat('%', #{tableName}, '%')
+        <if test="query.tableName != null and query.tableName.trim() != ''">
+            and table_name like concat('%', #{query.tableName}, '%')
         </if>
-        order by create_time desc
+        <if test="sorter != null and sorter != ''">
+            ORDER BY ${sorter}
+        </if>
     </select>
 
 </mapper>
