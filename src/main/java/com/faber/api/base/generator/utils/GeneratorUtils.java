@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.generator.vo.req.CodeGenReqVo;
 import com.faber.api.base.generator.vo.ret.ColumnVo;
 import com.faber.api.base.generator.vo.ret.TableVo;
+import com.faber.core.exception.BuzzException;
 import com.faber.core.utils.FaFileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.WordUtils;
@@ -161,6 +162,16 @@ public class GeneratorUtils {
         return columnToJava(tableName);
     }
 
+    /**
+     * 解析rn前端的模块目录，返回frontend\apps\admin\features\fa-admin-pages，即pages前面的路径
+     * @param rnCopyPath 输入：frontend\apps\admin\features\fa-admin-pages\pages\admin\system\tenant
+     * @return
+     */
+    public static String getRnRootPath(String rnCopyPath) {
+        if (!rnCopyPath.contains("\\pages\\")) throw new BuzzException("路径需要包含pages");
+        return rnCopyPath.substring(0, rnCopyPath.indexOf("\\pages\\"));
+    }
+
     public static String getJavaCopyPath(CodeGenReqVo codeGenReqVo) throws IOException {
         String rootDir = FaFileUtils.getProjectRootDir();
 
@@ -171,8 +182,10 @@ public class GeneratorUtils {
         }
 
         String className = tableToJava(codeGenReqVo.getTableName(), codeGenReqVo.getTablePrefix());
+        String classname = toLowerCaseFirstOne(className);
         String javaPath = rootDir + File.separator + codeGenReqVo.getJavaCopyPath() + File.separator + packagePath;
         String resourcePath = rootDir + File.separator + codeGenReqVo.getJavaCopyPath() + File.separator + "src" + File.separator + "main" + File.separator + "resources" + File.separator;
+        String rnRootPath = getRnRootPath(codeGenReqVo.getRnCopyPath());
         switch (codeGenReqVo.getType()) {
             case JAVA_ENTITY:
                 return javaPath + "entity" + File.separator + className + ".java";
@@ -189,6 +202,8 @@ public class GeneratorUtils {
                 return rootDir + File.separator + codeGenReqVo.getRnCopyPath() + File.separator + "modal" + File.separator + className + "Modal.tsx";
             case RN_LIST:
                 return rootDir + File.separator + codeGenReqVo.getRnCopyPath() + File.separator + className + "List.tsx";
+            case RN_SERVICE:
+                return rootDir + File.separator + rnRootPath + File.separator + "services" + File.separator + codeGenReqVo.getMainModule() + File.separator + classname + ".ts";
         }
         return "";
     }

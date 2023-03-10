@@ -61,7 +61,6 @@ public class GeneratorBiz {
     public void copyOne(CodeGenReqVo codeGenReqVo) throws IOException {
         switch (codeGenReqVo.getType()) {
             case RN_PROPS:
-            case RN_SERVICE:
                 throw new BuzzException("暂不支持此类型文件自动复制，请手动添加");
         }
 
