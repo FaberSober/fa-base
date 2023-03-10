@@ -18,7 +18,7 @@ export default function ${className}List() {
   const { queryParams, setFormValues, handleTableChange, setSceneId, setConditionList, fetchPageList, loading, list, paginationProps } =
           useTableQueryParams<${moduleNameUpperCaseFirstOne}.${className}>(api.page, {}, serviceName)
 
-  const [handleDelete] = useDelete<number>(api.remove, fetchPageList, serviceName)
+  const [handleDelete] = useDelete<string>(api.remove, fetchPageList, serviceName)
   const [exporting, fetchExportExcel] = useExport(api.exportExcel, queryParams)
 
   /** 生成表格字段List */

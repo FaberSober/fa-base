@@ -3,6 +3,6 @@ import { BaseApi } from '@fa/ui';
 import { ${moduleNameUpperCaseFirstOne} } from '@/types';
 
 /** ------------------------------------------ xx 操作接口 ------------------------------------------ */
-class Api extends BaseApi<${moduleNameUpperCaseFirstOne}.${className}, number> {}
+class Api extends BaseApi<${moduleNameUpperCaseFirstOne}.${className}, string> {}
 
 export default new Api(GATE_APP.${moduleName}, '${secondModuleName}');

@@ -6,7 +6,7 @@ namespace ${moduleNameUpperCaseFirstOne} {
 #foreach ($column in $columns)
 #if($column.columnName == $pk.columnName)
     /** $column.columnComment */
-    $column.attrname: number;
+    $column.attrname: string;
 #elseif ($column.attrname != 'crtTime' and $column.attrname != 'crtUser' and $column.attrname != 'crtName' and $column.attrname != 'crtHost' and $column.attrname != 'updTime' and $column.attrname != 'updUser' and $column.attrname != 'updName' and $column.attrname != 'updHost' and $column.attrname != 'deleted')
     /** $column.columnComment */
     $column.attrname: string;
