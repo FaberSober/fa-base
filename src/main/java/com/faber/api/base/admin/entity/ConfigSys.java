@@ -67,27 +67,27 @@ public class ConfigSys extends BaseDelEntity {
         /**
          * [安全]是否开启验证码
          */
-        private Boolean safeCaptchaOn;
+        private Boolean safeCaptchaOn = true;
         /**
          * [安全]是否开启注册
          */
-        private Boolean safeRegistrationOn;
+        private Boolean safeRegistrationOn = true;
         /**
          * [安全]密码类型
          */
-        private ConfigSysSafePasswordTypeEnum safePasswordType;
+        private ConfigSysSafePasswordTypeEnum safePasswordType = ConfigSysSafePasswordTypeEnum.NUM;
         /**
          * [安全]密码最小长度
          */
-        private Integer safePasswordLenMin;
+        private Integer safePasswordLenMin = 1;
         /**
          * [安全]密码最大长度
          */
-        private Integer safePasswordLenMax;
+        private Integer safePasswordLenMax = 30;
         /**
          * [安全]token有效时长(小时)
          */
-        private Integer safeTokenExpireHour;
+        private Integer safeTokenExpireHour = 24;
         /**
          * [存储][本地]目录
          */
