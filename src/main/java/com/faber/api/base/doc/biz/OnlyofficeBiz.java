@@ -51,6 +51,9 @@ public class OnlyofficeBiz {
 
         DocumentType documentType = faFileUtility.getDocumentType(fileSave.getOriginalFilename());  // get the document type of the specified file
 
+        fileModel.setDocument(new Document());
+        fileModel.setEditorConfig(new EditorConfig());
+
         Document document = fileModel.getDocument();
         document.setTitle(fileSave.getOriginalFilename());
         document.setFileType(fileSave.getExt());
@@ -68,7 +71,7 @@ public class OnlyofficeBiz {
         map.put("editorConfig", editorConfig);
 
         String token = jwtManager.createToken(map);
-        map.put("token", token);
+        fileModel.setToken(token);
 
         return fileModel;
     }

@@ -25,7 +25,7 @@ public class OnlyofficeController extends BaseResHandler {
     OnlyofficeBiz onlyofficeBiz;
 
     @FaLogOpr("打开文件Token")
-    @GetMapping("/getFile/{fileId}")
+    @GetMapping("/openFile/{fileId}")
     @ResponseBody
     public Ret<FileModel> openFile(@PathVariable("fileId") String fileId) {
         FileModel data = onlyofficeBiz.openFile(fileId);
