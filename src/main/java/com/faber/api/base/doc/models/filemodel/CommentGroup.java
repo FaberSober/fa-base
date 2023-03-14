@@ -25,6 +25,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -34,12 +36,19 @@ import java.util.List;
 public class CommentGroup {
 
     @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = SerializerFilter.class)
-    private List<String> view;  // define a list of groups whose comments the user can view
+    private List<String> view = new ArrayList<>();  // define a list of groups whose comments the user can view
 
     @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = SerializerFilter.class)
-    private List<String> edit;  // define a list of groups whose comments the user can edit
+    private List<String> edit = new ArrayList<>();  // define a list of groups whose comments the user can edit
 
     @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = SerializerFilter.class)
-    private List<String> remove;  // define a list of groups whose comments the user can remove
+    private List<String> remove = new ArrayList<>();  // define a list of groups whose comments the user can remove
+
+    @PostConstruct
+    public void init() {
+        this.view.add("1");
+        this.edit.add("1");
+        this.remove.add("1");
+    }
 
 }

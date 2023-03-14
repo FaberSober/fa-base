@@ -3,6 +3,7 @@ package com.faber.api.base.doc.rest;
 import com.faber.api.base.doc.biz.OnlyofficeBiz;
 import com.faber.api.base.doc.dto.Track;
 import com.faber.api.base.doc.models.filemodel.FileModel;
+import com.faber.api.base.doc.vo.ret.OpenFileRetVo;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.utils.BaseResHandler;
@@ -27,8 +28,8 @@ public class OnlyofficeController extends BaseResHandler {
     @FaLogOpr("打开文件Token")
     @GetMapping("/openFile/{fileId}")
     @ResponseBody
-    public Ret<FileModel> openFile(@PathVariable("fileId") String fileId) {
-        FileModel data = onlyofficeBiz.openFile(fileId);
+    public Ret<OpenFileRetVo> openFile(@PathVariable("fileId") String fileId) {
+        OpenFileRetVo data = onlyofficeBiz.openFile(fileId);
         return ok(data);
     }
 

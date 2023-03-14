@@ -45,10 +45,10 @@ public class Permission extends AbstractModel {  // the permission for the docum
     private Boolean modifyContentControl = true;  // if the content control settings can be changed
     private Boolean review = true;  // if the document can be reviewed or not
     private Boolean chat = true;  // if a chat can be used
-    @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = SerializerFilter.class)
-    private List<String> reviewGroups;  // the groups whose changes the user can accept/reject
-    @Autowired
-    private CommentGroup commentGroups;  //  the groups whose comments the user can edit, remove and/or view
-    @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = SerializerFilter.class)
-    private List<String> userInfoGroups;
+//    @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = SerializerFilter.class)
+//    private List<String> reviewGroups;  // the groups whose changes the user can accept/reject
+//    @Autowired
+//    private CommentGroup commentGroups;  //  the groups whose comments the user can edit, remove and/or view
+//    @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = SerializerFilter.class)
+//    private List<String> userInfoGroups;
 }

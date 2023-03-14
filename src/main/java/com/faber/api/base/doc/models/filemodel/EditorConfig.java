@@ -51,7 +51,7 @@ public class EditorConfig {  /* the parameters pertaining to the editor interfac
     private Embedded embedded;  /* the parameters which allow to change the settings which define
      the behavior of the buttons in the embedded mode */
     private String lang;  // the editor interface language
-    private Mode mode;  // the editor opening mode
+    private Mode mode = Mode.edit;  // the editor opening mode
     @Autowired
     private User user;  // the user currently viewing or editing the document
     private List<Template> templates;  /* the presence or absence

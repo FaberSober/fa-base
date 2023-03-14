@@ -18,7 +18,23 @@
 
 package com.faber.api.base.doc.models.enums;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.baomidou.mybatisplus.annotation.IEnum;
+import com.fasterxml.jackson.annotation.JsonValue;
+import lombok.Getter;
+
+@Getter
 public enum ToolbarDocked {
-    top,
-    bottom
+    top("top", "top"),
+    bottom("bottom", "bottom");
+
+    @JsonValue
+    @EnumValue
+    private final String value;
+    private final String desc;
+
+    ToolbarDocked(String value, String desc) {
+        this.value = value;
+        this.desc = desc;
+    }
 }

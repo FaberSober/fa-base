@@ -1,5 +1,6 @@
 package com.faber.api.base.doc.biz;
 
+import cn.hutool.extra.spring.SpringUtil;
 import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.entity.FileSave;
 import com.faber.api.base.doc.dto.Track;
@@ -10,6 +11,7 @@ import com.faber.api.base.doc.models.filemodel.Document;
 import com.faber.api.base.doc.models.filemodel.EditorConfig;
 import com.faber.api.base.doc.models.filemodel.FileModel;
 import com.faber.api.base.doc.utils.FaFileUtility;
+import com.faber.api.base.doc.vo.ret.OpenFileRetVo;
 import com.faber.core.constant.FaSetting;
 import org.springframework.stereotype.Service;
 
@@ -37,22 +39,26 @@ public class OnlyofficeBiz {
     @Resource
     FileSaveBiz fileSaveBiz;
 
+    public OpenFileRetVo openFile(String fileId) {
+        OpenFileRetVo retVo = new OpenFileRetVo();
+        retVo.setFileModel(openFileModal(fileId));
+        retVo.setDocumentApi(faSetting.getOnlyoffice().getOnlyofficeServer());
+        return retVo;
+    }
+
     /**
      * 打开office文件，生成与onlyoffice服务交互的jwt token，返回打开文件的配置
      *
      * @param fileId {@link FileSave#getId()}
      * @return
      */
-    public FileModel openFile(String fileId) {
+    public FileModel openFileModal(String fileId) {
         FileSave fileSave = fileSaveBiz.getById(fileId);
 
-        FileModel fileModel = new FileModel();
+        FileModel fileModel = SpringUtil.getBean(FileModel.class);
         fileModel.setType(Type.desktop);
 
         DocumentType documentType = faFileUtility.getDocumentType(fileSave.getOriginalFilename());  // get the document type of the specified file
-
-        fileModel.setDocument(new Document());
-        fileModel.setEditorConfig(new EditorConfig());
 
         Document document = fileModel.getDocument();
         document.setTitle(fileSave.getOriginalFilename());

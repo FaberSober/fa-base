@@ -18,7 +18,23 @@
 
 package com.faber.api.base.doc.models.enums;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.baomidou.mybatisplus.annotation.IEnum;
+import com.fasterxml.jackson.annotation.JsonValue;
+import lombok.Getter;
+
+@Getter
 public enum Mode {
-    edit,
-    view
+    edit("edit", "edit"),
+    view("view", "view");
+
+    @JsonValue
+    @EnumValue
+    private final String value;
+    private final String desc;
+
+    Mode(String value, String desc) {
+        this.value = value;
+        this.desc = desc;
+    }
 }

@@ -24,6 +24,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
+
 @Component
 @Scope("prototype")
 @Getter
@@ -37,4 +39,10 @@ public class Logo {  // the image file at the top left corner of the Editor head
 
 //    @Value("${logo.url}")
     private String url = "";  // the absolute URL which will be used when someone clicks the logo image
+
+    @PostConstruct
+    public void init() {
+
+    }
+
 }

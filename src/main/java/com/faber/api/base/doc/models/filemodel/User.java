@@ -19,10 +19,13 @@
 package com.faber.api.base.doc.models.filemodel;
 
 import com.faber.api.base.doc.models.AbstractModel;
+import com.faber.core.context.BaseContextHandler;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
 
 @Component
 @Scope("prototype")
@@ -33,9 +36,14 @@ public class User extends AbstractModel {
     private String name;
     private String group;
 
+    @PostConstruct
+    public void init() {
+        this.configure(BaseContextHandler.getUserId(), BaseContextHandler.getName(), "group");
+    }
+
     // the user configuration parameters
-    public void configure(final int idParam, final String nameParam, final String groupParam) {
-        this.id = "uid-" + idParam;  // the user id
+    public void configure(final String idParam, final String nameParam, final String groupParam) {
+        this.id = idParam;  // the user id
         this.name = nameParam;  // the user name
         this.group = groupParam;  // the group the user belongs to
     }

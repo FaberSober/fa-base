@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 @Component
-@Scope("prototype")
+@Scope("prototype") // prototype：原型模式，每次通过容器的getBean方法获取prototype定义的Bean时，都将产生一个新的Bean实例
 @Getter
 @Setter
 /* the file base parameters which include the platform type used,
@@ -35,7 +35,7 @@ import org.springframework.stereotype.Component;
 public class FileModel {
     @Autowired
     private Document document;  // the parameters pertaining to the document (title, url, file type, etc.)
-    private DocumentType documentType;  // the document type to be opened
+    private DocumentType documentType = DocumentType.word;  // the document type to be opened
     @Autowired
     private EditorConfig editorConfig;  /*  the parameters pertaining to the
      editor interface: opening mode (viewer or editor), interface language, additional buttons, etc. */

@@ -18,8 +18,24 @@
 
 package com.faber.api.base.doc.models.enums;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.baomidou.mybatisplus.annotation.IEnum;
+import com.fasterxml.jackson.annotation.JsonValue;
+import lombok.Getter;
+
+@Getter
 public enum Type {
-    desktop,
-    mobile,
-    embedded
+    desktop("desktop", "desktop"),
+    mobile("mobile", "mobile"),
+    embedded("embedded", "embedded");
+
+    @JsonValue
+    @EnumValue
+    private final String value;
+    private final String desc;
+
+    Type(String value, String desc) {
+        this.value = value;
+        this.desc = desc;
+    }
 }
