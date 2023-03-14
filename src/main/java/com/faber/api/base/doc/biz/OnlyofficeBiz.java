@@ -66,6 +66,7 @@ public class OnlyofficeBiz {
         fileModel.setType(Type.desktop);
 
         DocumentType documentType = faFileUtility.getDocumentType(fileSave.getOriginalFilename());  // get the document type of the specified file
+        fileModel.setDocumentType(documentType);
 
         Document document = fileModel.getDocument();
         document.setTitle(fileSave.getOriginalFilename());
@@ -125,6 +126,11 @@ public class OnlyofficeBiz {
         Action action = track.getActions().get(0);
         switch (action.getType()) {
             case edit:
+                // 获取本次操作的用户ID
+                action.getUserid();
+
+                // 需要保存的文件URL，将此URL下载保存到本地。这里没有继续实现了，文件的更新放到了fa-disk网盘模块中进行处理。
+                track.getUrl();
                 break;
         }
     }
