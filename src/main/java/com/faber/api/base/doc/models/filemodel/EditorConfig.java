@@ -47,9 +47,8 @@ public class EditorConfig {  /* the parameters pertaining to the editor interfac
     private Customization customization;  /* the parameters which allow to customize the editor interface
      so that it looked like your other products (if there are any) and change the presence or absence
       of the additional buttons, links, change logos and editor owner details */
-    @Autowired
-    private Embedded embedded;  /* the parameters which allow to change the settings which define
-     the behavior of the buttons in the embedded mode */
+//    @Autowired
+//    private Embedded embedded;  /* the parameters which allow to change the settings which define the behavior of the buttons in the embedded mode */
     private String lang;  // the editor interface language
     private Mode mode = Mode.edit;  // the editor opening mode
     @Autowired
