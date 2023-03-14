@@ -7,6 +7,7 @@ import cn.hutool.core.io.file.FileNameUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.digest.DigestUtil;
+import cn.hutool.http.HttpUtil;
 import cn.xuyanwu.spring.file.storage.FileInfo;
 import cn.xuyanwu.spring.file.storage.FileStorageService;
 import cn.xuyanwu.spring.file.storage.UploadPretreatment;
@@ -27,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -45,6 +47,26 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Autowired
     private ConfigSysService configSysService;
 
+    /**
+     * 下载URL文件到本地，并入库
+     * @param url
+     * @param filename
+     * @return
+     */
+    public FileSave download(String url, String filename) throws IOException {
+        String name = filename.substring(0, filename.lastIndexOf("."));
+        String ext = filename.substring(filename.lastIndexOf("."));
+        File tmpFile = FileUtil.createTempFile(name, ext, true);
+        HttpUtil.downloadFile(url, tmpFile);
+        return upload(tmpFile);
+    }
+
+    /**
+     * 上传文件
+     * @param file
+     * @return
+     * @throws IOException
+     */
     public FileSave upload(MultipartFile file) throws IOException {
         UploadPretreatment uploadPretreatment = fileStorageService.of(file);
 
@@ -70,6 +92,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     }
 
 
+    /**
+     * 上传文件
+     * @param file
+     * @return
+     */
     public FileSave upload(File file) {
         UploadPretreatment uploadPretreatment = fileStorageService.of(file);
 
@@ -94,6 +121,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         return fileSave;
     }
 
+    /**
+     * 通过fileId获取文件
+     * @param fileId
+     * @return
+     */
     public File getFileObj(String fileId) {
         FileSave fileSave = getById(fileId);
         // 本地存储
@@ -109,6 +141,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         }
     }
 
+    /**
+     * 通过fileId，下载文件到http返回流
+     * @param fileId
+     * @throws IOException
+     */
     public void getFile(String fileId) throws IOException {
         FileSave fileSave = getById(fileId);
 
@@ -125,6 +162,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         }
     }
 
+    /**
+     * 通过fileId，返回图片类型文件缩略图到http返回流
+     * @param fileId
+     * @throws IOException
+     */
     public void getFilePreview(String fileId) throws IOException {
         FileSave fileSave = getById(fileId);
 
@@ -141,16 +183,30 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         }
     }
 
+    /**
+     * 通过fileId读取文件的字符串内容
+     * @param fileId
+     * @return
+     */
     public String getFileStr(String fileId) {
         File file = getFileObj(fileId);
         return FileUtil.readString(file, StandardCharsets.UTF_8);
     }
 
+    /**
+     * 创建一个临时文件，并入库
+     * @param prefix 前缀，至少3个字符
+     * @param suffix 后缀，如果null则使用默认.tmp
+     * @return
+     */
     public FileSave createTmpFile(String prefix, String suffix) {
         File tmpFile = FileUtil.createTempFile(prefix, suffix, false);
         return upload(tmpFile);
     }
 
+    /**
+     * 系统配置更新后，同步系统配置信息
+     */
     @Override
     public void syncStorageDatabaseConfig() {
         log.info("------------------------ Scan Database Storage Config ------------------------");
