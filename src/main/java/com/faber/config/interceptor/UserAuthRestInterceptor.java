@@ -1,13 +1,10 @@
 package com.faber.config.interceptor;
 
 import com.faber.api.base.admin.biz.UserBiz;
+import com.faber.api.base.admin.entity.User;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
-import com.faber.api.base.admin.entity.User;
-import com.faber.config.utils.jwt.JWTInfo;
-import com.faber.config.utils.user.UserCheckUtil;
-import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.auth.UserTokenException;
 import com.faber.core.utils.FaKeyUtils;
 import com.faber.core.utils.FaRedisUtils;
@@ -38,7 +35,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         AdminOpr adminOpr = getMethodAnno(handler, AdminOpr.class);
         if (adminOpr != null) {
             User user = userBiz.getById(1L);
-            setUserLogin(user);
+            userBiz.setUserLogin(user);
             return super.preHandle(request, response, handler);
         }
 
@@ -52,7 +49,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         ApiToken apiToken = getMethodAnno(handler, ApiToken.class);
         if (apiToken != null) {
             User user = userBiz.getUserFromApiToken();
-            setUserLogin(user);
+            userBiz.setUserLogin(user);
             return super.preHandle(request, response, handler);
         }
 
@@ -64,7 +61,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
         // 判断用户状态是否正常
         User user = userBiz.getById(userId);
-        setUserLogin(user);
+        userBiz.setUserLogin(user);
         return super.preHandle(request, response, handler);
     }
 
@@ -74,12 +71,4 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         super.afterCompletion(request, response, handler, ex);
     }
 
-    private void setUserLogin(User user) {
-        UserCheckUtil.checkUserValid(user);
-
-        BaseContextHandler.setUsername(user.getUsername());
-        BaseContextHandler.setName(user.getName());
-        BaseContextHandler.setUserId(user.getId());
-        BaseContextHandler.setLogin(true);
-    }
 }

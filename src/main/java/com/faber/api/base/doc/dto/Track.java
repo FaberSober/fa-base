@@ -18,6 +18,7 @@
 
 package com.faber.api.base.doc.dto;
 
+import com.faber.api.base.doc.callbacks.OnlyofficeCallbackStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -37,7 +38,7 @@ public class Track {
     private History history;
     private String token;
     private Integer forcesavetype;
-    private Integer status;
+    private OnlyofficeCallbackStatus status;
     private List<String> users;
     private List<Action> actions;
     private String userdata;

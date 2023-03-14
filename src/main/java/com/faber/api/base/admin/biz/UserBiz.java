@@ -423,4 +423,18 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
                 .update();
     }
 
+    public void setUserLogin(String userId) {
+        User user = super.getById(userId);
+        this.setUserLogin(user);
+    }
+
+    public void setUserLogin(User user) {
+        UserCheckUtil.checkUserValid(user);
+
+        BaseContextHandler.setUsername(user.getUsername());
+        BaseContextHandler.setName(user.getName());
+        BaseContextHandler.setUserId(user.getId());
+        BaseContextHandler.setLogin(true);
+    }
+
 }

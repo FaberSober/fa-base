@@ -19,28 +19,27 @@
 package com.faber.api.base.doc.models.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
-import com.baomidou.mybatisplus.annotation.IEnum;
 import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
 @Getter
 public enum Action {
-    edit("edit", "edit"),
-    review("review", "review"),
-    view("view", "view"),
-    embedded("embedded", "embedded"),
-    filter("filter", "filter"),
-    comment("comment", "comment"),
-    chat("chat", "chat"),
-    fillForms("fillForms", "fillForms"),
-    blockcontent("blockcontent", "blockcontent");
+    edit(0, "edit"),
+    review(1, "review"),
+    view(2, "view"),
+    embedded(3, "embedded"),
+    filter(4, "filter"),
+    comment(5, "comment"),
+    chat(6, "chat"),
+    fillForms(7, "fillForms"),
+    blockcontent(8, "blockcontent");
 
     @JsonValue
     @EnumValue
-    private final String value;
+    private final Integer value;
     private final String desc;
 
-    Action(String value, String desc) {
+    Action(Integer value, String desc) {
         this.value = value;
         this.desc = desc;
     }

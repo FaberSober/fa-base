@@ -2,7 +2,9 @@ package com.faber.api.base.doc.biz;
 
 import cn.hutool.extra.spring.SpringUtil;
 import com.faber.api.base.admin.biz.FileSaveBiz;
+import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.FileSave;
+import com.faber.api.base.doc.dto.Action;
 import com.faber.api.base.doc.dto.Track;
 import com.faber.api.base.doc.manager.jwt.JwtManager;
 import com.faber.api.base.doc.models.enums.DocumentType;
@@ -13,6 +15,7 @@ import com.faber.api.base.doc.models.filemodel.FileModel;
 import com.faber.api.base.doc.utils.FaFileUtility;
 import com.faber.api.base.doc.vo.ret.OpenFileRetVo;
 import com.faber.core.constant.FaSetting;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -39,6 +42,10 @@ public class OnlyofficeBiz {
     @Resource
     FileSaveBiz fileSaveBiz;
 
+    @Lazy
+    @Resource
+    UserBiz userBiz;
+
     public OpenFileRetVo openFile(String fileId) {
         OpenFileRetVo retVo = new OpenFileRetVo();
         retVo.setFileModel(openFileModal(fileId));
@@ -63,12 +70,12 @@ public class OnlyofficeBiz {
         Document document = fileModel.getDocument();
         document.setTitle(fileSave.getOriginalFilename());
         document.setFileType(fileSave.getExt());
-        document.setKey(fileId);
-        document.setUrl(faSetting.getOnlyoffice().getCallbackServer() + "/api/base/admin/fileSave/getFile/" + fileId);
+        document.setKey(fileId); // 设置文件ID
+        document.setUrl(faSetting.getOnlyoffice().getCallbackServer() + "api/base/admin/fileSave/getFile/" + fileId);
 
         EditorConfig editorConfig = fileModel.getEditorConfig();
         editorConfig.setLang("zh");
-        editorConfig.setCallbackUrl(faSetting.getOnlyoffice().getCallbackServer() + "/api/base/doc/onlyoffice/track");
+        editorConfig.setCallbackUrl(faSetting.getOnlyoffice().getCallbackServer() + "api/base/doc/onlyoffice/track");
 
         Map<String, Object> map = new HashMap<>();
         map.put("type", fileModel.getType());
@@ -82,7 +89,44 @@ public class OnlyofficeBiz {
         return fileModel;
     }
 
-    public void track(final Track body) {
+    public void track(final Track track) {
+        // 设置操作用户
+        setTrackUserToContext(track);
 
+        switch (track.getStatus()) {
+            case EDITING:
+                break;
+            case SAVE:
+            case MUST_FORCE_SAVE:
+                this.saveTrack(track);
+                break;
+            case CORRUPTED:
+                break;
+            case CORRUPTED_FORCE_SAVE:
+                break;
+        }
     }
+
+    /**
+     * 检查onlyoffice的回调，查找操作用户，设置到上下文中
+     * @param track
+     */
+    public void setTrackUserToContext(Track track) {
+        if (track.getUsers() == null || track.getUsers().isEmpty()) return;
+        userBiz.setUserLogin(track.getUsers().get(0));
+    }
+
+    /**
+     * 保存
+     * @param track
+     */
+    public void saveTrack(Track track) {
+        if (track.getActions() == null || track.getActions().isEmpty()) return;
+        Action action = track.getActions().get(0);
+        switch (action.getType()) {
+            case edit:
+                break;
+        }
+    }
+
 }

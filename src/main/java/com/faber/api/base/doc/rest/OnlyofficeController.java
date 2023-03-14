@@ -2,8 +2,9 @@ package com.faber.api.base.doc.rest;
 
 import com.faber.api.base.doc.biz.OnlyofficeBiz;
 import com.faber.api.base.doc.dto.Track;
-import com.faber.api.base.doc.models.filemodel.FileModel;
+import com.faber.api.base.doc.vo.ret.OnlyofficeRet;
 import com.faber.api.base.doc.vo.ret.OpenFileRetVo;
+import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.utils.BaseResHandler;
@@ -18,6 +19,7 @@ import javax.annotation.Resource;
  * @date 2023/3/13 16:32
  * @description
  */
+@FaLogBiz("Onlyoffice")
 @RestController
 @RequestMapping("/api/base/doc/onlyoffice")
 public class OnlyofficeController extends BaseResHandler {
@@ -34,12 +36,12 @@ public class OnlyofficeController extends BaseResHandler {
     }
 
     @FaLogOpr("onlyoffice回调")
-    @GetMapping("/track")
+    @PostMapping("/track")
     @ResponseBody
     @IgnoreUserToken
-    public Ret<Boolean> track(@RequestBody final Track body) {
+    public OnlyofficeRet track(@RequestBody final Track body) {
         onlyofficeBiz.track(body);
-        return ok();
+        return new OnlyofficeRet();
     }
 
 }

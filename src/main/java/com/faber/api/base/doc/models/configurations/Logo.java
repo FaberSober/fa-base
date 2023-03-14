@@ -18,6 +18,9 @@
 
 package com.faber.api.base.doc.models.configurations;
 
+import cn.hutool.extra.spring.SpringUtil;
+import com.faber.api.base.admin.biz.ConfigSysBiz;
+import com.faber.core.constant.FaSetting;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +28,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 
 @Component
 @Scope("prototype")
@@ -42,7 +46,11 @@ public class Logo {  // the image file at the top left corner of the Editor head
 
     @PostConstruct
     public void init() {
+        ConfigSysBiz configSysBiz = SpringUtil.getBean(ConfigSysBiz.class);
+        FaSetting faSetting = SpringUtil.getBean(FaSetting.class);
 
+        this.image = faSetting.getOnlyoffice().getCallbackServer() + "api/base/admin/fileSave/getFile/" + configSysBiz.getConfig().getLogo();
+        this.imageEmbedded = faSetting.getOnlyoffice().getCallbackServer() + "api/base/admin/fileSave/getFile/" + configSysBiz.getConfig().getLogo();
     }
 
 }
