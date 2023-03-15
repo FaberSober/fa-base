@@ -24,8 +24,8 @@ import lombok.Getter;
 
 @Getter
 public enum Action {
-    edit(0, "edit"),
-    review(1, "review"),
+    edit(0, "edit"), // 文件编辑：文件关闭后，保存文件，触发文件编辑
+    review(1, "review"), // 文件查看：文件打开时，触发文件review查看
     view(2, "view"),
     embedded(3, "embedded"),
     filter(4, "filter"),

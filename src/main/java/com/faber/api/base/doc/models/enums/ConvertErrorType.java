@@ -18,6 +18,11 @@
 
 package com.faber.api.base.doc.models.enums;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.fasterxml.jackson.annotation.JsonValue;
+import lombok.Getter;
+
+@Getter
 public enum ConvertErrorType {
     EMPTY_ERROR(0, ""),
     CONVERTATION_UNKNOWN(-1, "Error convertation unknown"),
@@ -29,6 +34,8 @@ public enum ConvertErrorType {
     DOCUMENT_REQUEST_ERROR(-7, "Error document request"),
     DOCUMENT_VKEY_ERROR(-8, "Error document VKey");
 
+    @JsonValue
+    @EnumValue
     private final int code;
     private final String label;
 

@@ -18,7 +18,14 @@
 
 package com.faber.api.base.doc.callbacks;
 
-// document status
+import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.fasterxml.jackson.annotation.JsonValue;
+import lombok.Getter;
+
+/**
+ * document status回调track的动作状态
+ */
+@Getter
 public enum OnlyofficeCallbackStatus {
     EDITING(1),  // 1 - document is being edited
     SAVE(2),  // 2 - document is ready for saving
@@ -26,6 +33,8 @@ public enum OnlyofficeCallbackStatus {
     MUST_FORCE_SAVE(6),  // 6 - document is being edited, but the current document state is saved
     CORRUPTED_FORCE_SAVE(7);  // 7 - error has occurred while force saving the document
 
+    @JsonValue
+    @EnumValue
     private int code;
 
     OnlyofficeCallbackStatus(final int codeParam) {
