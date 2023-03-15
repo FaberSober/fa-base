@@ -8,6 +8,7 @@ import com.faber.api.base.doc.dto.Action;
 import com.faber.api.base.doc.dto.Track;
 import com.faber.api.base.doc.manager.jwt.JwtManager;
 import com.faber.api.base.doc.models.enums.DocumentType;
+import com.faber.api.base.doc.models.enums.Mode;
 import com.faber.api.base.doc.models.enums.Type;
 import com.faber.api.base.doc.models.filemodel.Document;
 import com.faber.api.base.doc.models.filemodel.EditorConfig;
@@ -46,9 +47,9 @@ public class OnlyofficeBiz {
     @Resource
     UserBiz userBiz;
 
-    public OpenFileRetVo openFile(String fileId) {
+    public OpenFileRetVo openFile(String fileId, Mode mode) {
         OpenFileRetVo retVo = new OpenFileRetVo();
-        retVo.setFileModel(openFileModal(fileId));
+        retVo.setFileModel(openFileModal(fileId, mode));
         retVo.setDocumentApi(faSetting.getOnlyoffice().getOnlyofficeServer());
         return retVo;
     }
@@ -57,9 +58,10 @@ public class OnlyofficeBiz {
      * 打开office文件，生成与onlyoffice服务交互的jwt token，返回打开文件的配置
      *
      * @param fileId {@link FileSave#getId()}
+     * @param mode
      * @return
      */
-    public FileModel openFileModal(String fileId) {
+    public FileModel openFileModal(String fileId, Mode mode) {
         FileSave fileSave = fileSaveBiz.getById(fileId);
 
         FileModel fileModel = SpringUtil.getBean(FileModel.class);
@@ -77,6 +79,7 @@ public class OnlyofficeBiz {
         EditorConfig editorConfig = fileModel.getEditorConfig();
         editorConfig.setLang("zh");
         editorConfig.setCallbackUrl(faSetting.getOnlyoffice().getCallbackServer() + "api/base/doc/onlyoffice/track");
+        editorConfig.setMode(mode);
 
         Map<String, Object> map = new HashMap<>();
         map.put("type", fileModel.getType());
