@@ -179,6 +179,20 @@ fa:
     url:
       phpRedisAdmin: http://127.0.0.1:8182
       socketUrl: 127.0.0.1:8081
+    # onlyoffice在线编辑office文件支持
+    onlyoffice:
+      # ONLYOFFICE_SERVER，返回给前端获取api
+      onlyofficeServer: http://8.142.130.28:18907/
+      # 本服务提供给onlyoffice回调的服务器地址
+      callbackServer: http://127.0.0.1/
+      # docservice中配置jwt secret
+      docserviceSecret: faberJWT1256
+      # docservice中配置token的Header Key
+      docserviceHeader: Authorization
+      fileFillformsDocs: .oform|.docx
+      fileViewedDocs: .pdf|.djvu|.xps|.oxps
+      fileEditedDocs: .docx|.xlsx|.csv|.pptx|.txt|.docxf
+      fileConvertDocs: .docm|.dotx|.dotm|.dot|.doc|.odt|.fodt|.ott|.xlsm|.xlsb|.xltx|.xltm|.xlt|.xls|.ods|.fods|.ots|.pptm|.ppt|.ppsx|.ppsm|.pps|.potx|.potm|.pot|.odp|.fodp|.otp|.rtf|.mht|.html|.htm|.xml|.epub|.fb2
 
 #============================================================================
 # netty socket io setting

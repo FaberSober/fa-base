@@ -1,9 +1,11 @@
 package com.faber.api.base.admin.biz;
 
+import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.ClassUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
 import com.faber.api.base.admin.mapper.SystemUpdateLogMapper;
+import com.faber.api.base.admin.vo.dto.FaSqlHeader;
 import com.faber.api.base.rbac.biz.RbacRoleMenuBiz;
 import com.faber.core.config.dbinit.DbInit;
 import com.faber.core.config.dbinit.vo.FaDdl;
@@ -14,11 +16,15 @@ import com.faber.core.context.BaseContextHandler;
 import com.faber.core.utils.FaDateUtils;
 import com.faber.core.utils.FaResourceUtils;
 import com.faber.core.web.biz.BaseBiz;
+import lombok.SneakyThrows;
 import org.apache.ibatis.jdbc.ScriptRunner;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -43,6 +49,8 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     @Resource
     RbacRoleMenuBiz rbacRoleMenuBiz;
 
+    public static final String SQL_SPLITTER = "-- ------------------------- info -------------------------";
+
     public void initDb() {
         BaseContextHandler.useAdmin();
 
@@ -56,7 +64,84 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         rbacRoleMenuBiz.initAdminRoleMenu();
     }
 
+    @SneakyThrows
     private void initOneBuzz(DbInit dbInit) {
+        // 1. 获取数据库操作信息
+        String no = dbInit.getNo();
+        String name = dbInit.getName();
+
+        // 2. 查询数据库当前记录最新的版本
+        SystemUpdateLog latestLog = this.getLatestByNo(no);
+
+        // 3. 获取sql文件列表
+        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        org.springframework.core.io.Resource[] resources = resolver.getResources("classpath*:sql/" + no + "/*.sql");
+
+        // 4. 解析sql文件
+        ListUtil.of(resources).stream().map(resource -> {
+                    try {
+                        String sqlStr = FaResourceUtils.getResourceString(resource);
+                        return getSqlFileHeader(sqlStr);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).filter(i -> i != null)
+                .filter(i -> {
+                    if (latestLog == null) return true;
+                    return i.getVer() > latestLog.getVer();
+                }) // 过滤需要升级的sql
+                .forEach(i -> {
+                    // 执行升级sql
+                    try {
+                        executeSql(i.getSql());
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    // 2. 记录升级日志
+                    SystemUpdateLog updateLog = new SystemUpdateLog();
+                    updateLog.setNo(no);
+                    updateLog.setName(name);
+                    updateLog.setVer(i.getVer());
+                    updateLog.setVerNo(i.getVerNo());
+                    updateLog.setRemark(i.getInfo());
+                    updateLog.setLog(i.getSql());
+
+                    super.save(updateLog);
+                });
+    }
+
+    private FaSqlHeader getSqlFileHeader(String sqlStr) {
+        String info = sqlStr.substring(sqlStr.indexOf(SQL_SPLITTER) + SQL_SPLITTER.length(), sqlStr.lastIndexOf(SQL_SPLITTER));
+        String[] ss = info.trim().split("\n");
+
+        FaSqlHeader header = new FaSqlHeader();
+        header.setSql(sqlStr);
+
+        for (String line : ss) {
+            String key = line.substring(0, line.indexOf(":")).substring(5);
+            String value = line.substring(line.indexOf(":") + 1).trim();
+            log.debug(key + ":" + value);
+
+            switch (key) {
+                case "ver":
+                    header.setVer(Long.parseLong(value.replace("_", "").replace("L", "")));
+
+                    String[] verSs = value.replace("L", "").split("_");
+                    String verNo = "V" + Integer.parseInt(verSs[0]) + "." + Integer.parseInt(verSs[1]) + "." + Integer.parseInt(verSs[2]);
+                    header.setVerNo(verNo);
+                    break;
+                case "info":
+                    header.setInfo(value);
+                    break;
+            }
+        }
+
+        return header;
+    }
+
+
+    private void initOneBuzzOld(DbInit dbInit) {
         // 1. 获取数据库操作信息
         String no = dbInit.getNo();
         String name = dbInit.getName();
