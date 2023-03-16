@@ -1,3 +1,8 @@
+-- ------------------------- info -------------------------
+-- @@ver: 1_000_001
+-- @@info: 增加BaseFileBiz通用业务附件表
+-- ------------------------- info -------------------------
+
 SET FOREIGN_KEY_CHECKS=0;
 
 CREATE TABLE IF NOT EXISTS `base_file_biz`  (

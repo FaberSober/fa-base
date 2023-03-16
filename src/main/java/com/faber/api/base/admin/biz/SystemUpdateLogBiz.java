@@ -142,116 +142,116 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     }
 
 
-    private void initOneBuzzOld(DbInit dbInit) {
-        // 1. 获取数据库操作信息
-        String no = dbInit.getNo();
-        String name = dbInit.getName();
-        List<FaDdl> list = dbInit.getDdlList();
+//    private void initOneBuzzOld(DbInit dbInit) {
+//        // 1. 获取数据库操作信息
+//        String no = dbInit.getNo();
+//        String name = dbInit.getName();
+//        List<FaDdl> list = dbInit.getDdlList();
+//
+//        // 2. 查询数据库当前记录最新的版本
+//        SystemUpdateLog latestLog = this.getLatestByNo(no);
+//
+//        // 3. 过滤得到需要做更新的数据库操作list
+//        List<FaDdl> todoList = list.stream().filter(i -> {
+//            if (latestLog == null) return true;
+//            if (i.getVer() > latestLog.getVer()) {
+//                return true;
+//            }
+//            return false;
+//        }).collect(Collectors.toList());
+//
+//        // 按ver版本号升序排列
+//        todoList.sort(Comparator.comparing(FaDdl::getVer));
+//
+//        // 4. 循环执行数据库操作
+//        for (FaDdl faDdl : todoList) {
+//            initOneFaDdl(no, name, faDdl);
+//        }
+//    }
 
-        // 2. 查询数据库当前记录最新的版本
-        SystemUpdateLog latestLog = this.getLatestByNo(no);
-
-        // 3. 过滤得到需要做更新的数据库操作list
-        List<FaDdl> todoList = list.stream().filter(i -> {
-            if (latestLog == null) return true;
-            if (i.getVer() > latestLog.getVer()) {
-                return true;
-            }
-            return false;
-        }).collect(Collectors.toList());
-
-        // 按ver版本号升序排列
-        todoList.sort(Comparator.comparing(FaDdl::getVer));
-
-        // 4. 循环执行数据库操作
-        for (FaDdl faDdl : todoList) {
-            initOneFaDdl(no, name, faDdl);
-        }
-    }
-
-    private void initOneFaDdl(String no, String name, FaDdl faDdl) {
-        _logger.info("init db no={} name={} ver={} verNo={}", no, name, faDdl.getVer(), faDdl.getVerNo());
-        StringBuilder sb = new StringBuilder();
-
-        // 1.1 执行导入sql-create table
-        for (FaDdlTableCreate tableCreate : faDdl.getTableCreateList()) {
-            try {
-                // 判断数据表是否存在
-                Map<String, Object> tableSchema = getTableSchema(tableCreate.getTableName());
-                if (tableSchema != null) {
-                    sb.append("-- " + FaDateUtils.nowLog() + "  WARN 表" + tableCreate.getTableName() + "已存在，不执行建表语句\r\n");
-                    continue;
-                }
-
-                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 创建表" + tableCreate.getTableName() + "--->>>\r\n");
-                String sqlStr = FaResourceUtils.getResourceString("classpath:" + tableCreate.getSqlPath());
-
-                // 执行建表语句
-                executeSql(sqlStr);
-
-                sb.append(sqlStr).append("\r\n");
-            } catch (Exception e) {
-                _logger.error(e.getMessage(), e);
-                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 创建表" + tableCreate.getTableName() + "失败--->>>\r\n");
-                sb.append("-- " + e.getMessage() + "\r\n");
-                sb.append(e.getStackTrace().toString());
-            }
-        }
-
-        // 1.2 执行更新sql-add column
-        for (FaDdlAddColumn addColumn : faDdl.getAddColumnList()) {
-            try {
-                // 判断字段是否存在
-                Map<String, Object> colSchema = getColSchema(addColumn.getTableName(), addColumn.getColName());
-                if (colSchema != null) {
-                    sb.append("-- " + FaDateUtils.nowLog() + "  WARN 表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "已存在，不执行add语句\r\n");
-                    continue;
-                }
-
-                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 新增表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "--->>>\r\n");
-                String sqlStr = FaResourceUtils.getResourceString("classpath:" + addColumn.getSqlPath());
-
-                // 执行语句
-                executeSql(sqlStr);
-
-                sb.append(sqlStr).append("\r\n");
-            } catch (Exception e) {
-                _logger.error(e.getMessage(), e);
-                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 新增表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "失败--->>>\r\n");
-                sb.append("-- " + e.getMessage() + "\r\n");
-                sb.append(e.getStackTrace().toString());
-            }
-        }
-
-        // 1.3 执行通用DDL语句
-        for (FaDdlSql sql : faDdl.getSqlList()) {
-            try {
-                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 执行SQL " + sql.getComment() + "--->>>\r\n");
-                String sqlStr = FaResourceUtils.getResourceString("classpath:" + sql.getSqlPath());
-
-                // 执行语句
-                executeSql(sqlStr);
-
-                sb.append(sqlStr).append("\r\n");
-            } catch (Exception e) {
-                _logger.error(e.getMessage(), e);
-                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 执行SQL" + sql.getComment() + "失败--->>>\r\n");
-                sb.append("-- " + e.getMessage() + "\r\n");
-                sb.append(e.getStackTrace().toString());
-            }
-        }
-
-        // 2. 记录升级日志
-        SystemUpdateLog updateLog = new SystemUpdateLog();
-        updateLog.setNo(no);
-        updateLog.setName(name);
-        updateLog.setVer(faDdl.getVer());
-        updateLog.setVerNo(faDdl.getVerNo());
-        updateLog.setRemark(faDdl.getRemark());
-        updateLog.setLog(sb.toString());
-
-        super.save(updateLog);
-    }
+//    private void initOneFaDdl(String no, String name, FaDdl faDdl) {
+//        _logger.info("init db no={} name={} ver={} verNo={}", no, name, faDdl.getVer(), faDdl.getVerNo());
+//        StringBuilder sb = new StringBuilder();
+//
+//        // 1.1 执行导入sql-create table
+//        for (FaDdlTableCreate tableCreate : faDdl.getTableCreateList()) {
+//            try {
+//                // 判断数据表是否存在
+//                Map<String, Object> tableSchema = getTableSchema(tableCreate.getTableName());
+//                if (tableSchema != null) {
+//                    sb.append("-- " + FaDateUtils.nowLog() + "  WARN 表" + tableCreate.getTableName() + "已存在，不执行建表语句\r\n");
+//                    continue;
+//                }
+//
+//                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 创建表" + tableCreate.getTableName() + "--->>>\r\n");
+//                String sqlStr = FaResourceUtils.getResourceString("classpath:" + tableCreate.getSqlPath());
+//
+//                // 执行建表语句
+//                executeSql(sqlStr);
+//
+//                sb.append(sqlStr).append("\r\n");
+//            } catch (Exception e) {
+//                _logger.error(e.getMessage(), e);
+//                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 创建表" + tableCreate.getTableName() + "失败--->>>\r\n");
+//                sb.append("-- " + e.getMessage() + "\r\n");
+//                sb.append(e.getStackTrace().toString());
+//            }
+//        }
+//
+//        // 1.2 执行更新sql-add column
+//        for (FaDdlAddColumn addColumn : faDdl.getAddColumnList()) {
+//            try {
+//                // 判断字段是否存在
+//                Map<String, Object> colSchema = getColSchema(addColumn.getTableName(), addColumn.getColName());
+//                if (colSchema != null) {
+//                    sb.append("-- " + FaDateUtils.nowLog() + "  WARN 表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "已存在，不执行add语句\r\n");
+//                    continue;
+//                }
+//
+//                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 新增表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "--->>>\r\n");
+//                String sqlStr = FaResourceUtils.getResourceString("classpath:" + addColumn.getSqlPath());
+//
+//                // 执行语句
+//                executeSql(sqlStr);
+//
+//                sb.append(sqlStr).append("\r\n");
+//            } catch (Exception e) {
+//                _logger.error(e.getMessage(), e);
+//                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 新增表字段" + addColumn.getTableName() + "." + addColumn.getColName() + "失败--->>>\r\n");
+//                sb.append("-- " + e.getMessage() + "\r\n");
+//                sb.append(e.getStackTrace().toString());
+//            }
+//        }
+//
+//        // 1.3 执行通用DDL语句
+//        for (FaDdlSql sql : faDdl.getSqlList()) {
+//            try {
+//                sb.append("-- " + FaDateUtils.nowLog() + "  INFO 执行SQL " + sql.getComment() + "--->>>\r\n");
+//                String sqlStr = FaResourceUtils.getResourceString("classpath:" + sql.getSqlPath());
+//
+//                // 执行语句
+//                executeSql(sqlStr);
+//
+//                sb.append(sqlStr).append("\r\n");
+//            } catch (Exception e) {
+//                _logger.error(e.getMessage(), e);
+//                sb.append("-- " + FaDateUtils.nowLog() + "  ERROR 执行SQL" + sql.getComment() + "失败--->>>\r\n");
+//                sb.append("-- " + e.getMessage() + "\r\n");
+//                sb.append(e.getStackTrace().toString());
+//            }
+//        }
+//
+//        // 2. 记录升级日志
+//        SystemUpdateLog updateLog = new SystemUpdateLog();
+//        updateLog.setNo(no);
+//        updateLog.setName(name);
+//        updateLog.setVer(faDdl.getVer());
+//        updateLog.setVerNo(faDdl.getVerNo());
+//        updateLog.setRemark(faDdl.getRemark());
+//        updateLog.setLog(sb.toString());
+//
+//        super.save(updateLog);
+//    }
 
     public Map<String, Object> getTableSchema(String tableName) {
         try {
