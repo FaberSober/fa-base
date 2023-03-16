@@ -90,6 +90,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                     if (latestLog == null) return true;
                     return i.getVer() > latestLog.getVer();
                 }) // 过滤需要升级的sql
+                .sorted(Comparator.comparing(FaSqlHeader::getVer)) // 按照版本号升序排列
                 .forEach(i -> {
                     // 执行升级sql
                     try {
