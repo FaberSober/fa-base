@@ -93,4 +93,7 @@ public class LogApi extends BaseCrtEntity {
     @ExcelProperty("返回码")
     private Integer retStatus;
 
+    @ExcelProperty("请求备注")
+    private String remark;
+
 }

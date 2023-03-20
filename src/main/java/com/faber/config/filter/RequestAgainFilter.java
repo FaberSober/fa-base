@@ -80,7 +80,11 @@ public class RequestAgainFilter implements Filter {
         logApi.setCrud((LogCrudEnum) requestWrapper.getAttribute("FaLogCrud"));
 
         // request basic information
-        logApi.setUrl(requestWrapper.getRequestURI());
+        String url = requestWrapper.getRequestURI();
+        if (StrUtil.isNotEmpty(requestWrapper.getQueryString())) {
+            url += "?" + requestWrapper.getQueryString();
+        }
+        logApi.setUrl(url);
         logApi.setMethod(requestWrapper.getMethod());
         logApi.setAgent(requestWrapper.getHeader("User-Agent"));
 
@@ -125,6 +129,9 @@ public class RequestAgainFilter implements Filter {
             logApi.setCity(ipAddr.getCity());
             logApi.setAddr(ipAddr.getAddr());
         }
+
+        // 取备注
+        logApi.setRemark(BaseContextHandler.getLogRemark());
 
         logApiBiz.save(logApi);
 
