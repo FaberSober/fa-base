@@ -77,6 +77,7 @@ public class RequestAgainFilter implements Filter {
 
         logApi.setBiz(StrUtil.toString(requestWrapper.getAttribute("FaLogBiz")));
         logApi.setOpr(StrUtil.toString(requestWrapper.getAttribute("FaLogOpr")));
+        logApi.setOprRemark(BaseContextHandler.getLogOprRemark());
         logApi.setCrud((LogCrudEnum) requestWrapper.getAttribute("FaLogCrud"));
 
         // request basic information

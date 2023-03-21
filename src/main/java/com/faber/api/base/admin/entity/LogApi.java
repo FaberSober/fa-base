@@ -31,6 +31,9 @@ public class LogApi extends BaseCrtEntity {
     @ExcelProperty("操作")
     private String opr;
 
+    @ExcelProperty("操作备注")
+    private String oprRemark;
+
     @ExcelProperty("CRUD")
     private LogCrudEnum crud;
 
