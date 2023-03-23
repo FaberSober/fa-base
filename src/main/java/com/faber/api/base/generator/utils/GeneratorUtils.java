@@ -23,8 +23,27 @@ import java.util.zip.ZipOutputStream;
  */
 public class GeneratorUtils {
 
-    public static String mysqlTypeToJavaType(String mysqlType) {
-        switch (mysqlType) {
+    public static String javaTypeToTsType(String javaType) {
+        switch (javaType) {
+            case "Integer":
+            case "Float":
+            case "Double":
+            case "BigDecimal":
+                return "number";
+            case "Boolean":
+                return "boolean";
+            default:
+                return "string";
+        }
+    }
+
+    public static String mysqlTypeToJavaType(ColumnVo columnVo) {
+        switch (columnVo.getColumnType()) {
+            case "tinyint(1)": // tinyint(1)表示boolean
+                return "Boolean";
+        }
+
+        switch (columnVo.getDataType()) {
             // ----------------------- number -----------------------
             case "tinyint":
             case "smallint":
@@ -98,8 +117,12 @@ public class GeneratorUtils {
             column.setAttrname(StringUtils.uncapitalize(attrName));
 
             //列的数据类型，转换成Java类型
-            String attrType = mysqlTypeToJavaType(column.getDataType());
+            String attrType = mysqlTypeToJavaType(column);
             column.setAttrType(attrType);
+
+            //列的数据类型，转换成TypeScript类型
+            String attrTsType = javaTypeToTsType(attrType);
+            column.setAttrTsType(attrTsType);
 
             //是否主键
             if ("PRI".equalsIgnoreCase(column.getColumnKey())) {
@@ -206,60 +229,6 @@ public class GeneratorUtils {
                 return rootDir + File.separator + rnRootPath + File.separator + "services" + File.separator + codeGenReqVo.getMainModule() + File.separator + classname + ".ts";
         }
         return "";
-    }
-
-    /**
-     * 获取文件名
-     */
-    public static String getFileName(String template, String className, String packageName, String moduleName) {
-        String packagePath = "main" + File.separator + "java" + File.separator;
-        String frontPath = "ui" + File.separator;
-        String rnFrontPath = "ui-rn" + File.separator;
-        if (StringUtils.isNotBlank(packageName)) {
-            packagePath += packageName.replace(".", File.separator) + File.separator;
-        }
-
-        // rn
-        if (template.contains("rn_service.ts.vm")) {
-            return rnFrontPath + "src" + File.separator + "services" + File.separator + moduleName + File.separator + toLowerCaseFirstOne(className) + ".ts";
-        }
-        if (template.contains("rn_list.tsx.vm")) {
-            return rnFrontPath + "src" + File.separator + "pages" + File.separator + moduleName + File.separator + toUpperCaseFirstOne(className) + "List.tsx";
-        }
-        if (template.contains("rn_modal.tsx.vm")) {
-            return rnFrontPath + "src" + File.separator + "pages" + File.separator + moduleName + File.separator + "modal" + File.separator + toUpperCaseFirstOne(className) + "Modal.tsx";
-        }
-        if (template.contains("rn_prop.ts.vm")) {
-            return rnFrontPath + "src" + File.separator + "props" + File.separator + moduleName + File.separator + toLowerCaseFirstOne(className) + ".ts";
-        }
-
-        // vue 前端代码
-//        if (template.contains("index.js.vm")) {
-//            return frontPath + "api" + File.separator + moduleName + File.separator + toLowerCaseFirstOne(className) + File.separator + "index.js";
-//        }
-//
-//        if (template.contains("index.vue.vm")) {
-//            return frontPath + "views" + File.separator + moduleName + File.separator + toLowerCaseFirstOne(className) + File.separator + "index.vue";
-//        }
-
-        // java 部分代码
-        if (template.contains("biz.java.vm")) {
-            return packagePath + "biz" + File.separator + className + "Biz.java";
-        }
-        if (template.contains("mapper.java.vm")) {
-            return packagePath + "mapper" + File.separator + className + "Mapper.java";
-        }
-        if (template.contains("entity.java.vm")) {
-            return packagePath + "entity" + File.separator + className + ".java";
-        }
-        if (template.contains("controller.java.vm")) {
-            return packagePath + "rest" + File.separator + className + "Controller.java";
-        }
-        if (template.contains("mapper.xml.vm")) {
-            return "main" + File.separator + "resources" + File.separator + "mapper" + File.separator + File.separator + moduleName + File.separator + className + "Mapper.xml";
-        }
-
-        return null;
     }
 
     //首字母转小写
