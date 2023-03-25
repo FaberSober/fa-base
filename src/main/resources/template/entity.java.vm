@@ -8,6 +8,8 @@ import com.faber.core.annotation.FaModalName;
 import com.faber.core.bean.BaseDelEntity;
 import lombok.Data;
 
+import java.util.Date;
+
     ###if(${hasBigDecimal})
 ###end
 

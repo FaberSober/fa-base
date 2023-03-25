@@ -110,6 +110,7 @@ public class GeneratorUtils {
 
         //列信息
         ColumnVo pkCol = null;
+        String pkColAttrType = null; // pk col java type
         for (ColumnVo column : columns) {
             //列名转换成Java属性名
             String attrName = columnToJava(column.getColumnName());
@@ -127,6 +128,7 @@ public class GeneratorUtils {
             //是否主键
             if ("PRI".equalsIgnoreCase(column.getColumnKey())) {
                 pkCol = column;
+                pkColAttrType = attrType;
             }
         }
 
@@ -145,6 +147,7 @@ public class GeneratorUtils {
         map.put("tableName", table.getTableName());
         map.put("comments", table.getTableComment());
         map.put("pk", pkCol);
+        map.put("pkColAttrType", pkColAttrType);
         map.put("className", className);
         map.put("classNameLowerCaseFirstOne", toLowerCaseFirstOne(className));
         map.put("pathName", className.toLowerCase());
