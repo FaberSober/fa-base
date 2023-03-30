@@ -234,7 +234,7 @@ public class GeneratorUtils {
             case RN_LIST:
                 return rootDir + File.separator + codeGenReqVo.getRnCopyPath() + File.separator + className + "List.tsx";
             case RN_SERVICE:
-                return rootDir + File.separator + rnRootPath + File.separator + "services" + File.separator + codeGenReqVo.getMainModule() + File.separator + classname + ".ts";
+                return rootDir + File.separator + rnRootPath + File.separator + "services" + File.separator + codeGenReqVo.getApiPath() + File.separator + classname + ".ts";
         }
         return "";
     }
