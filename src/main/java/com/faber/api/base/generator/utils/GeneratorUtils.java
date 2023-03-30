@@ -111,6 +111,7 @@ public class GeneratorUtils {
         //列信息
         ColumnVo pkCol = null;
         String pkColAttrType = null; // pk col java type
+        String pkColAttrTsType = null; // pk col ts type
         for (ColumnVo column : columns) {
             //列名转换成Java属性名
             String attrName = columnToJava(column.getColumnName());
@@ -129,6 +130,7 @@ public class GeneratorUtils {
             if ("PRI".equalsIgnoreCase(column.getColumnKey())) {
                 pkCol = column;
                 pkColAttrType = attrType;
+                pkColAttrTsType = attrTsType;
             }
         }
 
@@ -148,6 +150,7 @@ public class GeneratorUtils {
         map.put("comments", table.getTableComment());
         map.put("pk", pkCol);
         map.put("pkColAttrType", pkColAttrType);
+        map.put("pkColAttrTsType", pkColAttrTsType);
         map.put("className", className);
         map.put("classNameLowerCaseFirstOne", toLowerCaseFirstOne(className));
         map.put("pathName", className.toLowerCase());
@@ -157,6 +160,7 @@ public class GeneratorUtils {
         map.put("email", codeGenReqVo.getEmail());
         map.put("datetime", DateUtils.format(new Date(), DateUtils.DATE_TIME_PATTERN));
         map.put("apiPath", codeGenReqVo.getApiPath());
+        map.put("apiPathDot", codeGenReqVo.getApiPath().replaceAll("/", "."));
         map.put("moduleName", codeGenReqVo.getMainModule());
         map.put("moduleNameSlash", codeGenReqVo.getMainModule().replaceAll("\\.", "/")); // 将前端模块base.admin ---> base/admin，用于controller的路径中
         map.put("moduleNameUpperCaseFirstOne", toUpperCaseFirstOne(StrUtil.toCamelCase(codeGenReqVo.getMainModule(), '.')));

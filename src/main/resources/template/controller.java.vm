@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @FaLogBiz("${comments}")
 @RestController
-@RequestMapping("/api/${apiPath}")
+@RequestMapping("/api/${apiPath}/${secondModuleName}")
 public class ${className}Controller extends BaseController<${className}Biz, ${className}, ${pkColAttrType}> {
 
 }
