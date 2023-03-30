@@ -156,6 +156,7 @@ public class GeneratorUtils {
         map.put("author", codeGenReqVo.getAuthor());
         map.put("email", codeGenReqVo.getEmail());
         map.put("datetime", DateUtils.format(new Date(), DateUtils.DATE_TIME_PATTERN));
+        map.put("apiPath", codeGenReqVo.getApiPath());
         map.put("moduleName", codeGenReqVo.getMainModule());
         map.put("moduleNameSlash", codeGenReqVo.getMainModule().replaceAll("\\.", "/")); // 将前端模块base.admin ---> base/admin，用于controller的路径中
         map.put("moduleNameUpperCaseFirstOne", toUpperCaseFirstOne(StrUtil.toCamelCase(codeGenReqVo.getMainModule(), '.')));
