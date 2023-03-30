@@ -7,6 +7,7 @@ import com.faber.api.base.generator.mapper.GeneratorMapper;
 import com.faber.api.base.generator.utils.GeneratorUtils;
 import com.faber.api.base.generator.vo.req.CodeCopyVo;
 import com.faber.api.base.generator.vo.req.CodeGenReqVo;
+import com.faber.api.base.generator.vo.req.CodeGensReqVo;
 import com.faber.api.base.generator.vo.req.TableQueryVo;
 import com.faber.api.base.generator.vo.ret.CodeGenRetVo;
 import com.faber.api.base.generator.vo.ret.ColumnVo;
@@ -56,6 +57,19 @@ public class GeneratorBiz {
         retVo.setCode(code);
 
         return retVo;
+    }
+
+    public void copyBatch(CodeGensReqVo codeGensReqVo) throws IOException {
+        for (GeneratorTypeEnum type : codeGensReqVo.getTypes()) {
+            for (String tableName: codeGensReqVo.getTableNames()) {
+                CodeGenReqVo codeGenReqVo = new CodeGenReqVo();
+                BeanUtil.copyProperties(codeGensReqVo, codeGenReqVo);
+                codeGenReqVo.setType(type);
+                codeGenReqVo.setTableName(tableName);
+
+                copyOne(codeGenReqVo);
+            }
+        }
     }
 
     public void copyOne(CodeGenReqVo codeGenReqVo) throws IOException {
