@@ -4,11 +4,11 @@
 <mapper namespace="com.faber.api.base.generator.mapper.GeneratorMapper">
 
     <select id="queryTable" parameterType="com.faber.api.base.generator.vo.req.TableQueryVo" resultType="com.faber.api.base.generator.vo.ret.TableVo">
-        select table_name, engine, table_comment, create_time
-        from information_schema.tables
-        where table_schema = (select database())
+        select t.table_name, t.engine, t.table_comment, t.create_time
+        from information_schema.tables t
+        where t.table_schema = (select database())
         <if test="query.tableName != null and query.tableName.trim() != ''">
-            and table_name like concat('%', #{query.tableName}, '%')
+            and t.table_name like concat('%', #{query.tableName}, '%')
         </if>
         <if test="sorter != null and sorter != ''">
             ORDER BY ${sorter}
