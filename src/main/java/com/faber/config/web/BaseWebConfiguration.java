@@ -1,6 +1,5 @@
 package com.faber.config.web;
 
-import cn.hutool.core.collection.ListUtil;
 import com.faber.config.interceptor.*;
 import com.faber.core.config.exception.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -9,8 +8,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
