@@ -97,7 +97,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                     // 执行升级sql
                     String errorMsg = "";
                     try {
-                        _logger.info("执行升级sql: ver: {} verNo: {}", i.getVer(), i.getVerNo());
+                        _logger.info("执行升级sql: no: {} name: {} ver: {} verNo: {}", no, name, i.getVer(), i.getVerNo());
                         executeSql(i.getSql());
                     } catch (Exception e) {
                         _logger.error(e.getMessage(), e);
