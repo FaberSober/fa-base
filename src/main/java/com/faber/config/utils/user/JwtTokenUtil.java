@@ -10,9 +10,12 @@ import com.faber.core.exception.auth.UserTokenException;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.util.Date;
 
 /**
@@ -35,6 +38,11 @@ public class JwtTokenUtil {
     @PostConstruct
     public void init() {
         BeanUtil.copyProperties(faSetting.getJwt(), this);
+    }
+
+    public String getToken() {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        return request.getHeader(getTokenHeader());
     }
 
     /**
