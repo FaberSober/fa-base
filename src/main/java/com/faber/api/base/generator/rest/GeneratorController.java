@@ -1,10 +1,7 @@
 package com.faber.api.base.generator.rest;
 
 import com.faber.api.base.generator.biz.GeneratorBiz;
-import com.faber.api.base.generator.vo.req.CodeCopyVo;
-import com.faber.api.base.generator.vo.req.CodeGenReqVo;
-import com.faber.api.base.generator.vo.req.CodeGensReqVo;
-import com.faber.api.base.generator.vo.req.TableQueryVo;
+import com.faber.api.base.generator.vo.req.*;
 import com.faber.api.base.generator.vo.ret.CodeGenRetVo;
 import com.faber.api.base.generator.vo.ret.TableVo;
 import com.faber.core.annotation.FaLogBiz;
@@ -56,6 +53,15 @@ public class GeneratorController extends BaseResHandler {
     @ResponseBody
     public Ret<Boolean> copyOne(@RequestBody CodeGenReqVo codeGenReqVo) throws IOException {
         generatorBiz.copyOne(codeGenReqVo);
+        return ok();
+    }
+
+    @FaLogOpr(value = "复制当前文件到指定目录", crud = LogCrudEnum.R)
+    @LogNoRet
+    @RequestMapping(value = "/copyOneToPath", method = RequestMethod.POST)
+    @ResponseBody
+    public Ret<Boolean> copyOneToPath(@RequestBody CodeCopyToReqVo codeCopyToReqVo) {
+        generatorBiz.copyOneToPath(codeCopyToReqVo);
         return ok();
     }
 

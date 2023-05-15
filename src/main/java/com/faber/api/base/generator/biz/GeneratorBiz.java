@@ -5,10 +5,7 @@ import cn.hutool.core.io.FileUtil;
 import com.faber.api.base.generator.enums.GeneratorTypeEnum;
 import com.faber.api.base.generator.mapper.GeneratorMapper;
 import com.faber.api.base.generator.utils.GeneratorUtils;
-import com.faber.api.base.generator.vo.req.CodeCopyVo;
-import com.faber.api.base.generator.vo.req.CodeGenReqVo;
-import com.faber.api.base.generator.vo.req.CodeGensReqVo;
-import com.faber.api.base.generator.vo.req.TableQueryVo;
+import com.faber.api.base.generator.vo.req.*;
 import com.faber.api.base.generator.vo.ret.CodeGenRetVo;
 import com.faber.api.base.generator.vo.ret.ColumnVo;
 import com.faber.api.base.generator.vo.ret.TableVo;
@@ -82,6 +79,17 @@ public class GeneratorBiz {
         TableVo tableVo = generatorMapper.getTableByName(codeGenReqVo.getTableName());
 
         copyOneJava(codeGenReqVo, columnVoList, tableVo, codeGenReqVo.getType());
+    }
+
+    public void copyOneToPath(CodeCopyToReqVo codeCopyToReqVo) {
+        List<ColumnVo> columnVoList = generatorMapper.queryColumns(codeCopyToReqVo.getTableName());
+        TableVo tableVo = generatorMapper.getTableByName(codeCopyToReqVo.getTableName());
+
+        String code = GeneratorUtils.generatorCode(codeCopyToReqVo, tableVo, columnVoList);
+        String path = codeCopyToReqVo.getPath();
+        log.debug("---->>> {}", path);
+
+        FileUtil.writeString(code, path, StandardCharsets.UTF_8);
     }
 
     public void copyAll(CodeCopyVo codeCopyVo) throws IOException {
