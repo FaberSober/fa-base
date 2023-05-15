@@ -86,7 +86,7 @@ public class GeneratorBiz {
         TableVo tableVo = generatorMapper.getTableByName(codeCopyToReqVo.getTableName());
 
         String code = GeneratorUtils.generatorCode(codeCopyToReqVo, tableVo, columnVoList);
-        String path = codeCopyToReqVo.getPath();
+        String path = codeCopyToReqVo.getPath() + File.separator + GeneratorUtils.getFileName(codeCopyToReqVo);
         log.debug("---->>> {}", path);
 
         FileUtil.writeString(code, path, StandardCharsets.UTF_8);

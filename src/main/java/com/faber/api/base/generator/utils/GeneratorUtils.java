@@ -203,6 +203,34 @@ public class GeneratorUtils {
         return rnCopyPath.substring(0, rnCopyPath.indexOf("\\pages\\"));
     }
 
+    public static String getFileName(CodeGenReqVo codeGenReqVo) {
+        String className = tableToJava(codeGenReqVo.getTableName(), codeGenReqVo.getTablePrefix());
+        String classname = toLowerCaseFirstOne(className);
+
+        switch (codeGenReqVo.getType()) {
+            case JAVA_ENTITY:
+                return className + ".java";
+            case JAVA_MAPPER:
+                return className + "Mapper.java";
+            case JAVA_BIZ:
+                return className + "Biz.java";
+            case JAVA_CONTROLLER:
+                return className + "Controller.java";
+            case XML_MAPPER:
+                return className + "Mapper.xml";
+
+            case RN_MODAL:
+                return className + "Modal.tsx";
+            case RN_LIST:
+                return className + "List.tsx";
+            case RN_SERVICE:
+                return classname + ".ts";
+            case RN_PROPS:
+                return classname + ".ts";
+        }
+        return "";
+    }
+
     public static String getJavaCopyPath(CodeGenReqVo codeGenReqVo) throws IOException {
         String rootDir = FaFileUtils.getProjectRootDir();
 
