@@ -27,6 +27,7 @@ public class ${className} extends BaseDelEntity {
 	
 #foreach ($column in $columns)
 #if($column.columnName == $pk.columnName)
+    @ColumnWidth(8)
     @ExcelProperty("$column.columnComment")
 #if($column.attrType == 'String')
     @TableId(type = IdType.ASSIGN_UUID)
