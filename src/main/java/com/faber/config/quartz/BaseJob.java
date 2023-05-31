@@ -5,6 +5,7 @@ import cn.hutool.core.date.DateUtil;
 import com.faber.api.base.admin.biz.JobLogBiz;
 import com.faber.api.base.admin.entity.JobLog;
 import com.faber.api.base.admin.enums.JobLogStatusEnum;
+import com.faber.core.context.BaseContextHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -32,6 +33,8 @@ public abstract class BaseJob implements Job {
         JobLog jobLog = this.createLog(jobId);
 
         try {
+            // 定时任务是以admin角色来执行的
+            BaseContextHandler.useAdmin();
             run();
 
             // execute finish

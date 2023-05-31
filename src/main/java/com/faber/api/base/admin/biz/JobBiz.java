@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -87,6 +88,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         return ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class)
                 .stream()
                 .map(clazz -> new DictOption<String>(clazz.getName(), clazz.getAnnotation(FaJob.class).value()))
+                .sorted(Comparator.comparing(DictOption::getLabel))
                 .collect(Collectors.toList());
     }
 
