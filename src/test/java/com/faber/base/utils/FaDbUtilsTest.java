@@ -7,6 +7,7 @@ import com.faber.FaTestApp;
 import com.faber.api.base.rbac.biz.RbacMenuBiz;
 import com.faber.api.base.rbac.entity.RbacMenu;
 import com.faber.core.utils.FaDbUtils;
+import com.faber.core.utils.FaExcelUtils;
 import com.faber.core.vo.query.QueryParams;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
@@ -68,6 +69,13 @@ public class FaDbUtilsTest {
                     10
             );
         }
+    }
+
+    @Test
+    public void testLoopPageToExcel2() {
+        String fileName = "/Users/xupengfei/tmp/testLoopPage.xlsx";
+
+        FaExcelUtils.writeExcelPage(fileName, RbacMenu.class, rbacMenuBiz.lambdaQuery(), i -> i);
     }
 
     @Test
