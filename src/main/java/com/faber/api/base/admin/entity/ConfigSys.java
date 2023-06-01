@@ -53,6 +53,10 @@ public class ConfigSys extends BaseDelEntity {
          */
         private String cop;
         /**
+         * 登录背景图
+         */
+        private String loginBg;
+        /**
          * 网站logo
          */
         private String logo;

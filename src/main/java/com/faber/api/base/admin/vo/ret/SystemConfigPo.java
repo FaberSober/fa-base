@@ -24,6 +24,16 @@ public class SystemConfigPo implements Serializable {
     private String subTitle;
 
     /**
+     * 版权信息
+     */
+    private String cop;
+
+    /**
+     * 登录背景图
+     */
+    private String loginBg;
+
+    /**
      * 网站logo
      * system:logo
      */
