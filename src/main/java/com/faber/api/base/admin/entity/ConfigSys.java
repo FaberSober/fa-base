@@ -45,13 +45,25 @@ public class ConfigSys extends BaseDelEntity {
          */
         private String title;
         /**
+         * 网站标题-颜色
+         */
+        private String titleColor;
+        /**
          * 网站副标题
          */
         private String subTitle;
         /**
-         * 版权信息
+         * 网站副标题-颜色
+         */
+        private String subTitleColor;
+        /**
+         * 版权信息-颜色
          */
         private String cop;
+        /**
+         * 版权信息
+         */
+        private String copColor;
         /**
          * 登录背景图
          */
