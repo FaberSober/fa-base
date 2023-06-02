@@ -13,5 +13,6 @@ import java.io.Serializable;
 public class TableQueryVo implements Serializable {
 
     private String tableName;
+    private String tableComment;
 
 }

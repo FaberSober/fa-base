@@ -10,6 +10,9 @@
         <if test="query.tableName != null and query.tableName.trim() != ''">
             and t.table_name like concat('%', #{query.tableName}, '%')
         </if>
+        <if test="query.tableComment != null and query.tableComment.trim() != ''">
+            and t.table_comment like concat('%', #{tableComment}, '%')
+        </if>
         <if test="sorter != null and sorter != ''">
             ORDER BY ${sorter}
         </if>
