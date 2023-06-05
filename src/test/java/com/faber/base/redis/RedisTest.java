@@ -75,12 +75,91 @@ public class RedisTest {
             log.info("模拟业务执行了3s");
         } catch (Exception e){
             e.printStackTrace();
-        }finally {
+        } finally {
             //释放锁
             lock1.unlock();
         }
 
         log.info("lock1 locked={}", lock1.isLocked());
+    }
+
+
+    /**
+     * 模拟2个线程同时获取同一把锁
+     * 1. 线程1：0s启动--->执行3s--->释放锁
+     * 2. 线程2：1s启动--->执行3s--->释放锁
+     */
+    @Test
+    public void testGetLock2() {
+        //获取锁，没有获取到锁的会阻塞
+        //redisson设置一个key的默认过期时间为30s
+        //redisson会自动续期
+        RLock lock1 = faRedisUtils.getLock("anyLock1");
+        log.info("lock1 locked={}", lock1.isLocked());
+
+        // 线程1：0s启动--->执行3s--->释放锁
+        new Thread(() -> {
+            log.info("线程1尝试获取锁");
+            lock1.lock(); // 默认锁30s
+            log.info("线程1启动");
+
+            try {
+                Thread.sleep(3000); //模拟业务执行
+                log.info("线程1执行完成");
+            } catch (Exception e){
+                e.printStackTrace();
+            }finally {
+                lock1.unlock();
+                log.info("线程1释放锁");
+            }
+        }).start();
+
+        // 等待1s，再启动线程2
+        try {
+            Thread.sleep(1000);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+
+        new Thread(() -> {
+            log.info("线程2尝试获取锁");
+            lock1.lock(); // 默认锁30s
+            log.info("线程2启动");
+
+            try {
+                Thread.sleep(3000); //模拟业务执行
+                log.info("线程2执行完成");
+            } catch (Exception e){
+                e.printStackTrace();
+            }finally {
+                lock1.unlock();
+                log.info("线程2释放锁");
+            }
+        }).start();
+
+        try {
+            Thread.sleep(10000);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+
+        log.info("lock1 locked={}", lock1.isLocked());
+    }
+
+    @Test
+    public void testGoo() {
+        foo();
+    }
+
+    private String foo() {
+        try {
+            return "bar";
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        } finally {
+            log.debug("run finally");
+        }
+        return "";
     }
 
 }
