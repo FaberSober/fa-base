@@ -35,7 +35,7 @@ public class LogLoginBiz extends BaseBiz<LogLoginMapper, LogLogin> {
         Date cursorDate = new Date(startDate.getTime());
         while (cursorDate.before(endDate)) {
             String day = DateUtil.formatDate(cursorDate);
-            Optional<ChartSeriesVo> dayCountVoOptional = list.stream().filter(i -> ObjUtil.equal(i.getLabel(), day)).findFirst();
+            Optional<ChartSeriesVo> dayCountVoOptional = list.stream().filter(i -> ObjUtil.equal(i.getName(), day)).findFirst();
 
             if (dayCountVoOptional.isPresent()) {
                 fillList.add(dayCountVoOptional.get());
@@ -47,6 +47,10 @@ public class LogLoginBiz extends BaseBiz<LogLoginMapper, LogLogin> {
         }
 
         return fillList;
+    }
+
+    public List<ChartSeriesVo> countByPro() {
+        return baseMapper.countByPro();
     }
 
 }

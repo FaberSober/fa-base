@@ -19,4 +19,6 @@ public interface LogLoginMapper extends FaBaseMapper<LogLogin> {
 
     List<ChartSeriesVo> countByDay(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
 
+    List<ChartSeriesVo> countByPro();
+
 }

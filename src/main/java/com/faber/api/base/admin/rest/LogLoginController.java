@@ -34,4 +34,12 @@ public class LogLoginController extends BaseController<LogLoginBiz, LogLogin, In
         return ok(data);
     }
 
+    @FaLogOpr(value = "按省份统计", crud = LogCrudEnum.R)
+    @RequestMapping(value = "/countByPro", method = RequestMethod.GET)
+    @ResponseBody
+    public Ret<List<ChartSeriesVo>> countByPro() {
+        List<ChartSeriesVo> data = baseBiz.countByPro();
+        return ok(data);
+    }
+
 }
