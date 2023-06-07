@@ -1,11 +1,18 @@
+
 package com.faber.api.base.admin.rest;
 
 import com.faber.api.base.admin.biz.LogLoginBiz;
 import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.core.annotation.FaLogBiz;
+import com.faber.core.annotation.FaLogOpr;
+import com.faber.core.enums.LogCrudEnum;
+import com.faber.core.vo.chart.ChartSeriesVo;
+import com.faber.core.vo.msg.Ret;
 import com.faber.core.web.rest.BaseController;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * BASE-登录日志
@@ -18,5 +25,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/base/admin/logLogin")
 public class LogLoginController extends BaseController<LogLoginBiz, LogLogin, Integer> {
+
+    @FaLogOpr(value = "按天统计", crud = LogCrudEnum.R)
+    @RequestMapping(value = "/countByDay", method = RequestMethod.POST)
+    @ResponseBody
+    public Ret<List<ChartSeriesVo>> countByDay(@RequestBody Map<String, Object> params) {
+        List<ChartSeriesVo> data = baseBiz.countByDay(params);
+        return ok(data);
+    }
 
 }
