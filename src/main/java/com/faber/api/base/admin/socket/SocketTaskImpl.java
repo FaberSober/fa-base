@@ -4,7 +4,7 @@ import com.corundumstudio.socketio.SocketIOClient;
 import com.corundumstudio.socketio.SocketIOServer;
 import com.faber.core.config.socket.FaSocketUtils;
 import com.faber.core.config.socket.SocketIOService;
-import com.faber.core.vo.utils.SocketTaskVo;
+import com.faber.core.vo.socket.SocketTaskVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
