@@ -193,6 +193,14 @@ fa:
       fileViewedDocs: .pdf|.djvu|.xps|.oxps
       fileEditedDocs: .docx|.xlsx|.csv|.pptx|.txt|.docxf
       fileConvertDocs: .docm|.dotx|.dotm|.dot|.doc|.odt|.fodt|.ott|.xlsm|.xlsb|.xltx|.xltm|.xlt|.xls|.ods|.fods|.ots|.pptm|.ppt|.ppsx|.ppsm|.pps|.potx|.potm|.pot|.odp|.fodp|.otp|.rtf|.mht|.html|.htm|.xml|.epub|.fb2
+    threadPoolConfig:
+      corePoolSize: 5
+      maxPoolSize: 20
+      queueCapacity: 20
+      keepAliveSeconds: 200
+      threadNamePrefix: my-fa-thread-
+      waitForJobsToCompleteOnShutdown: true
+      awaitTerminationSeconds: 60
 
 #============================================================================
 # netty socket io setting

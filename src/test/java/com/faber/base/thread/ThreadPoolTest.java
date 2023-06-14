@@ -25,7 +25,7 @@ public class ThreadPoolTest {
 
     @Test
     public void completeWork() {
-        int threads = 10;
+        int threads = 100;
         List<Boolean> list = new ArrayList<>(threads);
         CountDownLatch countDownLatch = new CountDownLatch(threads);
         for (int i = 0; i < threads; i++) {
@@ -47,10 +47,9 @@ public class ThreadPoolTest {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        list.forEach(x -> {
-            log.debug("执行结果:{}", x);
-        });
-
+        for (int i = 0; i < list.size(); i++) {
+            log.debug("执行结果{}:{}", i, list.get(i));
+        }
     }
 
     public boolean buildHouse() {
