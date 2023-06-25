@@ -32,12 +32,12 @@ public class FaDeploySimpleTest {
     @Test
     public void testDeploy() throws JSchException, SftpException, IOException {
         FaDeployHelper helper = new FaDeployHelper();
-        helper.setHost("127.0.0.1");
-        helper.setUsername("root");
-        helper.setPassword("123456");
+        helper.setHost(host);
+        helper.setUsername(username);
+        helper.setPassword(password);
 
-        helper.setJarPath("/opt/fa-admin/"); // 远程部署jar目录
-        helper.setNginxHtmlPath("/etc/nginx/html/fa-admin"); // 远程部署前端dist目录
+        helper.setJarPath(jarPath); // 远程部署jar目录
+        helper.setNginxHtmlPath(nginxHtmlPath); // 远程部署前端dist目录
 
         // 打包
         helper.mvnPackage();
@@ -70,7 +70,9 @@ public class FaDeploySimpleTest {
 
         // 上传到服务器中
         FaShell shell = new FaShell(host, username, password, port, timeout);
+        shell.mkdir(jarPath);
         shell.uploadFile(serviceFile, jarPath);
+        shell.execCommand("chmod +x " + jarPath + "service.sh");
     }
 
 }
