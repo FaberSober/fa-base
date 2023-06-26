@@ -38,7 +38,7 @@ export default function ${className}Modal({ children, title, record, fetchFinish
   function onFinish(fieldsValue: any) {
     const values = {
       ...fieldsValue,
-      // birthday: getDateStr000(fieldsValue.birthday),
+      // birthday: FaUtils.getDateStr000(fieldsValue.birthday),
     };
     if (record) {
       invokeUpdateTask({ ...record, ...values });
@@ -55,6 +55,7 @@ export default function ${className}Modal({ children, title, record, fetchFinish
       ${column.attrname}: get(record, '${column.attrname}'),
 #end
 #end
+      // birthday: FaUtils.getInitialKeyTimeValue(record, 'birthday'),
     }
   }
 
@@ -85,7 +86,7 @@ export default function ${className}Modal({ children, title, record, fetchFinish
 #if($column.columnName == $pk.columnName)
 #elseif ($column.attrname != 'crtTime' and $column.attrname != 'crtUser' and $column.attrname != 'crtName' and $column.attrname != 'crtHost' and $column.attrname != 'updTime' and $column.attrname != 'updUser' and $column.attrname != 'updName' and $column.attrname != 'updHost' and $column.attrname != 'deleted')
           <Form.Item name="${column.attrname}" label="${column.columnComment}" rules={[{ required: true }]} {...FaUtils.formItemFullLayout}>
-            <Input />
+            <Input placeholder="请输入${column.columnComment}" />
           </Form.Item>
 #end
 #end
