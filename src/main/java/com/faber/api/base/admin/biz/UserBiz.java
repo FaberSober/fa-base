@@ -33,7 +33,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -82,8 +81,6 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     @Value("${spring.redis.sysName}")
     private String redisKeySysName;
 
-    private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(CommonConstants.PW_ENCODER_SALT);
-
     /**
      * 登录账户
      *
@@ -98,16 +95,21 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         }
         UserCheckUtil.checkUserValid(user);
 
-        if (!encoder.matches(password, user.getPassword())) {
+        if (!FaPwdUtils.checkPwd(password, user.getPassword())) {
             throw new UserInvalidException("用户名或密码错误！");
         }
         return user;
     }
 
+    /**
+     * 验证当前登录账户的密码是否正确
+     *
+     * @param password
+     */
     public void validateCurrentUserPwd(String password) {
-        User user = this.getUserByUsername(BaseContextHandler.getUsername());
+        User user = this.getByIdWithCache(BaseContextHandler.getUserId());
         UserCheckUtil.checkUserValid(user);
-        if (encoder.matches(password, user.getPassword())) {
+        if (FaPwdUtils.checkPwd(password, user.getPassword())) {
             return;
         }
         throw new UserInvalidException("本账户密码验证失败");
@@ -168,7 +170,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         this.checkBeanValid(entity);
 
         // 密码加密存储
-        String password = encoder.encode(entity.getPassword());
+        String password = FaPwdUtils.encryptPwd(entity.getPassword());
         entity.setPassword(password);
 
         super.save(entity);
@@ -391,8 +393,8 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
         this.checkBeanValid(entity);
 
-        // 初始化密码888888
-        String password = encoder.encode(params.getPassword());
+        // 密码加密
+        String password = FaPwdUtils.encryptPwd(params.getPassword());
         entity.setPassword(password);
 
         entity.setStatus(true);
