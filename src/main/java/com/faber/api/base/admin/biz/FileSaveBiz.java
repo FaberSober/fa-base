@@ -28,8 +28,6 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -49,6 +47,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * 下载URL文件到本地，并入库
+     *
      * @param url
      * @param filename
      * @return
@@ -63,6 +62,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * 上传文件
+     *
      * @param file
      * @return
      * @throws IOException
@@ -72,7 +72,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         String extName = FileNameUtil.extName(file.getOriginalFilename());
         if (FaFileUtils.isImg(extName)) {
-            uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200,200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+            uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
         }
 
         String md5 = DigestUtil.md5Hex(file.getBytes());
@@ -94,6 +94,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * 上传文件
+     *
      * @param file
      * @return
      */
@@ -102,7 +103,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         String extName = FileNameUtil.extName(file.getName());
         if (FaFileUtils.isImg(extName)) {
-            uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200,200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+            uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
         }
 
         String md5 = DigestUtil.md5Hex(file);
@@ -123,6 +124,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * 通过fileId获取文件
+     *
      * @param fileId
      * @return
      */
@@ -130,7 +132,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         FileSave fileSave = getById(fileId);
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
-            LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
+            LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
             String fileFullPath = storage.getAbsolutePath(fileSave.getUrl());
 
             return new File(fileFullPath);
@@ -143,15 +145,16 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * 通过fileId，下载文件到http返回流
+     *
      * @param fileId
      * @throws IOException
      */
-    public void getFile(String fileId) throws IOException {
+    public void downloadFileById(String fileId) throws IOException {
         FileSave fileSave = getById(fileId);
 
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
-            LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
+            LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
             String fileFullPath = storage.getAbsolutePath(fileSave.getUrl());
 
             FaFileUtils.downloadFileShard(new File(fileFullPath), fileSave.getOriginalFilename());
@@ -164,6 +167,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * 通过fileId，返回图片类型文件缩略图到http返回流
+     *
      * @param fileId
      * @throws IOException
      */
@@ -172,7 +176,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
-            LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
+            LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
             String fileFullPath = storage.getAbsolutePath(fileSave.getThUrl());
 
             FaFileUtils.downloadFileShard(new File(fileFullPath), fileSave.getOriginalFilename());
@@ -185,6 +189,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * 通过fileId读取文件的字符串内容
+     *
      * @param fileId
      * @return
      */
@@ -195,6 +200,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * 创建一个临时文件，并入库
+     *
      * @param prefix 前缀，至少3个字符
      * @param suffix 后缀，如果null则使用默认.tmp
      * @return
@@ -210,13 +216,18 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Override
     public void syncStorageDatabaseConfig() {
         log.info("------------------------ Scan Database Storage Config ------------------------");
-        LocalPlusFileStorage storage = ((LocalPlusFileStorage)fileStorageService.getFileStorage("local-plus-1"));
+        LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
         String storeLocalPath = configSysService.getStoreLocalPath();
         if (StrUtil.isNotEmpty(storeLocalPath) && !storeLocalPath.endsWith(File.separator)) {
             storeLocalPath = storeLocalPath + File.separator;
         }
         log.info("storeLocalPath: {}", storeLocalPath);
         storage.setStoragePath(storeLocalPath);
+    }
+
+    @Override
+    public File getByFileId(String fileId) {
+        return getFileObj(fileId);
     }
 
 }

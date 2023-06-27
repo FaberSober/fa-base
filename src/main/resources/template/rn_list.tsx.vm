@@ -1,7 +1,8 @@
 import React from 'react';
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { DownloadOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import { Button, Form, Input, Space } from 'antd';
 import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useExport, useTableQueryParams } from '@fa/ui';
+import { CommonExcelUploadModal } from "@/components";
 import { ${secondModuleName}Api as api } from '@/services';
 import { ${moduleNameUpperCaseFirstOne} } from '@/types';
 import ${className}Modal from './modal/${className}Modal';
@@ -66,6 +67,9 @@ export default function ${className}List() {
               <Button onClick={() => clearForm(form)}>重置</Button>
               <${className}Modal addBtn title={`新增${serviceName}信息`} fetchFinish={fetchPageList} />
               <Button loading={exporting} icon={<DownloadOutlined />} onClick={fetchExportExcel}>导出</Button>
+              <CommonExcelUploadModal fetchFinish={fetchPageList} apiDownloadTplExcel={api.exportTplExcel} apiImportExcel={api.importExcel}>
+                <Button icon={<UploadOutlined />}>上传</Button>
+              </CommonExcelUploadModal>
             </Space>
           </Form>
         </div>

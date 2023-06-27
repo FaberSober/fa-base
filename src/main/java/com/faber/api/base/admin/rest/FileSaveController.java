@@ -34,7 +34,7 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
     @IgnoreUserToken
     @LogNoRet
     public void getFile(@PathVariable("fileId") String fileId) throws IOException {
-        baseBiz.getFile(fileId);
+        baseBiz.downloadFileById(fileId);
     }
 
     @FaLogOpr("图片缩略图")
