@@ -30,9 +30,10 @@ public class FaDeploySimpleTest {
     String javaPath = "java"; // 服务端java路径
 
     @Test
-    public void testDeploy() throws JSchException, SftpException, IOException {
+    public void testDeploy() throws JSchException, SftpException, IOException, InterruptedException {
         FaDeployHelper helper = new FaDeployHelper();
         helper.setHost(host);
+        helper.setPort(port);
         helper.setUsername(username);
         helper.setPassword(password);
 
@@ -45,6 +46,13 @@ public class FaDeploySimpleTest {
         helper.deployFrontend();
         // 部署Jar
         helper.deployJar();
+
+//        Notify.create()
+//                .title("部署完成")
+//                .text("部署完成!")
+//                .showInformation();
+//
+//        Thread.sleep(3000);
     }
 
     @Test
