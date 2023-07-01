@@ -1,5 +1,6 @@
 package com.faber.api.base.admin.rest;
 
+import cn.hutool.core.map.MapUtil;
 import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.entity.FileSave;
 import com.faber.core.annotation.FaLogBiz;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Map;
 
 @FaLogBiz("文件")
 @Controller
@@ -25,6 +27,15 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
     @ResponseBody
     public Ret<FileSave> upload(@RequestParam("file") MultipartFile file) throws IOException {
         FileSave data = baseBiz.upload(file);
+        return ok(data);
+    }
+
+    @FaLogOpr(value = "URL上传文件", crud = LogCrudEnum.C)
+    @PostMapping("/uploadFromUrl")
+    @ResponseBody
+    public Ret<FileSave> uploadFromUrl(@RequestBody Map<String, Object> params) throws IOException {
+        String url = MapUtil.getStr(params, "url");
+        FileSave data = baseBiz.uploadFromUrl(url);
         return ok(data);
     }
 

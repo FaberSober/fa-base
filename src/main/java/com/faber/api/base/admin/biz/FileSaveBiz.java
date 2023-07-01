@@ -91,6 +91,21 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         return fileSave;
     }
 
+    /**
+     * URL上传文件
+     * @param url
+     * @return
+     */
+    public FileSave uploadFromUrl(String url) {
+        String fullName = url.substring(url.lastIndexOf("/") + 1);
+        int dot = fullName.lastIndexOf(".");
+        String name = fullName.substring(0, dot);
+        String suffix = fullName.substring(dot);
+
+        File tmpFile = FileUtil.createTempFile(name, suffix, false);
+        HttpUtil.downloadFile(url, tmpFile);
+        return upload(tmpFile);
+    }
 
     /**
      * 上传文件
