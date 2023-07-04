@@ -14,6 +14,8 @@ import cn.xuyanwu.spring.file.storage.UploadPretreatment;
 import cn.xuyanwu.spring.file.storage.platform.LocalPlusFileStorage;
 import com.faber.api.base.admin.entity.FileSave;
 import com.faber.api.base.admin.mapper.FileSaveMapper;
+import com.faber.core.constant.FaSetting;
+import com.faber.core.exception.BuzzException;
 import com.faber.core.service.ConfigSysService;
 import com.faber.core.service.StorageService;
 import com.faber.core.utils.FaFileUtils;
@@ -25,6 +27,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
@@ -44,6 +47,9 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     @Autowired
     private ConfigSysService configSysService;
+
+    @Resource
+    FaSetting faSetting;
 
     /**
      * 下载URL文件到本地，并入库
@@ -70,9 +76,15 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     public FileSave upload(MultipartFile file) throws IOException {
         UploadPretreatment uploadPretreatment = fileStorageService.of(file);
 
-        String extName = FileNameUtil.extName(file.getOriginalFilename());
+        String extName = FileUtil.extName(file.getOriginalFilename());
         if (FaFileUtils.isImg(extName)) {
             uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+        }
+
+        // 检查文件上传类型
+        if (!faSetting.getFile().isFileAllowed(file.getOriginalFilename())) {
+            log.error("脚本攻击, 非法文件，附件上传出错:" + file.getOriginalFilename());
+            throw new BuzzException("非法文件，附件上传出错");
         }
 
         String md5 = DigestUtil.md5Hex(file.getBytes());
