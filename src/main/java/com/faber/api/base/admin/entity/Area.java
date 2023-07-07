@@ -30,7 +30,6 @@ public class Area implements Serializable {
     private Integer id;
 
     @NotNull
-    @SqlEquals
     private AreaLevelEnum level;
 
     /** 父级行政代 */
