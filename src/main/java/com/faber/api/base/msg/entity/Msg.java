@@ -60,7 +60,8 @@ public class Msg extends BaseDelEntity {
 
     @SqlEquals
     @ExcelProperty("业务类型")
-    private MsgBuzzTypeEnum buzzType;
+    private String buzzType;
+//    private MsgBuzzTypeEnum buzzType;
 
     @SqlEquals
     @ExcelProperty("业务ID")

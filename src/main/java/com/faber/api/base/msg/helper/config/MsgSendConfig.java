@@ -23,12 +23,7 @@ public class MsgSendConfig {
      */
     protected boolean sendSms = true;
 
-    /**
-     * 短信编码
-     */
-    protected String smsCode;
-
-    protected MsgBuzzTypeEnum buzzType;
+    protected String buzzType;
 
     protected String buzzId;
 

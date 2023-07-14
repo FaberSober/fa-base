@@ -4,8 +4,8 @@ import com.faber.api.base.msg.helper.config.MsgSendConfig;
 
 public interface MsgHelper {
 
-    void sendSysMsg(String fromUserId, String toUserId, MsgSendConfig msgSendConfig);
+    <T extends MsgSendConfig> void sendSysMsg(String fromUserId, String toUserId, T msgSendConfig);
 
-    void sendSysMsg(String fromUserId, String[] toUserIds, MsgSendConfig msgSendConfig);
+    <T extends MsgSendConfig> void sendSysMsg(String fromUserId, String[] toUserIds, T msgSendConfig);
 
 }

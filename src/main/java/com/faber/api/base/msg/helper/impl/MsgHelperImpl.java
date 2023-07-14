@@ -26,12 +26,12 @@ public class MsgHelperImpl implements MsgHelper {
     private SmsConfiguration smsConfiguration;
 
     @Override
-    public void sendSysMsg(String fromUserId, String toUserId, MsgSendConfig msgSendConfig) {
+    public <T extends MsgSendConfig> void sendSysMsg(String fromUserId, String toUserId, T msgSendConfig) {
         this.sendSysMsg(fromUserId, new String[]{toUserId}, msgSendConfig);
     }
 
     @Override
-    public void sendSysMsg(String fromUserId, String[] toUserIds, MsgSendConfig msgSendConfig) {
+    public <T extends MsgSendConfig> void sendSysMsg(String fromUserId, String[] toUserIds, T msgSendConfig) {
         if (toUserIds == null || toUserIds.length == 0) return;
 
         User fromUser = userBiz.getByIdWithCache(fromUserId);

@@ -16,8 +16,8 @@ public class MsgSendSysConfig extends MsgSendConfig {
     private String content;
 
     @Builder
-    public MsgSendSysConfig(boolean sendAppPush, boolean sendSms, String smsCode, String buzzId, String content) {
-        super(true, false, smsCode, MsgBuzzTypeEnum.SYS, buzzId);
+    public MsgSendSysConfig(boolean sendAppPush, boolean sendSms, String buzzId, String content) {
+        super(true, false, MsgBuzzTypeEnum.SYS.getValue() + "", buzzId);
         this.content = content;
     }
 }

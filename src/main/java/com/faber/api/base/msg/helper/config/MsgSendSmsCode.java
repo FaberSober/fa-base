@@ -19,8 +19,8 @@ public class MsgSendSmsCode extends MsgSendConfig {
     private String code;
 
     @Builder
-    public MsgSendSmsCode(boolean sendAppPush, boolean sendSms, String smsCode, MsgBuzzTypeEnum buzzType, String buzzId, String code) {
-        super(true, true, smsCode, buzzType, buzzId);
+    public MsgSendSmsCode(boolean sendAppPush, boolean sendSms, MsgBuzzTypeEnum buzzType, String buzzId, String code) {
+        super(true, true, buzzType.getValue() + "", buzzId);
         this.code = code;
     }
 }
