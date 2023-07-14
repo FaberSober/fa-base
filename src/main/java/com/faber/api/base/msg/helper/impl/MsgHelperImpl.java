@@ -34,11 +34,14 @@ public class MsgHelperImpl implements MsgHelper {
     public void sendSysMsg(String fromUserId, String[] toUserIds, MsgSendConfig msgSendConfig) {
         if (toUserIds == null || toUserIds.length == 0) return;
 
+        User fromUser = userBiz.getByIdWithCache(fromUserId);
         for (String toUserId : toUserIds) {
-            User user = userBiz.getById(toUserId);
-            if (user == null) continue;
+            User toUser = userBiz.getByIdWithCache(toUserId);
+            if (toUser == null) continue;
 
             Msg msg = this.genBaseMsg(fromUserId, toUserId, msgSendConfig);
+            msg.setFromUserName(fromUser.getName());
+            msg.setToUserName(toUser.getName());
 
             String appPushContent = smsConfiguration.genTemplateContent(msgSendConfig);
             msg.setContent(appPushContent);
@@ -46,7 +49,7 @@ public class MsgHelperImpl implements MsgHelper {
             // 发送模板短信
             if (msgSendConfig.isSendSms()) {
                 try {
-                    smsConfiguration.sendSms(user.getTel(), msgSendConfig);
+                    smsConfiguration.sendSms(toUser.getTel(), msgSendConfig);
                 } catch (Exception e) {
                     log.error(e.getMessage(), e);
                 }

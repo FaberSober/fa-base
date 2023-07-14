@@ -1,11 +1,14 @@
 package com.faber.api.base.msg.biz;
 
+import com.faber.api.base.admin.biz.UserBiz;
+import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.msg.entity.Msg;
 import com.faber.api.base.msg.mapper.MsgMapper;
 import com.faber.api.base.msg.vo.MsgStatisticVO;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
 import java.util.Date;
 import java.util.List;
 
@@ -18,6 +21,15 @@ import java.util.List;
  */
 @Service
 public class MsgBiz extends BaseBiz<MsgMapper, Msg> {
+
+    @Resource
+    UserBiz userBiz;
+
+    @Override
+    public void decorateOne(Msg i) {
+        User fromUser = userBiz.getByIdWithCache(i.getFromUserId());
+        i.setFromUser(fromUser);
+    }
 
     /**
      * 消息数量统计。

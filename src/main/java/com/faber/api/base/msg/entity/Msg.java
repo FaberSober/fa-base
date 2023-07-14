@@ -1,14 +1,17 @@
 package com.faber.api.base.msg.entity;
 
+import com.alibaba.excel.annotation.ExcelIgnore;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.faber.api.base.admin.entity.User;
 import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
 import com.faber.core.annotation.SqlSearch;
 import com.faber.core.bean.BaseDelEntity;
-import com.faber.api.base.admin.enums.MsgBuzzTypeEnum;
+import com.faber.api.base.msg.enums.MsgBuzzTypeEnum;
 import lombok.Data;
 
 import java.util.Date;
@@ -62,5 +65,9 @@ public class Msg extends BaseDelEntity {
     @SqlEquals
     @ExcelProperty("业务ID")
     private String buzzId;
+
+    @ExcelIgnore
+    @TableField(exist = false)
+    private User fromUser;
 
 }

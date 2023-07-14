@@ -1,4 +1,4 @@
-package com.faber.api.base.admin.enums;
+package com.faber.api.base.msg.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.baomidou.mybatisplus.annotation.IEnum;
