@@ -6,6 +6,7 @@ import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.mapper.DepartmentMapper;
 import com.faber.api.base.admin.vo.ret.DepartmentVo;
+import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.QueryParams;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -64,6 +66,21 @@ public class DepartmentBiz extends BaseTreeBiz<DepartmentMapper, Department> {
 
         vo.setManager(userBiz.getByIdWithCache(vo.getManagerId()));
         return vo;
+    }
+
+    public Department getByNameWithCache(String name) {
+        Map<Serializable, Department> cache = BaseContextHandler.getCacheMap("DepartmentBiz.getByNameWithCache");
+        if (cache.containsKey(name)) {
+            return cache.get(name);
+        }
+
+        Department entity = getTop(
+                lambdaQuery()
+                        .eq(Department::getName, name)
+                        .orderByDesc(Department::getId)
+        );
+        cache.put(name, entity);
+        return entity;
     }
 
 }
