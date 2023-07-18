@@ -34,11 +34,11 @@ public class DbJobsStartRunner implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         if (!faSetting.getConfig().getStartJobsOnBoot()) {
-            log.warn("------------ 系统设置开机启动不执行：扫描数据库中已经开启的定时任务 ------------");
+            log.info("------------ 系统设置开机启动不执行：扫描数据库中已经开启的定时任务 ------------");
             return;
         }
 
-        log.warn("------------ 系统设置开机启动执行：扫描数据库中已经开启的定时任务 BEGIN ------------");
+        log.info("------------ 系统设置开机启动执行：扫描数据库中已经开启的定时任务 BEGIN ------------");
         List<Job> jobList = jobBiz.getStartUpJobs();
 
         jobList.forEach(job -> {
@@ -51,7 +51,7 @@ public class DbJobsStartRunner implements CommandLineRunner {
         } else {
             log.info("------------任务启动完毕------------");
         }
-        log.warn("------------ 系统设置开机启动执行：扫描数据库中已经开启的定时任务 END ------------");
+        log.info("------------ 系统设置开机启动执行：扫描数据库中已经开启的定时任务 END ------------");
     }
 
 }
