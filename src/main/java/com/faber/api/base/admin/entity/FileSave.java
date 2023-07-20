@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.faber.core.annotation.FaModalName;
 import com.faber.core.bean.BaseDelEntity;
 import com.faber.core.enums.FileSaveDriveEnum;
 import lombok.Data;
@@ -16,6 +17,7 @@ import lombok.Data;
  * @email faberxu@gmail.com
  * @date 2019-08-19 10:09:36
  */
+@FaModalName(name = "BASE-附件表")
 @TableName("base_file_save")
 @Data
 public class FileSave extends BaseDelEntity {
