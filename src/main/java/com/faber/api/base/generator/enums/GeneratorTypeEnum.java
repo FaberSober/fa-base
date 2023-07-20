@@ -18,6 +18,7 @@ public enum GeneratorTypeEnum implements IEnum<String> {
     RN_PROPS("rn.props", "rn_prop.ts.vm"),
     RN_SERVICE("rn.service", "rn_service.ts.vm"),
     RN_MODAL("rn.modal", "rn_modal.tsx.vm"),
+    RN_VIEW("rn.view", "rn_view.tsx.vm"),
     RN_LIST("rn.list", "rn_list.tsx.vm");
 
     @JsonValue

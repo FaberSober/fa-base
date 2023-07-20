@@ -221,6 +221,8 @@ public class GeneratorUtils {
 
             case RN_MODAL:
                 return className + "Modal.tsx";
+            case RN_VIEW:
+                return className + "View.tsx";
             case RN_LIST:
                 return className + "List.tsx";
             case RN_SERVICE:
@@ -259,6 +261,8 @@ public class GeneratorUtils {
 
             case RN_MODAL:
                 return rootDir + File.separator + codeGenReqVo.getRnCopyPath() + File.separator + "modal" + File.separator + className + "Modal.tsx";
+            case RN_VIEW:
+                return rootDir + File.separator + codeGenReqVo.getRnCopyPath() + File.separator + "cube" + File.separator + className + "View.tsx";
             case RN_LIST:
                 return rootDir + File.separator + codeGenReqVo.getRnCopyPath() + File.separator + className + "List.tsx";
             case RN_SERVICE:

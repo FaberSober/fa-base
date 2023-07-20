@@ -1,11 +1,12 @@
 import React from 'react';
 import { DownloadOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Space } from 'antd';
-import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useExport, useTableQueryParams } from '@fa/ui';
+import { Button, Drawer, Form, Input, Space } from 'antd';
+import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useExport, useTableQueryParams, useViewItem } from '@fa/ui';
 import { CommonExcelUploadModal } from "@/components";
 import { ${secondModuleName}Api as api } from '@/services';
 import { ${moduleNameUpperCaseFirstOne} } from '@/types';
 import ${className}Modal from './modal/${className}Modal';
+import ${className}View from './view/${className}View';
 
 const serviceName = '${comments}';
 const biz = '${tableName}';
@@ -21,6 +22,7 @@ export default function ${className}List() {
 
   const [handleDelete] = useDelete<${pkColAttrTsType}>(api.remove, fetchPageList, serviceName)
   const [exporting, fetchExportExcel] = useExport(api.exportExcel, queryParams)
+  const {show, hide, open, item} = useViewItem<${moduleNameUpperCaseFirstOne}.${className}>() // 查看记录
 
   /** 生成表格字段List */
   function genColumns() {
@@ -87,7 +89,12 @@ export default function ${className}List() {
         batchDelete={(ids) => api.removeBatchByIds(ids)}
         onSceneChange={(v) => setSceneId(v)}
         onConditionChange={(cL) => setConditionList(cL)}
+        onRow={r => ({ onDoubleClick: () => show(r) })}
       />
+
+      <Drawer title="查看详情" open={open} onClose={hide} width={1000} bodyStyle={{position: 'relative'}}>
+        {open && item && <${className}View item={item} /> }
+      </Drawer>
     </div>
   );
 }
