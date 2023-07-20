@@ -439,4 +439,25 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         BaseContextHandler.setLogin(true);
     }
 
+    /**
+     * 通过姓名获取用户（带缓存）（重复姓名取top）
+     * 注意：这里用户数量较多的话，可能会导致用户名重复的问题，自行斟酌使用
+     * @param name {@link User#getName()}
+     * @return {@link User}
+     */
+    public User getByNameWithCache(String name) {
+        Map<Serializable, User> cache = BaseContextHandler.getCacheMap("UserBiz.getByNameWithCache");
+        if (cache.containsKey(name)) {
+            return cache.get(name);
+        }
+
+        User entity = getTop(
+                lambdaQuery()
+                        .eq(User::getName, name)
+                        .orderByDesc(User::getId)
+        );
+        cache.put(name, entity);
+        return entity;
+    }
+
 }
