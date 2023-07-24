@@ -1,10 +1,10 @@
 import React from 'react';
-import { Admin } from '@/types';
+import { ${moduleNameUpperCaseFirstOne} } from '@/types';
 import { Descriptions } from "antd";
 
 
 export interface ${className}ViewProps {
-  item: Admin.FileSave;
+  item: ${moduleNameUpperCaseFirstOne}.${className};
 }
 
 /**
