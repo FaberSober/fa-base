@@ -9,7 +9,6 @@ import com.alicp.jetcache.anno.CacheType;
 import com.alicp.jetcache.template.QuickConfig;
 import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.api.base.admin.entity.User;
-import com.faber.config.utils.jwt.JWTInfo;
 import com.faber.config.utils.user.AuthRequest;
 import com.faber.config.utils.user.JwtTokenUtil;
 import com.faber.core.context.BaseContextHandler;
@@ -46,7 +45,8 @@ public class AuthBiz implements LogoutService {
 
     @Autowired
     private CacheManager cacheManager;
-    private Cache<String, String> strCache;
+    /** 记录用户登录来源 */
+    private Cache<String, String> userTokenFromCache;
 
     @PostConstruct
     public void init() {
@@ -56,7 +56,7 @@ public class AuthBiz implements LogoutService {
 //                .localLimit(50)
                 .syncLocal(true) // invalidate local cache in all jvm process after update
                 .build();
-        strCache = cacheManager.getOrCreateCache(qc);
+        userTokenFromCache = cacheManager.getOrCreateCache(qc);
     }
 
     /**
@@ -100,7 +100,7 @@ public class AuthBiz implements LogoutService {
         logLoginBiz.save(logLogin);
 
         // 登录模式
-        strCache.put(user.getId() + ":from", source);
+        userTokenFromCache.put(user.getId() + ":from", source);
 
         // 返回token：token暂时使用uuid，存放到redis缓存中
         String token = UUID.fastUUID().toString(true);
