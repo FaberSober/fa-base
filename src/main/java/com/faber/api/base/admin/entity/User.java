@@ -93,6 +93,12 @@ public class User extends BaseDelEntity {
     @ExcelProperty("api token")
     private String apiToken;
 
+    @ExcelProperty("开放平台的唯一标识符")
+    private String wxUnionId;
+
+    @ExcelProperty("微信小程序用户唯一标识")
+    private String wxMaOpenid;
+
     /**
      * 新增、编辑时，关联的角色ID
      */
