@@ -39,6 +39,14 @@ public class SystemConfigPo implements Serializable {
      * 登录背景图
      */
     private String loginBg;
+    /**
+     * 登录页面样式
+     */
+    private String loginPageType;
+    /**
+     * 顶部菜单条样式
+     */
+    private String topMenuBarStyle;
 
     /**
      * 网站logo

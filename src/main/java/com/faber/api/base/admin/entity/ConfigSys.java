@@ -69,6 +69,14 @@ public class ConfigSys extends BaseDelEntity {
          */
         private String loginBg;
         /**
+         * 登录页面样式
+         */
+        private String loginPageType;
+        /**
+         * 顶部菜单条样式
+         */
+        private String topMenuBarStyle;
+        /**
          * 网站logo
          */
         private String logo;
