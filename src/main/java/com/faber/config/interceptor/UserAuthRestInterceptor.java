@@ -1,7 +1,10 @@
 package com.faber.config.interceptor;
 
 import com.faber.api.base.admin.biz.UserBiz;
+import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
+import com.faber.api.base.admin.entity.UserToken;
+import com.faber.config.utils.user.UserCheckUtil;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
@@ -25,6 +28,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
     @Autowired
     private UserBiz userBiz;
+
+    @Autowired
+    private UserTokenBiz userTokenBiz;
 
     @Autowired
     FaRedisUtils faRedisUtils;
@@ -57,7 +63,17 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         String token = getToken(request);
         // 在redis中查询token
         String userId = faRedisUtils.getStr(FaKeyUtils.getTokenKey(token));
-        if (userId == null) throw new UserTokenException("令牌失效，请重新登录！");
+        if (userId == null) {
+            // 尝试ApiToken登录
+            UserToken userToken = userTokenBiz.getById(token);
+            if (userToken != null && userToken.getValid()) {
+                userId = userToken.getUserId();
+            }
+        }
+
+        if (userId == null) {
+            throw new UserTokenException("令牌失效，请重新登录！");
+        }
 
         // 判断用户状态是否正常
         User user = userBiz.getById(userId);
