@@ -10,7 +10,7 @@ import lombok.ToString;
  */
 @Data
 @ToString
-@PropKey(value = "SMD_CODE", smsEnable = true)
+@PropKey(value = "SMS_CODE", smsEnable = true)
 public class MsgSendSmsCode extends MsgSendConfig {
 
     /**
