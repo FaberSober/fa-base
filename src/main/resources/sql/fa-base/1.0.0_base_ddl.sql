@@ -551,7 +551,7 @@ CREATE TABLE IF NOT EXISTS `base_user_token` (
 -- Records of base_config_sys
 -- ----------------------------
 BEGIN;
-INSERT INTO `base_config_sys` (`id`, `data`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (1, '{\"cop\": \"Dward\", \"logo\": \"44314b38e94a661402fedc5087bc47f9\", \"title\": \"FaAdmin\", \"subTitle\": \"FaAdmin通用管理平台\", \"portalLink\": null, \"logoWithText\": \"7799d8522d7d0fc0df91190ee31c7005\", \"safeCaptchaOn\": true, \"storeLocalPath\": \"/opt/fa-admin/file\", \"safePasswordType\": 1, \"safePasswordLenMax\": 30, \"safePasswordLenMin\": 3, \"safeRegistrationOn\": true, \"safeTokenExpireHour\": 24}', '2023-04-04 16:10:50', '1', '超级管理员', '127.0.0.1', '2023-04-04 16:10:50', '1', '超级管理员', '127.0.0.1', 0);
+INSERT INTO `base_config_sys` (`id`, `data`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (1, '{\"cop\": \"faberxu@gmail.com\", \"logo\": \"\", \"title\": \"FaAdmin\", \"subTitle\": \"FaAdmin通用管理平台\", \"portalLink\": null, \"logoWithText\": \"\", \"safeCaptchaOn\": true, \"storeLocalPath\": \"/opt/fa-admin/file\", \"safePasswordType\": 1, \"safePasswordLenMax\": 30, \"safePasswordLenMin\": 3, \"safeRegistrationOn\": true, \"safeTokenExpireHour\": 24}', '2023-04-04 16:10:50', '1', '超级管理员', '127.0.0.1', '2023-04-04 16:10:50', '1', '超级管理员', '127.0.0.1', 0);
 COMMIT;
 
 -- ----------------------------
