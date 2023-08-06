@@ -33,13 +33,13 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
     @FaLogOpr(value = "URL上传文件", crud = LogCrudEnum.C)
     @PostMapping("/uploadFromUrl")
     @ResponseBody
-    public Ret<FileSave> uploadFromUrl(@RequestBody Map<String, Object> params) throws IOException {
+    public Ret<FileSave> uploadFromUrl(@RequestBody Map<String, Object> params) {
         String url = MapUtil.getStr(params, "url");
         FileSave data = baseBiz.uploadFromUrl(url);
         return ok(data);
     }
 
-    @FaLogOpr("文件获取")
+    @FaLogOpr("文件分片获取")
     @GetMapping("/getFile/{fileId}")
     @ResponseBody
     @IgnoreUserToken

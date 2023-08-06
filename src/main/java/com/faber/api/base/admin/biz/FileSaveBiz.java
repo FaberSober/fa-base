@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+
 /**
  * @author Farando
  * @email faberxu@gmail.com
@@ -171,7 +172,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     }
 
     /**
-     * 通过fileId，下载文件到http返回流
+     * 通过fileId，下载文件到http返回流。下载使用分片下载。
      *
      * @param fileId
      * @throws IOException
