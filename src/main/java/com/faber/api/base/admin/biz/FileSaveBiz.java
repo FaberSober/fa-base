@@ -74,7 +74,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      * @return
      * @throws IOException
      */
-    public FileSave upload(MultipartFile file) throws IOException {
+    public FileSave upload(MultipartFile file) {
         UploadPretreatment uploadPretreatment = fileStorageService.of(file);
 
         String extName = FileUtil.extName(file.getOriginalFilename());
@@ -88,7 +88,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
             throw new BuzzException("非法文件，附件上传出错");
         }
 
-        String md5 = DigestUtil.md5Hex(file.getBytes());
+//        String md5 = DigestUtil.md5Hex(file.getBytes());
 
         FileInfo fileInfo = uploadPretreatment
                 .setPath(DateUtil.today() + "/")
@@ -98,7 +98,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         FileSave fileSave = new FileSave();
         BeanUtil.copyProperties(fileInfo, fileSave);
 
-        fileSave.setMd5(md5);
+//        fileSave.setMd5(md5);
 
         super.save(fileSave);
         return fileSave;

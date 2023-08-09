@@ -12,6 +12,8 @@ import lombok.Data;
 
 /**
  * BASE-通用业务附件表
+ *
+ * 建议不使用这张表，可以直接使用{@link FileSave}表中的{@link FileSave#getObjectId()}、{@link FileSave#getObjectType()}来存储关联业务类型、业务ID
  * 
  * @author Farando
  * @email faberxu@gmail.com
