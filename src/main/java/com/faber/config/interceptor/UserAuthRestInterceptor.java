@@ -1,5 +1,6 @@
 package com.faber.config.interceptor;
 
+import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
@@ -61,6 +62,10 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
         // type 2: 读取header中jwt用户信息
         String token = getToken(request);
+        if (StrUtil.isEmpty(token)) {
+            throw new UserTokenException("令牌失效，请重新登录！");
+        }
+
         // 在redis中查询token
         String userId = faRedisUtils.getStr(FaKeyUtils.getTokenKey(token));
         if (userId == null) {
