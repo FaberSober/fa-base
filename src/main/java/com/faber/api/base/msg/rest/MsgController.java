@@ -1,14 +1,14 @@
 package com.faber.api.base.msg.rest;
 
+import com.faber.api.base.msg.biz.MsgBiz;
 import com.faber.api.base.msg.entity.Msg;
+import com.faber.api.base.msg.vo.MsgStatisticVO;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.vo.msg.Ret;
 import com.faber.core.vo.msg.TableRet;
-import com.faber.core.web.rest.BaseController;
 import com.faber.core.vo.query.QueryParams;
-import com.faber.api.base.msg.biz.MsgBiz;
-import com.faber.api.base.msg.vo.MsgStatisticVO;
+import com.faber.core.web.rest.BaseController;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,7 +37,6 @@ public class MsgController extends BaseController<MsgBiz, Msg, Long> {
         query.getQuery().put("toUserId", getCurrentUserId());
         return baseBiz.selectPageByQuery(query);
     }
-
 
     @FaLogOpr("批量已读")
     @RequestMapping(value = "/batchRead", method = RequestMethod.POST)
