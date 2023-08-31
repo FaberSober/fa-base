@@ -79,6 +79,7 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
         // 配置文件中的配置
         po.setPhpRedisAdmin(faSetting.getUrl().getPhpRedisAdmin());
         po.setSocketUrl(faSetting.getUrl().getSocketUrl());
+        po.setOffline(faSetting.getConfig().getOffline());
 
         return po;
     }
