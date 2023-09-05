@@ -11,17 +11,19 @@ import com.faber.api.base.rbac.mapper.RbacUserRoleMapper;
 import com.faber.api.base.rbac.vo.RbacUserRoleRetVo;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleQueryVo;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleUpdateVo;
+import com.faber.api.base.rbac.vo.req.RbacUserRolesVo;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.constant.CommonConstants;
 import com.faber.core.exception.BuzzException;
-import com.faber.core.vo.query.BasePageQuery;
 import com.faber.core.vo.msg.TableRet;
+import com.faber.core.vo.query.BasePageQuery;
 import com.faber.core.vo.tree.TreeNode;
 import com.faber.core.web.biz.BaseBiz;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -146,6 +148,21 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
 
             RbacUserRole userRole = new RbacUserRole();
             userRole.setUserId(userId);
+            userRole.setRoleId(roleId);
+            this.save(userRole);
+        }
+    }
+
+    @Transactional
+    @FaCacheClear(pre = "rbac:")
+    public void updateUserRoles(RbacUserRolesVo params) {
+        lambdaUpdate()
+                .eq(RbacUserRole::getUserId, params.getUserId())
+                .remove();
+
+        for (Long roleId : params.getRoleIds()) {
+            RbacUserRole userRole = new RbacUserRole();
+            userRole.setUserId(params.getUserId());
             userRole.setRoleId(roleId);
             this.save(userRole);
         }

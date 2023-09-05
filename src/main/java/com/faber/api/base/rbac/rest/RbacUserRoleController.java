@@ -4,6 +4,7 @@ import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleQueryVo;
 import com.faber.api.base.rbac.entity.RbacUserRole;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleUpdateVo;
+import com.faber.api.base.rbac.vo.req.RbacUserRolesVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.annotation.LogNoRet;
@@ -16,6 +17,7 @@ import com.faber.core.vo.tree.TreeNode;
 import com.faber.api.base.rbac.entity.RbacMenu;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.rbac.vo.RbacUserRoleRetVo;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -83,6 +85,15 @@ public class RbacUserRoleController extends BaseController<RbacUserRoleBiz, Rbac
     @LogNoRet
     public Ret<Boolean> addUsers(@RequestBody RbacUserRoleUpdateVo param) {
         baseBiz.addUsers(param);
+        return ok();
+    }
+
+    @FaLogOpr(value = "更新用户角色", crud = LogCrudEnum.C)
+    @RequestMapping(value = "/updateUserRoles", method = RequestMethod.POST)
+    @ResponseBody
+    @LogNoRet
+    public Ret<Boolean> updateUserRoles(@Validated @RequestBody RbacUserRolesVo params) {
+        baseBiz.updateUserRoles(params);
         return ok();
     }
 
