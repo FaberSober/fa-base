@@ -81,8 +81,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         // 4. 解析sql文件
         ListUtil.of(resources).stream().map(resource -> {
                     try {
-                        String sqlStr = FaResourceUtils.getResourceString(resource);
-                        return getSqlFileHeader(sqlStr);
+                        return getSqlFileHeader(resource);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -117,7 +116,11 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                 });
     }
 
-    private FaSqlHeader getSqlFileHeader(String sqlStr) {
+    private FaSqlHeader getSqlFileHeader(org.springframework.core.io.Resource resource) throws IOException {
+        String sqlStr = FaResourceUtils.getResourceString(resource);
+        if (!sqlStr.contains(SQL_SPLITTER)) {
+            throw new RuntimeException("SQL初始化文件未包含正确的文件头，请检查，文件名：" + resource.getFilename());
+        }
         String info = sqlStr.substring(sqlStr.indexOf(SQL_SPLITTER) + SQL_SPLITTER.length(), sqlStr.lastIndexOf(SQL_SPLITTER));
         String[] ss = info.trim().split("\n");
 
