@@ -110,6 +110,9 @@ public class User extends BaseDelEntity {
     @TableField(exist = false)
     private String departmentName;
 
+    @ExcelProperty("工作状态")
+    private Integer workStatus;
+
     public void setRoleId(Long roleId) {
         if (this.roleIds == null) this.roleIds = new ArrayList<>();
         this.roleIds.add(roleId);
