@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.faber.api.base.admin.enums.UserWorkStatusEnum;
 import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
 import com.faber.core.annotation.SqlSearch;
@@ -111,7 +112,7 @@ public class User extends BaseDelEntity {
     private String departmentName;
 
     @ExcelProperty("工作状态")
-    private Integer workStatus;
+    private UserWorkStatusEnum workStatus;
 
     public void setRoleId(Long roleId) {
         if (this.roleIds == null) this.roleIds = new ArrayList<>();
