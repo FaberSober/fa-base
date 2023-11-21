@@ -92,7 +92,7 @@ export default function ${className}List() {
         onRow={r => ({ onDoubleClick: () => show(r) })}
       />
 
-      <Drawer title="查看详情" open={open} onClose={hide} width={1000} bodyStyle={{position: 'relative'}}>
+      <Drawer title="查看详情" open={open} onClose={hide} width={1000} styles={{ body: { position: 'relative' } }}>
         {open && item && <${className}View item={item} /> }
       </Drawer>
     </div>
