@@ -1,12 +1,11 @@
 import React from 'react';
-import { DownloadOutlined, EyeOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
-import { Button, Drawer, Form, Input, Space } from 'antd';
-import { BaseDrawer, FaHref, AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useExport, useTableQueryParams } from '@fa/ui';
+import { DownloadOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Space } from 'antd';
+import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useExport, useTableQueryParams } from '@fa/ui';
 import { CommonExcelUploadModal } from "@/components";
 import { ${secondModuleName}Api as api } from '@/services';
 import { ${moduleNameUpperCaseFirstOne} } from '@/types';
 import ${className}Modal from './modal/${className}Modal';
-import ${className}View from './cube/${className}View';
 
 const serviceName = '${comments}';
 const biz = '${tableName}';
@@ -41,14 +40,11 @@ export default function ${className}List() {
         dataIndex: 'menu',
         render: (_, r) => (
           <Space>
-            <BaseDrawer title="查看详情" triggerDom={<FaHref icon={<EyeOutlined />} width={1000} styles={{ body: { position: 'relative' } }}>
-              <${className}View item={r} />
-            </BaseDrawer>
             <${className}Modal editBtn title={`编辑${serviceName}信息`} record={r} fetchFinish={fetchPageList} />
             <AuthDelBtn handleDelete={() => handleDelete(r.id)} />
           </Space>
         ),
-        width: 170,
+        width: 115,
         fixed: 'right',
         tcRequired: true,
         tcType: 'menu',
