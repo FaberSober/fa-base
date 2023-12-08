@@ -248,7 +248,9 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     @Override
     public void decorateOne(User i) {
         Department department = departmentBiz.getByIdWithCache(i.getDepartmentId());
-        i.setDepartmentName(department.getName());
+        if (department != null) {
+            i.setDepartmentName(department.getName());
+        }
     }
 
     public boolean resetPwd(Map<String, Object> params) {

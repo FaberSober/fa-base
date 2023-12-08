@@ -28,6 +28,9 @@ public class MsgBiz extends BaseBiz<MsgMapper, Msg> {
     @Override
     public void decorateOne(Msg i) {
         User fromUser = userBiz.getByIdWithCache(i.getFromUserId());
+        if (fromUser!= null) {
+            i.setFromUserName(fromUser.getName());
+        }
         i.setFromUser(fromUser);
     }
 
