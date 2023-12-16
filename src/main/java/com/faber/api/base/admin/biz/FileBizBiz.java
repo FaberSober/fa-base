@@ -11,6 +11,7 @@ import com.faber.core.web.biz.BaseBiz;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -61,6 +62,8 @@ public class FileBizBiz extends BaseBiz<FileBizMapper,FileBiz> {
                 .eq(FileBiz::getBizId, bizId)
                 .eq(FileBiz::getType, type)
                 .remove();
+
+        if (fileIds == null) return Collections.emptyList();
 
         List<FileBiz> list = new ArrayList<>();
         for (String fileId : fileIds) {
