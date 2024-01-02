@@ -46,4 +46,12 @@ public class MsgController extends BaseController<MsgBiz, Msg, Long> {
         return ok();
     }
 
+    @FaLogOpr("全部已读")
+    @RequestMapping(value = "/readAll", method = RequestMethod.GET)
+    @ResponseBody
+    public Ret<Boolean> readAll() {
+        baseBiz.readAll();
+        return ok();
+    }
+
 }

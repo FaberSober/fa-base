@@ -55,10 +55,23 @@ public class MsgBiz extends BaseBiz<MsgMapper, Msg> {
      * @param ids
      */
     public void batchRead(List<Long> ids) {
-
         Date now = new Date();
         lambdaUpdate()
                 .in(Msg::getId, ids)
+                .eq(Msg::getToUserId, getCurrentUserId())
+                .set(Msg::getIsRead, true)
+                .set(Msg::getReadTime, now)
+                .update();
+    }
+
+    /**
+     * 全部已读
+     */
+    public void readAll() {
+        Date now = new Date();
+        lambdaUpdate()
+                .eq(Msg::getToUserId, getCurrentUserId())
+                .ne(Msg::getIsRead, true)
                 .set(Msg::getIsRead, true)
                 .set(Msg::getReadTime, now)
                 .update();
