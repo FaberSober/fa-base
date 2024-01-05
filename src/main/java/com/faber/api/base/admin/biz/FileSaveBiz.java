@@ -244,7 +244,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Override
     public void syncStorageDatabaseConfig() {
         log.info("------------------------ Scan Database Storage Config ------------------------");
-        LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
+        LocalPlusFileStorage storage = fileStorageService.getFileStorage("local-plus-1");
         String storeLocalPath = configSysService.getStoreLocalPath();
         if (StrUtil.isNotEmpty(storeLocalPath) && !storeLocalPath.endsWith(File.separator)) {
             storeLocalPath = storeLocalPath + File.separator;
@@ -256,6 +256,18 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Override
     public File getByFileId(String fileId) {
         return getFileObj(fileId);
+    }
+
+    public String getFileFullPath(String fileId) {
+        FileSave fileSave = getById(fileId);
+        // 本地存储
+        if (fileSave.getPlatform().startsWith("local-")) {
+            LocalPlusFileStorage storage = fileStorageService.getFileStorage("local-plus-1");
+            String fileFullPath = storage.getAbsolutePath(fileSave.getUrl());
+            return fileFullPath;
+        } else {
+            return fileSave.getUrl();
+        }
     }
 
 }
