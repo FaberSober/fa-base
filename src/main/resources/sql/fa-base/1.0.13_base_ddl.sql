@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `base_user_device` (
   `os` varchar(255) DEFAULT NULL COMMENT '系统',
   `os_version` varchar(255) DEFAULT NULL COMMENT '系统版本号',
   `enable` tinyint(1) NOT NULL COMMENT '是否允许访问',
+  `last_online_time` timestamp NULL DEFAULT NULL COMMENT '最后在线时间',
   `crt_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `crt_user` varchar(32) NOT NULL COMMENT '创建用户ID',
   `crt_name` varchar(255) NOT NULL COMMENT '创建用户',

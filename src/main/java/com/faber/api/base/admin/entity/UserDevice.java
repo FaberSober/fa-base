@@ -59,4 +59,7 @@ public class UserDevice extends BaseDelEntity {
     @ExcelProperty("是否允许访问")
     private Boolean enable;
 
+    @ExcelProperty("最后在线时间")
+    private Date lastOnlineTime;
+
 }

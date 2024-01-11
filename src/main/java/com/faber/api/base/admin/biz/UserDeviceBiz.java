@@ -8,6 +8,8 @@ import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
+import java.util.Date;
 
 /**
  * BASE-用户设备
@@ -41,7 +43,8 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
 
         if (count == 0) {
             entity.setUserId(getCurrentUserId());
-            entity.setEnable(false); // 模式不允许访问
+            entity.setEnable(false); // 默认不允许访问
+            entity.setLastOnlineTime(new Date());
             this.save(entity);
             return;
         }
@@ -74,6 +77,13 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
                 .eq(UserDevice::getDeviceId, deviceId)
                 .one();
         return entityDB;
+    }
+
+    public void updateLastOnlineTime(int id) {
+        lambdaUpdate()
+                .set(UserDevice::getLastOnlineTime, LocalDateTime.now())
+                .eq(UserDevice::getId, id)
+                .update();
     }
 
 }

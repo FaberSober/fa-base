@@ -57,6 +57,9 @@ public class UserDeviceInterceptor extends AbstractInterceptor {
             if (userDevice.getEnable() == null || !userDevice.getEnable()) {
                 throw new UserDeviceInvalidException("设备未校验，请联系管理员！");
             }
+
+            // update device last online time
+            userDeviceBiz.updateLastOnlineTime(userDevice.getId());
         }
 
         return super.preHandle(request, response, handler);
