@@ -1,0 +1,60 @@
+package com.faber.api.base.admin.biz;
+
+import com.faber.api.base.admin.entity.User;
+import com.faber.api.base.admin.entity.UserDevice;
+import com.faber.api.base.admin.mapper.UserDeviceMapper;
+import com.faber.core.exception.BuzzException;
+import com.faber.core.web.biz.BaseBiz;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.Resource;
+
+/**
+ * BASE-用户设备
+ *
+ * @author xu.pengfei
+ * @email faberxu@gmail.com
+ * @date 2024-01-11 14:52:44
+ */
+@Service
+public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
+
+    @Resource
+    UserBiz userBiz;
+
+    @Override
+    public void decorateOne(UserDevice i) {
+        User user = userBiz.getByIdWithCache(i.getUserId());
+        if (user != null) {
+            i.setUserName(user.getName());
+        }
+    }
+
+    public void updateMine(UserDevice entity) {
+        long count = lambdaQuery()
+                .eq(UserDevice::getDeviceId, entity.getDeviceId())
+                .count();
+
+        if (count > 1) {
+            throw new BuzzException("重复设备编码，请联系管理员");
+        }
+
+        if (count == 0) {
+            entity.setUserId(getCurrentUserId());
+            entity.setEnable(false); // 模式不允许访问
+            this.save(entity);
+            return;
+        }
+
+        UserDevice entityDB = lambdaQuery()
+                .eq(UserDevice::getDeviceId, entity.getDeviceId())
+                .one();
+        entityDB.setUserId(getCurrentUserId());
+        entityDB.setModel(entity.getModel());
+        entityDB.setManufacturer(entity.getManufacturer());
+        entityDB.setOs(entity.getOs());
+        entityDB.setOsVersion(entity.getOsVersion());
+        this.updateById(entityDB);
+    }
+
+}
