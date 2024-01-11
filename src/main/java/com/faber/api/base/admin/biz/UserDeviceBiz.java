@@ -57,4 +57,23 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
         this.updateById(entityDB);
     }
 
+    public UserDevice getByDeviceId(String deviceId) {
+        long count = lambdaQuery()
+                .eq(UserDevice::getDeviceId, deviceId)
+                .count();
+
+        if (count > 1) {
+            throw new BuzzException("重复设备编码，请联系管理员");
+        }
+
+        if (count == 0) {
+            return null;
+        }
+
+        UserDevice entityDB = lambdaQuery()
+                .eq(UserDevice::getDeviceId, deviceId)
+                .one();
+        return entityDB;
+    }
+
 }

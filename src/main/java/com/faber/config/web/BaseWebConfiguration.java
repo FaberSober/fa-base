@@ -55,6 +55,11 @@ public abstract class BaseWebConfiguration extends WebMvcConfigurationSupport {
     }
 
     @Bean
+    UserDeviceInterceptor getUserDeviceInterceptor() {
+        return new UserDeviceInterceptor();
+    }
+
+    @Bean
     PermissionInterceptor getPermissionInterceptor() {
         return new PermissionInterceptor();
     }
