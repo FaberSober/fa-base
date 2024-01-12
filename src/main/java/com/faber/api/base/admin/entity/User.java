@@ -114,6 +114,9 @@ public class User extends BaseDelEntity {
     @ExcelProperty("工作状态")
     private UserWorkStatusEnum workStatus;
 
+    @ExcelProperty("最后在线时间")
+    private Date lastOnlineTime;
+
     public void setRoleId(Long roleId) {
         if (this.roleIds == null) this.roleIds = new ArrayList<>();
         this.roleIds.add(roleId);
