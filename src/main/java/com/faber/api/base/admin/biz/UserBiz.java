@@ -41,6 +41,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -439,6 +440,12 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         BaseContextHandler.setName(user.getName());
         BaseContextHandler.setUserId(user.getId());
         BaseContextHandler.setLogin(true);
+
+        // 更新用户最后在线时间
+        this.lambdaUpdate()
+                .eq(User::getId, user.getId())
+                .set(User::getLastOnlineTime, new Date())
+                .update();
     }
 
     /**
