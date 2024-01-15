@@ -3,6 +3,7 @@ package com.faber.api.base.admin.biz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserDevice;
 import com.faber.api.base.admin.mapper.UserDeviceMapper;
+import com.faber.core.constant.FaSetting;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,9 @@ import java.util.Date;
  */
 @Service
 public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
+
+    @Resource
+    private FaSetting faSetting;
 
     @Resource
     UserBiz userBiz;
@@ -43,7 +47,7 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
 
         if (count == 0) {
             entity.setUserId(getCurrentUserId());
-            entity.setEnable(false); // 默认不允许访问
+            entity.setEnable(faSetting.getApp().isDeviceDefaultAllow()); // 默认不允许访问
             entity.setLastOnlineTime(new Date());
             this.save(entity);
             return;
