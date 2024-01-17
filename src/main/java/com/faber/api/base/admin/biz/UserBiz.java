@@ -198,6 +198,21 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return super.updateById(entity);
     }
 
+    /**
+     * 限定一些属性的简单更新
+     * @param entity
+     * @return
+     */
+    @CacheInvalidate(name = "user:", key = "#entity.id")
+    @FaCacheClear(pre = "rbac:userMenus:", key = "id")
+    public boolean updateSimpleById(User entity) {
+        // 可以更新的属性
+        return lambdaUpdate()
+                .set(entity.getStatus() != null, User::getStatus, entity.getStatus())
+                .eq(User::getId, entity.getId())
+                .update();
+    }
+
     @CacheInvalidate(name = "user:", key = "#id")
     @Override
     public boolean removeById(Serializable id) {

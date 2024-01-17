@@ -8,6 +8,7 @@ import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
+import com.faber.core.config.validator.validator.Vg;
 import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.vo.msg.Ret;
 import com.faber.core.vo.query.QueryParams;
@@ -128,6 +129,14 @@ public class UserController extends BaseController<UserBiz, User, String> {
     @AdminOpr
     public Ret<Boolean> forgetResetPwd(@Validated @RequestBody UserForgetResetPwdVo params) {
         baseBiz.forgetResetPwd(params);
+        return ok();
+    }
+
+    @FaLogOpr(value = "更新", crud = LogCrudEnum.U)
+    @RequestMapping(value = "/updateSimpleById", method = RequestMethod.POST)
+    @ResponseBody
+    public Ret<User> updateSimpleById(@RequestBody User entity) {
+        baseBiz.updateSimpleById(entity);
         return ok();
     }
 
