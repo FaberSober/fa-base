@@ -79,7 +79,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         String extName = FileUtil.extName(file.getOriginalFilename());
         if (FaFileUtils.isImg(extName)) {
-            uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+            try {
+                uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+            } catch (Exception e) {
+                log.error(e.getMessage() + ", fileName=" + file.getOriginalFilename(), e);
+            }
         }
 
         // 检查文件上传类型
