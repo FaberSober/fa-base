@@ -1,6 +1,6 @@
 package com.faber.base.utils;
 
-import com.faber.FaTestApp;;
+import com.faber.FaTestApp;
 import com.faber.core.utils.AMapUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
