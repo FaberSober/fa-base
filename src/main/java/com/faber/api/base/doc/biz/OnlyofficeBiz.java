@@ -117,7 +117,7 @@ public class OnlyofficeBiz {
      */
     public void setTrackUserToContext(Track track) {
         if (track.getUsers() == null || track.getUsers().isEmpty()) return;
-        userBiz.setUserLogin(track.getUsers().get(0));
+        userBiz.setUserLogin(track.getUsers().get(0), "onlyoffice");
     }
 
     /**

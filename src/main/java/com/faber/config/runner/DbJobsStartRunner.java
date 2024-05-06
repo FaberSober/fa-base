@@ -47,9 +47,9 @@ public class DbJobsStartRunner implements CommandLineRunner {
         });
 
         if (jobList.size() == 0) {
-            log.info("------------数据库暂无启动的任务------------");
+            log.info("------------ 数据库暂无启动的任务 ------------");
         } else {
-            log.info("------------任务启动完毕------------");
+            log.info("------------ 任务启动完毕 ------------");
         }
         log.info("------------ 系统设置开机启动执行：扫描数据库中已经开启的定时任务 END ------------");
     }

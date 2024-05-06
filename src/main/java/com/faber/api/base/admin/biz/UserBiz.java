@@ -1,5 +1,6 @@
 package com.faber.api.base.admin.biz;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.IterUtil;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.ObjectUtil;
@@ -79,8 +80,8 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     @Autowired
     private RedissonClient redisson;
 
-    @Value("${spring.redis.sysName}")
-    private String redisKeySysName;
+    @Value("${spring.redis.prefix}")
+    private String redisPrefix;
 
     /**
      * 登录账户
@@ -108,7 +109,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
      * @param password
      */
     public void validateCurrentUserPwd(String password) {
-        User user = this.getByIdWithCache(BaseContextHandler.getUserId());
+        User user = this.getByIdWithCache(getCurrentUserId());
         UserCheckUtil.checkUserValid(user);
         if (FaPwdUtils.checkPwd(password, user.getPassword())) {
             return;
@@ -117,7 +118,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     }
 
     public User getLoginUser() {
-        User user = getById(BaseContextHandler.getUserId());
+        User user = getById(getCurrentUserId());
         if (!user.getStatus()) throw new BuzzException("无效账户");
         user.setPassword(null);
         return user;
@@ -373,7 +374,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     }
 
     public void delUserCacheById(String userId) {
-        redisson.getKeys().deleteByPattern(redisKeySysName + ":user:" + userId);
+        redisson.getKeys().deleteByPattern(redisPrefix + ":user:" + userId);
     }
 
     public void accountAdminDelete(Map<String, Object> params) {
@@ -444,11 +445,19 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     }
 
     public void setUserLogin(String userId) {
-        User user = super.getById(userId);
-        this.setUserLogin(user);
+        setUserLogin(userId, "web");
     }
 
     public void setUserLogin(User user) {
+        setUserLogin(user, "web");
+    }
+
+    public void setUserLogin(String userId, String device) {
+        User user = super.getById(userId);
+        this.setUserLogin(user, device);
+    }
+
+    public void setUserLogin(User user, String device) {
         UserCheckUtil.checkUserValid(user);
 
         BaseContextHandler.setUsername(user.getUsername());

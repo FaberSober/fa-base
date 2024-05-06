@@ -21,7 +21,7 @@ public class ConfigSceneController extends BaseController<ConfigSceneBiz, Config
     @ResponseBody
     public Ret<List<ConfigScene>> findAllScene(@RequestParam("biz") String biz) {
         List<ConfigScene> list = baseBiz.findAllScene(biz);
-        return new Ret<List<ConfigScene>>().data(list);
+        return ok(list);
     }
 
     @FaLogOpr("查询")
@@ -29,7 +29,7 @@ public class ConfigSceneController extends BaseController<ConfigSceneBiz, Config
     @ResponseBody
     public Ret<ConfigScene> findByScene(@RequestParam("biz") String biz) {
         ConfigScene configScene = baseBiz.findByScene(biz);
-        return new Ret<ConfigScene>().data(configScene);
+        return ok(configScene);
     }
 
     @FaLogOpr(value = "批量更新", crud = LogCrudEnum.U)

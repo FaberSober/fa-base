@@ -8,16 +8,17 @@ import com.faber.core.exception.auth.UserNoPermissionException;
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * TODO 用户权限点校验
  * @author xu.pengfei
  * @date 2022/11/28 11:32
  */
 @Slf4j
+@Component
 public class PermissionInterceptor extends AbstractInterceptor {
 
     @Autowired

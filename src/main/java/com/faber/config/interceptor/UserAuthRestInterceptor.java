@@ -1,5 +1,6 @@
 package com.faber.config.interceptor;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
@@ -14,6 +15,7 @@ import com.faber.core.utils.FaKeyUtils;
 import com.faber.core.utils.FaRedisUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -25,6 +27,7 @@ import javax.servlet.http.HttpServletResponse;
  * @date 2022/11/28 11:33
  */
 @Slf4j
+@Component
 public class UserAuthRestInterceptor extends AbstractInterceptor {
 
     @Autowired
@@ -56,18 +59,24 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         ApiToken apiToken = getMethodAnno(handler, ApiToken.class);
         if (apiToken != null) {
             User user = userBiz.getUserFromApiToken();
-            userBiz.setUserLogin(user);
+            userBiz.setUserLogin(user, "api");
             return super.preHandle(request, response, handler);
         }
 
         // type 2: 读取header中jwt用户信息
-        String token = getToken(request);
+        String token = StpUtil.getTokenValue();
         if (StrUtil.isEmpty(token)) {
             throw new UserTokenException("令牌失效，请重新登录！");
         }
 
-        // 在redis中查询token
-        String userId = faRedisUtils.getStr(FaKeyUtils.getTokenKey(token));
+        // sa-token获取登录账户信息
+        String userId = null;
+        try {
+            userId = StpUtil.getLoginIdAsString();
+        } catch (Exception e) {
+            // 这里不处理异常，是为了简化可以同时兼容api token调用的形式，简化了操作，但是有安全性的问题。如果项目安全要求较高，可以自行修改抛出异常
+             log.error(e.getMessage(), e);
+        }
         if (userId == null) {
             // 尝试ApiToken登录
             UserToken userToken = userTokenBiz.getById(token);
@@ -80,9 +89,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
             throw new UserTokenException("令牌失效，请重新登录！");
         }
 
-        // 判断用户状态是否正常
-        User user = userBiz.getById(userId);
-        userBiz.setUserLogin(user);
+        // 用户登录状态设置
+        userBiz.setUserLogin(userId);
+
         return super.preHandle(request, response, handler);
     }
 

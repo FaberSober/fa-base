@@ -9,6 +9,7 @@ import com.faber.core.constant.CommonConstants;
 import com.faber.core.exception.auth.UserDeviceInvalidException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -20,6 +21,7 @@ import javax.servlet.http.HttpServletResponse;
  * @date 2022/11/28 11:33
  */
 @Slf4j
+@Component
 public class UserDeviceInterceptor extends AbstractInterceptor {
 
     @Autowired

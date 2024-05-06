@@ -46,7 +46,7 @@ public class RbacUserRoleController extends BaseController<RbacUserRoleBiz, Rbac
     @RequestMapping(value = "/getMyRoles", method = RequestMethod.GET)
     @ResponseBody
     public Ret<List<RbacRole>> getMyRoles() {
-        List<RbacRole> o = baseBiz.getUserRoles(getCurrentUserId());
+        List<RbacRole> o = baseBiz.getUserRoles(getLoginUserId());
         return ok(o);
     }
 
@@ -58,7 +58,7 @@ public class RbacUserRoleController extends BaseController<RbacUserRoleBiz, Rbac
     @RequestMapping(value = "/getMyMenus", method = RequestMethod.GET)
     @ResponseBody
     public Ret<List<RbacMenu>> getMyMenus() {
-        List<RbacMenu> o = baseBiz.getUserMenus(getCurrentUserId());
+        List<RbacMenu> o = baseBiz.getUserMenus(getLoginUserId());
         return ok(o);
     }
 
@@ -67,7 +67,7 @@ public class RbacUserRoleController extends BaseController<RbacUserRoleBiz, Rbac
     @ResponseBody
     @LogNoRet
     public Ret<List<TreeNode<RbacMenu>>> getMyMenusTree() {
-        List<TreeNode<RbacMenu>> o = baseBiz.getUserMenusTree(getCurrentUserId());
+        List<TreeNode<RbacMenu>> o = baseBiz.getUserMenusTree(getLoginUserId());
         return ok(o);
     }
 
@@ -82,7 +82,6 @@ public class RbacUserRoleController extends BaseController<RbacUserRoleBiz, Rbac
     @FaLogOpr(value = "添加用户角色", crud = LogCrudEnum.C)
     @RequestMapping(value = "/addUsers", method = RequestMethod.POST)
     @ResponseBody
-    @LogNoRet
     public Ret<Boolean> addUsers(@RequestBody RbacUserRoleUpdateVo param) {
         baseBiz.addUsers(param);
         return ok();
@@ -91,7 +90,6 @@ public class RbacUserRoleController extends BaseController<RbacUserRoleBiz, Rbac
     @FaLogOpr(value = "更新用户角色", crud = LogCrudEnum.C)
     @RequestMapping(value = "/updateUserRoles", method = RequestMethod.POST)
     @ResponseBody
-    @LogNoRet
     public Ret<Boolean> updateUserRoles(@Validated @RequestBody RbacUserRolesVo params) {
         baseBiz.updateUserRoles(params);
         return ok();

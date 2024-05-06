@@ -34,7 +34,7 @@ public class MsgController extends BaseController<MsgBiz, Msg, Long> {
     @RequestMapping(value = "/pageMine", method = RequestMethod.POST)
     @ResponseBody
     public TableRet<Msg> pageMine(@RequestBody QueryParams query) {
-        query.getQuery().put("toUserId", getCurrentUserId());
+        query.getQuery().put("toUserId", getLoginUserId());
         return baseBiz.selectPageByQuery(query);
     }
 

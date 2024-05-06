@@ -52,7 +52,7 @@ public class NoticeBiz extends BaseBiz<NoticeMapper, Notice> {
                     .buzzId(entity.getId() + "")
                     .content(entity.getTitle() + ": " + entity.getContent())
                     .build();
-            msgHelper.sendSysMsg(BaseContextHandler.getUserId(), userIds.toArray(new String[]{}), config);
+            msgHelper.sendSysMsg(getCurrentUserId(), userIds.toArray(new String[]{}), config);
         });
     }
 

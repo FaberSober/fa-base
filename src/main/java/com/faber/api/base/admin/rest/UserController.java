@@ -8,10 +8,8 @@ import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
-import com.faber.core.config.validator.validator.Vg;
 import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.vo.msg.Ret;
-import com.faber.core.vo.query.QueryParams;
 import com.faber.core.web.rest.BaseController;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -53,7 +51,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
     @RequestMapping(value = "/updateMine", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> updateMine(@Valid @RequestBody UserAccountVo vo) {
-        baseBiz.updateMine(getCurrentUserId(), vo);
+        baseBiz.updateMine(getLoginUserId(), vo);
         return ok();
     }
 
@@ -61,7 +59,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
     @RequestMapping(value = "/updateMyPwd", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> updateMyPwd(@RequestBody Map<String, Object> params) {
-        baseBiz.updateMyPwd(getCurrentUserId(), params);
+        baseBiz.updateMyPwd(getLoginUserId(), params);
         return ok();
     }
 
@@ -69,7 +67,7 @@ public class UserController extends BaseController<UserBiz, User, String> {
     @RequestMapping(value = "/updateMyApiToken", method = RequestMethod.POST)
     @ResponseBody
     public Ret<Boolean> updateMyApiToken() {
-        baseBiz.updateMyApiToken(getCurrentUserId());
+        baseBiz.updateMyApiToken(getLoginUserId());
         return ok();
     }
 

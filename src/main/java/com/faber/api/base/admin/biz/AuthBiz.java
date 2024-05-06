@@ -1,6 +1,7 @@
 package com.faber.api.base.admin.biz;
 
-import cn.hutool.core.lang.UUID;
+import cn.dev33.satoken.stp.SaTokenInfo;
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
 import com.alicp.jetcache.Cache;
@@ -9,7 +10,8 @@ import com.alicp.jetcache.anno.CacheType;
 import com.alicp.jetcache.template.QuickConfig;
 import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.api.base.admin.entity.User;
-import com.faber.config.utils.user.AuthRequest;
+import com.faber.api.base.admin.vo.ret.LoginToken;
+import com.faber.config.utils.user.LoginReqVo;
 import com.faber.config.utils.user.JwtTokenUtil;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.service.LogoutService;
@@ -61,16 +63,22 @@ public class AuthBiz implements LogoutService {
 
     /**
      * web登录，返回token
-     * @param authRequest
+     * @param loginReqVo
      * @return
      * @throws Exception
      */
-    public String login(AuthRequest authRequest) {
-        User user = userBiz.validate(authRequest.getUsername(), authRequest.getPassword());
+    public SaTokenInfo login(LoginReqVo loginReqVo) {
+        User user = userBiz.validate(loginReqVo.getUsername(), loginReqVo.getPassword());
         return login(user, "web");
     }
 
-    public String login(User user, String source) {
+    /**
+     * 登录，返回登录成功token
+     * @param user 登录用户
+     * @param source 登录来源：web/app
+     * @return
+     */
+    public SaTokenInfo login(User user, String source) {
         // 将用户放入上下文
         BaseContextHandler.setUserId(user.getId());
         BaseContextHandler.setName(user.getName());
@@ -99,15 +107,33 @@ public class AuthBiz implements LogoutService {
 
         logLoginBiz.save(logLogin);
 
+        // 使用sa-token登录框架
+        StpUtil.login(user.getId(), source);
+        SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
+        return tokenInfo;
+
         // 登录模式
-        userTokenFromCache.put(user.getId() + ":from", source);
+//        userTokenFromCache.put(user.getId() + ":from", source);
 
         // 返回token：token暂时使用uuid，存放到redis缓存中
-        String token = UUID.fastUUID().toString(true);
-        faRedisUtils.set(FaKeyUtils.getTokenKey(token), user.getId() + "", configSysBiz.getConfig().getSafeTokenExpireHour(), TimeUnit.HOURS);
+//        String token = FaKeyUtils.genUUID();
+//        faRedisUtils.set(FaKeyUtils.getTokenKey(token), user.getId(), configSysBiz.getConfig().getSafeTokenExpireHour(), TimeUnit.HOURS);
 
-        return token;
+        // refreshToken
+//        String refreshToken = FaKeyUtils.genUUID();
+//        faRedisUtils.set(FaKeyUtils.getRefreshTokenKey(refreshToken), user.getId(), 30, TimeUnit.DAYS);
+
+//        LoginToken loginToken = new LoginToken();;
+//        loginToken.setToken(token);
+//        loginToken.setRefreshToken(refreshToken);
+//
+//        return loginToken;
     }
 
+    @Override
+    public String logout() {
+        StpUtil.logout();
+        return LogoutService.super.logout();
+    }
 
 }
