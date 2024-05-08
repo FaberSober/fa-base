@@ -10,13 +10,9 @@ import com.alicp.jetcache.anno.CacheType;
 import com.alicp.jetcache.template.QuickConfig;
 import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.api.base.admin.entity.User;
-import com.faber.api.base.admin.vo.ret.LoginToken;
 import com.faber.config.utils.user.LoginReqVo;
-import com.faber.config.utils.user.JwtTokenUtil;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.service.LogoutService;
-import com.faber.core.utils.FaKeyUtils;
-import com.faber.core.utils.FaRedisUtils;
 import com.faber.core.utils.IpUtils;
 import com.faber.core.utils.RequestUtils;
 import com.faber.core.vo.utils.IpAddr;
@@ -25,13 +21,9 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthBiz implements LogoutService {
-
-    @Resource
-    private JwtTokenUtil jwtTokenUtil;
 
     @Resource
     private UserBiz userBiz;
@@ -39,14 +31,9 @@ public class AuthBiz implements LogoutService {
     @Resource
     private LogLoginBiz logLoginBiz;
 
-    @Resource
-    FaRedisUtils faRedisUtils;
-
-    @Resource
-    ConfigSysBiz configSysBiz;
-
     @Autowired
     private CacheManager cacheManager;
+
     /** 记录用户登录来源 */
     private Cache<String, String> userTokenFromCache;
 
@@ -111,23 +98,6 @@ public class AuthBiz implements LogoutService {
         StpUtil.login(user.getId(), source);
         SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
         return tokenInfo;
-
-        // 登录模式
-//        userTokenFromCache.put(user.getId() + ":from", source);
-
-        // 返回token：token暂时使用uuid，存放到redis缓存中
-//        String token = FaKeyUtils.genUUID();
-//        faRedisUtils.set(FaKeyUtils.getTokenKey(token), user.getId(), configSysBiz.getConfig().getSafeTokenExpireHour(), TimeUnit.HOURS);
-
-        // refreshToken
-//        String refreshToken = FaKeyUtils.genUUID();
-//        faRedisUtils.set(FaKeyUtils.getRefreshTokenKey(refreshToken), user.getId(), 30, TimeUnit.DAYS);
-
-//        LoginToken loginToken = new LoginToken();;
-//        loginToken.setToken(token);
-//        loginToken.setRefreshToken(refreshToken);
-//
-//        return loginToken;
     }
 
     @Override

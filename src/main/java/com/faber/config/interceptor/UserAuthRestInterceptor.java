@@ -6,38 +6,33 @@ import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
-import com.faber.config.utils.user.UserCheckUtil;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.exception.auth.UserTokenException;
-import com.faber.core.utils.FaKeyUtils;
-import com.faber.core.utils.FaRedisUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
  * 用户授权过滤器
  * 1. 过滤request#header的jwt token授权字段：Authorization
- * @author xu.pengfei
+ * @author farando
  * @date 2022/11/28 11:33
  */
 @Slf4j
 @Component
 public class UserAuthRestInterceptor extends AbstractInterceptor {
 
-    @Autowired
+    @Resource
     private UserBiz userBiz;
 
-    @Autowired
+    @Resource
     private UserTokenBiz userTokenBiz;
-
-    @Autowired
-    FaRedisUtils faRedisUtils;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -76,8 +71,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         } catch (Exception e) {
             // 这里不处理异常，是为了简化可以同时兼容api token调用的形式，简化了操作，但是有安全性的问题。如果项目安全要求较高，可以自行修改抛出异常
              log.error(e.getMessage(), e);
-        }
-        if (userId == null) {
+
             // 尝试ApiToken登录
             UserToken userToken = userTokenBiz.getById(token);
             if (userToken != null && userToken.getValid()) {
