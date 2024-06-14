@@ -1,11 +1,12 @@
 import React from 'react';
-import { DownloadOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, EyeOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import { Button, Form, Input, Space } from 'antd';
-import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useExport, useTableQueryParams } from '@fa/ui';
+import { AuthDelBtn, BaseBizTable, BaseDrawer, BaseTableUtils, clearForm, FaberTable, FaHref, useDelete, useDeleteByQuery, useExport, useTableQueryParams } from '@fa/ui';
 import { CommonExcelUploadModal } from "@/components";
 import { ${secondModuleName}Api as api } from '@/services';
 import { ${moduleNameUpperCaseFirstOne} } from '@/types';
 import ${className}Modal from './modal/${className}Modal';
+import ${className}View from './modal/${className}View';
 
 const serviceName = '${comments}';
 const biz = '${tableName}';
@@ -21,6 +22,7 @@ export default function ${className}List() {
 
   const [handleDelete] = useDelete<${pkColAttrTsType}>(api.remove, fetchPageList, serviceName)
   const [exporting, fetchExportExcel] = useExport(api.exportExcel, queryParams)
+  const [_, deleteByQuery] = useDeleteByQuery(api.removeByQuery, queryParams, fetchPageList);
 
   /** 生成表格字段List */
   function genColumns() {
@@ -40,11 +42,14 @@ export default function ${className}List() {
         dataIndex: 'menu',
         render: (_, r) => (
           <Space>
+            <BaseDrawer triggerDom={<FaHref text="查看" icon={<EyeOutlined />} />}>
+              <${className}View item={r} />
+            </BaseDrawer>
             <${className}Modal editBtn title={`编辑${serviceName}信息`} record={r} fetchFinish={fetchPageList} />
             <AuthDelBtn handleDelete={() => handleDelete(r.id)} />
           </Space>
         ),
-        width: 115,
+        width: 160,
         fixed: 'right',
         tcRequired: true,
         tcType: 'menu',
@@ -58,7 +63,7 @@ export default function ${className}List() {
         <div className="fa-h3">{serviceName}</div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <Form form={form} layout="inline" onFinish={setFormValues}>
-            <Form.Item name="search" label="搜索">
+            <Form.Item name="_search" label="搜索">
               <Input placeholder="请输入搜索内容" allowClear />
             </Form.Item>
 
@@ -87,6 +92,8 @@ export default function ${className}List() {
         batchDelete={(ids) => api.removeBatchByIds(ids)}
         onSceneChange={(v) => setSceneId(v)}
         onConditionChange={(cL) => setConditionList(cL)}
+        showDeleteByQuery
+        onDeleteByQuery={deleteByQuery}
       />
     </div>
   );
