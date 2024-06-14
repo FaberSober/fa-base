@@ -6,7 +6,7 @@ import { CommonExcelUploadModal } from "@/components";
 import { ${secondModuleName}Api as api } from '@/services';
 import { ${moduleNameUpperCaseFirstOne} } from '@/types';
 import ${className}Modal from './modal/${className}Modal';
-import ${className}View from './modal/${className}View';
+import ${className}View from './cube/${className}View';
 
 const serviceName = '${comments}';
 const biz = '${tableName}';
