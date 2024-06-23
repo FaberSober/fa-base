@@ -262,6 +262,14 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         return getFileObj(fileId);
     }
 
+    @Override
+    public FileInfo getFileInfoById(String fileId) {
+        FileSave fileSave = this.getById(fileId);
+        FileInfo fileInfo = new FileInfo();
+        BeanUtil.copyProperties(fileSave, fileInfo, "attr");
+        return fileInfo;
+    }
+
     public String getFileFullPath(String fileId) {
         FileSave fileSave = getById(fileId);
         // 本地存储
