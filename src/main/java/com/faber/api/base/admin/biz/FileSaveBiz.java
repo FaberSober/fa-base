@@ -154,14 +154,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         return fileSave;
     }
 
-    /**
-     * 通过fileId获取文件
-     *
-     * @param fileId
-     * @return
-     */
-    public File getFileObj(String fileId) {
-        FileSave fileSave = getById(fileId);
+    public File getFileObj(FileSave fileSave) {
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
             LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
@@ -173,6 +166,26 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
             fileStorageService.download(fileSave.getUrl()).file(filePath);
             return new File(filePath);
         }
+    }
+
+    /**
+     * 通过fileId获取文件
+     *
+     * @param fileId
+     * @return
+     */
+    public File getFileObj(String fileId) {
+        FileSave fileSave = getById(fileId);
+        return this.getFileObj(fileSave);
+    }
+
+    public File getFileObjWithOriginalName(String fileId) throws IOException {
+        FileSave fileSave = getById(fileId);
+        File file = this.getFileObj(fileSave);
+        File dir = jodd.io.FileUtil.createTempDirectory();
+        File tmpFile = new File(dir.getAbsolutePath() + File.separator + fileSave.getOriginalFilename());
+        jodd.io.FileUtil.copyFile(file, tmpFile);
+        return tmpFile;
     }
 
     /**
