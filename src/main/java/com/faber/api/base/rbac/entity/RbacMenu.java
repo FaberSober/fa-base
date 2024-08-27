@@ -11,8 +11,8 @@ import com.faber.api.base.rbac.enums.RbacMenuLevelEnum;
 import com.faber.core.config.validator.validator.Vg;
 import lombok.Data;
 
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Null;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Null;
 
 
 /**

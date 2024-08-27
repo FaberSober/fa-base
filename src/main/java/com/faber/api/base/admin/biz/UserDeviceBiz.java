@@ -8,7 +8,7 @@ import com.faber.core.exception.BuzzException;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Date;
 

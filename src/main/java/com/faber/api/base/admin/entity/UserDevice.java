@@ -11,7 +11,7 @@ import com.faber.core.annotation.SqlEquals;
 import com.faber.core.bean.BaseDelEntity;
 import lombok.Data;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.Date;
 
 

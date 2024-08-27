@@ -9,7 +9,7 @@ import com.faber.api.base.admin.entity.FileBiz;
 import com.faber.api.base.admin.mapper.FileBizMapper;
 import com.faber.core.web.biz.BaseBiz;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

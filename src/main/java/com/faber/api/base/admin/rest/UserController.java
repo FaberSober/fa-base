@@ -14,7 +14,7 @@ import com.faber.core.web.rest.BaseController;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.Map;
 
 @FaLogBiz("用户")

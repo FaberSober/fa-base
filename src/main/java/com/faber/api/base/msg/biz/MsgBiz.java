@@ -8,7 +8,7 @@ import com.faber.api.base.msg.vo.MsgStatisticVO;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.Date;
 import java.util.List;
 

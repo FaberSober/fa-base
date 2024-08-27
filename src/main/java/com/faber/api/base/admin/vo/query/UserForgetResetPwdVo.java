@@ -3,7 +3,7 @@ package com.faber.api.base.admin.vo.query;
 import com.faber.core.config.validator.validator.TelNoValidator;
 import lombok.Data;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 
 @Data

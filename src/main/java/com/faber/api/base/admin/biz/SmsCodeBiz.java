@@ -11,7 +11,7 @@ import com.faber.api.base.msg.helper.properties.SmsConfiguration;
 import org.apache.commons.collections4.MapUtils;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.Date;
 import java.util.Map;
 

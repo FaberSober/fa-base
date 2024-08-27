@@ -19,8 +19,8 @@ import com.faber.core.vo.utils.IpAddr;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 
 @Service
 public class AuthBiz implements LogoutService {

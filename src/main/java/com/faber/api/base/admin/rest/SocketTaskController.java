@@ -8,7 +8,7 @@ import com.faber.core.vo.msg.Ret;
 import com.faber.core.vo.socket.SocketTaskStopVo;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 @FaLogBiz("Redis测试")
 @RestController
