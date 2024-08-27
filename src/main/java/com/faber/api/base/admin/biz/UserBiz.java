@@ -80,7 +80,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     @Autowired
     private RedissonClient redisson;
 
-    @Value("${spring.redis.prefix}")
+    @Value("${spring.data.redis.prefix}")
     private String redisPrefix;
 
     /**
