@@ -4,10 +4,10 @@ import cn.dev33.satoken.stp.SaTokenInfo;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
-import com.alicp.jetcache.Cache;
-import com.alicp.jetcache.CacheManager;
-import com.alicp.jetcache.anno.CacheType;
-import com.alicp.jetcache.template.QuickConfig;
+//import com.alicp.jetcache.Cache;
+//import com.alicp.jetcache.CacheManager;
+//import com.alicp.jetcache.anno.CacheType;
+//import com.alicp.jetcache.template.QuickConfig;
 import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.api.base.admin.entity.User;
 import com.faber.config.utils.user.LoginReqVo;
@@ -31,21 +31,21 @@ public class AuthBiz implements LogoutService {
     @Resource
     private LogLoginBiz logLoginBiz;
 
-    @Autowired
-    private CacheManager cacheManager;
-
-    /** 记录用户登录来源 */
-    private Cache<String, String> userTokenFromCache;
+//    @Autowired
+//    private CacheManager cacheManager;
+//
+//    /** 记录用户登录来源 */
+//    private Cache<String, String> userTokenFromCache;
 
     @PostConstruct
     public void init() {
-        QuickConfig qc = QuickConfig.newBuilder("oauthCache:")
-//                .expire(Duration.ofSeconds(-1))
-                .cacheType(CacheType.BOTH) // two level cache
-//                .localLimit(50)
-                .syncLocal(true) // invalidate local cache in all jvm process after update
-                .build();
-        userTokenFromCache = cacheManager.getOrCreateCache(qc);
+//        QuickConfig qc = QuickConfig.newBuilder("oauthCache:")
+////                .expire(Duration.ofSeconds(-1))
+//                .cacheType(CacheType.BOTH) // two level cache
+////                .localLimit(50)
+//                .syncLocal(true) // invalidate local cache in all jvm process after update
+//                .build();
+//        userTokenFromCache = cacheManager.getOrCreateCache(qc);
     }
 
     /**

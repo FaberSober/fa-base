@@ -1,7 +1,7 @@
 package com.faber.api.base.rbac.biz;
 
 import cn.hutool.core.util.ObjectUtil;
-import com.alicp.jetcache.anno.Cached;
+//import com.alicp.jetcache.anno.Cached;
 import com.faber.api.base.rbac.mapper.RbacMenuMapper;
 import com.faber.api.base.rbac.entity.RbacMenu;
 import com.faber.core.config.redis.annotation.FaCacheClear;
@@ -25,7 +25,7 @@ import java.util.Optional;
 @Service
 public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
 
-    @Cached(name="rbac:allMenuTree", key="new String('')", expire = 3600)
+//    @Cached(name="rbac:allMenuTree", key="new String('')", expire = 3600)
     @Override
     public List<TreeNode<RbacMenu>> allTree() {
         return super.allTree();

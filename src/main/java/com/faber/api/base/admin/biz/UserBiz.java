@@ -5,8 +5,8 @@ import cn.hutool.core.collection.IterUtil;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import com.alicp.jetcache.anno.CacheInvalidate;
-import com.alicp.jetcache.anno.Cached;
+//import com.alicp.jetcache.anno.CacheInvalidate;
+//import com.alicp.jetcache.anno.Cached;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
@@ -161,7 +161,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         entity.setRoleNames(roleNames);
     }
 
-    @Cached(name = "user:", key = "#id")
+//    @Cached(name = "user:", key = "#id")
     @Override
     public User getById(Serializable id) {
         return super.getById(id);
@@ -182,7 +182,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return true;
     }
 
-    @CacheInvalidate(name = "user:", key = "#entity.id")
+//    @CacheInvalidate(name = "user:", key = "#entity.id")
     @FaCacheClear(pre = "rbac:userMenus:", key = "id")
     @Override
     public boolean updateById(User entity) {
@@ -204,7 +204,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
      * @param entity
      * @return
      */
-    @CacheInvalidate(name = "user:", key = "#entity.id")
+//    @CacheInvalidate(name = "user:", key = "#entity.id")
     @FaCacheClear(pre = "rbac:userMenus:", key = "id")
     public boolean updateSimpleById(User entity) {
         // 可以更新的属性
@@ -214,7 +214,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
                 .update();
     }
 
-    @CacheInvalidate(name = "user:", key = "#id")
+//    @CacheInvalidate(name = "user:", key = "#id")
     @Override
     public boolean removeById(Serializable id) {
         // 不能删除自身账户和admin账户
@@ -282,7 +282,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return super.updateById(beanDB);
     }
 
-    @CacheInvalidate(name = "user:", key = "#userId")
+//    @CacheInvalidate(name = "user:", key = "#userId")
     public boolean updateMine(String userId, UserAccountVo vo) {
         // 插入时校验手机号是否重复
         long telCount = lambdaQuery()
@@ -304,7 +304,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return super.updateById(user);
     }
 
-    @CacheInvalidate(name = "user:", key = "#userId")
+//    @CacheInvalidate(name = "user:", key = "#userId")
     public boolean updateMyPwd(String userId, Map<String, Object> params) {
         String oldPwd = (String) params.get("oldPwd");
         String newPwd = (String) params.get("newPwd");
@@ -320,7 +320,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return super.updateById(user);
     }
 
-    @CacheInvalidate(name = "user:", key = "#userId")
+//    @CacheInvalidate(name = "user:", key = "#userId")
     public boolean updateMyApiToken(String userId) {
         User user = getById(userId);
         user.setApiToken(UUID.fastUUID().toString(true));
