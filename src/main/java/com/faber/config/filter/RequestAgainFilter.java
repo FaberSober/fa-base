@@ -12,6 +12,7 @@ import com.faber.core.context.BaseContextHandler;
 import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.utils.IpUtils;
 import com.faber.core.vo.utils.IpAddr;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +23,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 请求重复读取日志记录Filter
@@ -35,21 +38,31 @@ import java.util.List;
  * @date 2022/11/28 11:39
  */
 @Slf4j
-@WebFilter(filterName = "RequestAgainFilter", urlPatterns = "/api/*")
+@WebFilter(filterName = "RequestAgainFilter", urlPatterns = "/api/*", asyncSupported = true)
 public class RequestAgainFilter implements Filter {
 
     /**
      * 列表的api不记录日志
      * TODO 这里要支持写入配置文件中
      */
-    private static final List<String> NO_LOG_APIS = Arrays.asList("/api/admin/logApi/page", "api/admin/logLogin/page", "/api/admin/dict/getSystemConfig");
+    private static final List<String> NO_LOG_APIS = Arrays.asList("/api/admin/logApi/page", "/api/admin/logLogin/page", "/api/admin/dict/getSystemConfig");
+    private static final Set<String> SKIP_URLS = new HashSet<>();
 
-    @Autowired
+    public static void addSkipUrl(String url) {
+        SKIP_URLS.add(url);
+    }
+
+    @Resource
     private LogApiBiz logApiBiz;
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
         long startTime = System.currentTimeMillis();
+
+        if (SKIP_URLS.contains(servletRequest.getServletContext().getContextPath() + ((HttpServletRequest) servletRequest).getRequestURI())) {
+            filterChain.doFilter(servletRequest, servletResponse);
+            return;
+        }
 
         BodyHttpServletRequestWrapper requestWrapper = new BodyHttpServletRequestWrapper((HttpServletRequest) servletRequest);
         BodyHttpServletResponseWrapper responseWrapper = new BodyHttpServletResponseWrapper((HttpServletResponse) servletResponse);
