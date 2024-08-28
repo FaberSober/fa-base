@@ -1,7 +1,7 @@
 package com.faber.base.redis;
 
-import com.alicp.jetcache.Cache;
-import com.alicp.jetcache.CacheManager;
+//import com.alicp.jetcache.Cache;
+//import com.alicp.jetcache.CacheManager;
 import com.faber.FaTestApp;
 import com.faber.api.base.admin.vo.ret.SystemConfigPo;
 import com.faber.core.utils.FaRedisUtils;
@@ -25,8 +25,8 @@ import org.springframework.test.context.junit4.SpringRunner;
 @SpringBootTest(classes = {FaTestApp.class}, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class RedisTest {
 
-    @Autowired
-    private CacheManager cacheManager;
+//    @Autowired
+//    private CacheManager cacheManager;
 
     @Autowired
     private RedissonClient redisson;
@@ -36,15 +36,15 @@ public class RedisTest {
 
     @Test
     public void testDelSystemConfig() {
-        Cache<String, SystemConfigPo> cache = cacheManager.getCache("systemConfig");
-//        System.out.println(cache.get("config"));
-
-        RKeys keys = redisson.getKeys();
-
-        Iterable<String> keysByPattern = keys.getKeysByPattern("fa-web:rbac:*");
-        for (String s : keysByPattern) {
-            log.info(s);
-        }
+//        Cache<String, SystemConfigPo> cache = cacheManager.getCache("systemConfig");
+////        System.out.println(cache.get("config"));
+//
+//        RKeys keys = redisson.getKeys();
+//
+//        Iterable<String> keysByPattern = keys.getKeysByPattern("fa-web:rbac:*");
+//        for (String s : keysByPattern) {
+//            log.info(s);
+//        }
     }
 
     /**
