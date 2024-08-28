@@ -1,9 +1,9 @@
 package com.faber;
 
-import cn.xuyanwu.spring.file.storage.spring.EnableFileStorage;
-import com.alicp.jetcache.anno.config.EnableMethodCache;
+//import com.alicp.jetcache.anno.config.EnableMethodCache;
 import com.dtflys.forest.springboot.annotation.ForestScan;
 //import com.yomahub.tlog.core.enhance.bytes.AspectLogEnhance;
+import org.dromara.x.file.storage.spring.EnableFileStorage;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.server.ConfigurableWebServerFactory;
@@ -22,7 +22,7 @@ import java.util.Set;
 @EnableScheduling
 @EnableTransactionManagement
 @ServletComponentScan
-@EnableMethodCache(basePackages = "com.faber")
+//@EnableMethodCache(basePackages = "com.faber")
 @ForestScan("com.faber")
 @EnableFileStorage // https://spring-file-storage.xuyanwu.cn
 public class FaTestApp {
