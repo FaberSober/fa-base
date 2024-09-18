@@ -38,11 +38,16 @@ public class FileBizBiz extends BaseBiz<FileBizMapper,FileBiz> {
     }
 
     public FileBiz saveFile(String mainBizId, String bizId, String type, String fileId) {
+        return this.saveFile(mainBizId, bizId, type, fileId, 0);
+    }
+
+    public FileBiz saveFile(String mainBizId, String bizId, String type, String fileId, Integer sort) {
         FileBiz fileBiz = new FileBiz();
         fileBiz.setMainBizId(mainBizId);
         fileBiz.setBizId(bizId);
         fileBiz.setType(type);
         fileBiz.setFileId(fileId);
+        fileBiz.setSort(sort);
         this.save(fileBiz);
         return fileBiz;
     }
@@ -56,18 +61,25 @@ public class FileBizBiz extends BaseBiz<FileBizMapper,FileBiz> {
      * @return
      */
     public List<FileBiz> saveBatch(Object mainBizId, Object bizId, String type, List<String> fileIds) {
+        return this.saveBatch(mainBizId, bizId, type, fileIds, true);
+    }
+
+    public List<FileBiz> saveBatch(Object mainBizId, Object bizId, String type, List<String> fileIds, boolean deleteBeforeSave) {
         // delete before save
-        this.lambdaUpdate()
-                .eq(FileBiz::getMainBizId, mainBizId)
-                .eq(FileBiz::getBizId, bizId)
-                .eq(FileBiz::getType, type)
-                .remove();
+        if (deleteBeforeSave) {
+            this.lambdaUpdate()
+                    .eq(FileBiz::getMainBizId, mainBizId)
+                    .eq(FileBiz::getBizId, bizId)
+                    .eq(FileBiz::getType, type)
+                    .remove();
+        }
 
         if (fileIds == null) return Collections.emptyList();
 
         List<FileBiz> list = new ArrayList<>();
-        for (String fileId : fileIds) {
-            FileBiz fileBiz = this.saveFile(StrUtil.toString(mainBizId), StrUtil.toString(bizId), type, fileId);
+        for (int i = 0; i < fileIds.size(); i++){
+            String fileId = fileIds.get(i);
+            FileBiz fileBiz = this.saveFile(StrUtil.toString(mainBizId), StrUtil.toString(bizId), type, fileId, i + 1);
             list.add(fileBiz);
         }
         return list;

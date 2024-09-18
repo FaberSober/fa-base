@@ -2,7 +2,7 @@ package com.faber.api.base.rbac.biz;
 
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.StrUtil;
-import com.alicp.jetcache.anno.Cached;
+//import com.alicp.jetcache.anno.Cached;
 import com.faber.api.base.rbac.entity.RbacMenu;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.rbac.entity.RbacRoleMenu;
@@ -81,7 +81,7 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
         return rbacMenuBiz.lambdaQuery().in(RbacMenu::getId, menuIds).orderByAsc(RbacMenu::getSort).list();
     }
 
-    @Cached(name="rbac:userMenus:", key="#userId")
+//    @Cached(name="rbac:userMenus:", key="#userId")
     public List<TreeNode<RbacMenu>> getUserMenusTree(String userId) {
         List<RbacMenu> list = this.getUserMenus(userId);
         return rbacMenuBiz.listToTree(list, CommonConstants.ROOT);

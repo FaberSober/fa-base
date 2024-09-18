@@ -74,6 +74,11 @@ public class SystemConfigPo implements Serializable {
     private String socketUrl;
 
     /**
+     * [Web]kkFileView服务地址
+     */
+    private String kkFileViewUrl;
+
+    /**
      * [Web]是否离线环境
      */
     private boolean offline;

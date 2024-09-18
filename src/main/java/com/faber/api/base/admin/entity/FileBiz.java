@@ -50,4 +50,7 @@ public class FileBiz extends BaseDelEntity {
     @ExcelProperty("文件扩展名")
     private String ext;
 
+    @ExcelProperty("排序")
+    private Integer sort;
+
 }
