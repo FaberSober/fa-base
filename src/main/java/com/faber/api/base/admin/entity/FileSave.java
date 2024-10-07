@@ -76,4 +76,7 @@ public class FileSave extends BaseDelEntity {
     @ExcelProperty("文件MD5")
     private String md5;
 
+    @ExcelProperty("外部链接")
+    private String outUrl;
+
 }

@@ -8,6 +8,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.http.HttpUtil;
+import com.faber.core.bean.BaseCrtEntity;
 import org.dromara.x.file.storage.core.FileInfo;
 import org.dromara.x.file.storage.core.FileStorageService;
 import org.dromara.x.file.storage.core.UploadPretreatment;
@@ -64,7 +65,34 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         String ext = filename.substring(filename.lastIndexOf("."));
         File tmpFile = FileUtil.createTempFile(name, ext, true);
         HttpUtil.downloadFile(url, tmpFile);
-        return upload(tmpFile);
+        FileSave fileSave = upload(tmpFile);
+        if (fileSave != null) {
+            lambdaUpdate()
+                    .set(FileSave::getOutUrl, url)
+                    .eq(FileSave::getId, fileSave.getId())
+                    .update();
+        }
+        return fileSave;
+    }
+
+    /**
+     * 下载URL文件到本地，并入库
+     *
+     * @param url
+     * @param filename
+     * @param force force to redownload
+     * @return
+     */
+    public FileSave download(String url, String filename, boolean force) throws IOException {
+        if (!force) {
+            FileSave cacheFileSave = getTop(
+                    lambdaQuery().eq(FileSave::getOutUrl, url).orderByDesc(BaseCrtEntity::getCrtTime)
+            );
+            if (cacheFileSave != null) {
+                return cacheFileSave;
+            }
+        }
+        return download(url, filename);
     }
 
     /**
