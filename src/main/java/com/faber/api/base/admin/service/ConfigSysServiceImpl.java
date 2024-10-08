@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.biz.ConfigSysBiz;
 import com.faber.api.base.admin.entity.ConfigSys;
 import com.faber.core.service.ConfigSysService;
+import com.faber.core.vo.config.FaConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,11 @@ public class ConfigSysServiceImpl implements ConfigSysService {
             log.error(e.getMessage(),e);
         }
         return null;
+    }
+
+    @Override
+    public FaConfig getConfig() {
+        return configSysBiz.getOne().getData();
     }
 
 }

@@ -8,31 +8,34 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.http.HttpUtil;
-import com.faber.core.bean.BaseCrtEntity;
-import org.dromara.x.file.storage.core.FileInfo;
-import org.dromara.x.file.storage.core.FileStorageService;
-import org.dromara.x.file.storage.core.UploadPretreatment;
-import org.dromara.x.file.storage.core.platform.LocalPlusFileStorage;
 import com.faber.api.base.admin.entity.FileSave;
 import com.faber.api.base.admin.mapper.FileSaveMapper;
+import com.faber.core.bean.BaseCrtEntity;
 import com.faber.core.constant.FaSetting;
+import com.faber.core.enums.ConfigSysStorageActiveEnum;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.service.ConfigSysService;
 import com.faber.core.service.StorageService;
 import com.faber.core.utils.FaFileUtils;
+import com.faber.core.vo.config.FaConfig;
 import com.faber.core.web.biz.BaseBiz;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.dromara.x.file.storage.core.*;
+import org.dromara.x.file.storage.core.platform.FileStorage;
+import org.dromara.x.file.storage.core.platform.LocalPlusFileStorage;
+import org.dromara.x.file.storage.core.platform.MinioFileStorage;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 /**
@@ -44,14 +47,9 @@ import java.nio.charset.StandardCharsets;
 @Service
 public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements StorageService {
 
-    @Autowired
-    private FileStorageService fileStorageService;
-
-    @Autowired
-    private ConfigSysService configSysService;
-
-    @Resource
-    FaSetting faSetting;
+    @Resource FileStorageService fileStorageService;
+    @Resource ConfigSysService configSysService;
+    @Resource FaSetting faSetting;
 
     /**
      * 下载URL文件到本地，并入库
@@ -80,7 +78,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      *
      * @param url
      * @param filename
-     * @param force force to redownload
+     * @param force    force to redownload
      * @return
      */
     public FileSave download(String url, String filename, boolean force) throws IOException {
@@ -103,7 +101,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      * @throws IOException
      */
     public FileSave upload(MultipartFile file) {
-        UploadPretreatment uploadPretreatment = fileStorageService.of(file);
+        UploadPretreatment uploadPretreatment = fileStorageService.of(file).setPlatform(faSetting.getFile().getSavePlatform());
 
         String extName = FileUtil.extName(file.getOriginalFilename());
         if (FaFileUtils.isImg(extName)) {
@@ -138,6 +136,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     /**
      * URL上传文件
+     *
      * @param url
      * @return
      */
@@ -159,7 +158,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      * @return
      */
     public FileSave upload(File file) {
-        UploadPretreatment uploadPretreatment = fileStorageService.of(file);
+        UploadPretreatment uploadPretreatment = fileStorageService.of(file).setPlatform(faSetting.getFile().getSavePlatform());
 
         String extName = FileNameUtil.extName(file.getName());
         if (FaFileUtils.isImg(extName)) {
@@ -289,13 +288,44 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Override
     public void syncStorageDatabaseConfig() {
         log.info("------------------------ Scan Database Storage Config ------------------------");
-        LocalPlusFileStorage storage = fileStorageService.getFileStorage("local-plus-1");
-        String storeLocalPath = configSysService.getStoreLocalPath();
-        if (StrUtil.isNotEmpty(storeLocalPath) && !storeLocalPath.endsWith(File.separator)) {
-            storeLocalPath = storeLocalPath + File.separator;
+        FaConfig faConfig = configSysService.getConfig();
+        if (faConfig.getStoreActive() == null) {
+            faConfig.setStoreActive(ConfigSysStorageActiveEnum.LOCAL_PLUS);
         }
-        log.info("storeLocalPath: {}", storeLocalPath);
-        storage.setStoragePath(storeLocalPath);
+        faSetting.getFile().updateSaveType(faConfig.getStoreActive());
+        //获得存储平台 List
+        CopyOnWriteArrayList<FileStorage> list = fileStorageService.getFileStorageList();
+        switch (faConfig.getStoreActive()) {
+            case MINIO -> {
+                // remove
+                MinioFileStorage storage = fileStorageService.getFileStorage("minio-1");
+                if (storage != null) {
+                    storage.close();
+                    list.remove(storage);
+                }
+
+                // 增加
+                FileStorageProperties.MinioConfig config = new FileStorageProperties.MinioConfig();
+                config.setPlatform("minio-1");
+                config.setAccessKey(faConfig.getMinioAk());
+                config.setSecretKey(faConfig.getMinioSk());
+                config.setEndPoint(faConfig.getMinioEndPoint());
+                config.setBucketName(faConfig.getMinioBucketName());
+                config.setDomain(faConfig.getMinioDomain());
+                config.setBasePath(faConfig.getMinioBasePath());
+
+                list.addAll(FileStorageServiceBuilder.buildMinioFileStorage(Collections.singletonList(config), null));
+            }
+            case LOCAL_PLUS -> {
+                LocalPlusFileStorage storage = fileStorageService.getFileStorage("local-plus-1");
+                String storeLocalPath = configSysService.getStoreLocalPath();
+                if (StrUtil.isNotEmpty(storeLocalPath) && !storeLocalPath.endsWith(File.separator)) {
+                    storeLocalPath = storeLocalPath + File.separator;
+                }
+                log.info("storeLocalPath: {}", storeLocalPath);
+                storage.setStoragePath(storeLocalPath);
+            }
+        }
     }
 
     @Override

@@ -1,6 +1,6 @@
 package com.faber.api.base.admin.vo.ret;
 
-import com.faber.api.base.admin.enums.ConfigSysSafePasswordTypeEnum;
+import com.faber.core.enums.ConfigSysSafePasswordTypeEnum;
 import lombok.Data;
 
 import java.io.Serializable;

@@ -6,6 +6,7 @@ import com.faber.api.base.admin.mapper.ConfigSysMapper;
 import com.faber.api.base.admin.vo.ret.SystemConfigPo;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.service.StorageService;
+import com.faber.core.vo.config.FaConfig;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -46,7 +47,7 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
         if (configSys == null) {
             configSys = new ConfigSys();
 
-            ConfigSys.Config config = new ConfigSys.Config();
+            FaConfig config = new FaConfig();
             configSys.setData(config);
 
             save(configSys);
@@ -54,7 +55,7 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
         return configSys;
     }
 
-    public ConfigSys.Config getConfig() {
+    public FaConfig getConfig() {
         if (configSysCache == null) {
             configSysCache = this.getOne();
         }
