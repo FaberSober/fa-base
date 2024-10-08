@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.dromara.x.file.storage.core.*;
 import org.dromara.x.file.storage.core.platform.FileStorage;
 import org.dromara.x.file.storage.core.platform.LocalPlusFileStorage;
-import org.dromara.x.file.storage.core.platform.MinioFileStorage;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -282,6 +281,14 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         return upload(tmpFile);
     }
 
+    public void removeStorage(String platform) {
+        FileStorage storage = fileStorageService.getFileStorage(platform);
+        if (storage != null) {
+            storage.close();
+            fileStorageService.getFileStorageList().remove(storage);
+        }
+    }
+
     /**
      * 系统配置更新后，同步系统配置信息
      */
@@ -295,18 +302,14 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         faSetting.getFile().updateSaveType(faConfig.getStoreActive());
         //获得存储平台 List
         CopyOnWriteArrayList<FileStorage> list = fileStorageService.getFileStorageList();
-        switch (faConfig.getStoreActive()) {
+        ConfigSysStorageActiveEnum storeActive = faConfig.getStoreActive();
+        switch (storeActive) {
             case MINIO -> {
-                // remove
-                MinioFileStorage storage = fileStorageService.getFileStorage("minio-1");
-                if (storage != null) {
-                    storage.close();
-                    list.remove(storage);
-                }
+                removeStorage(storeActive.getDesc());
 
                 // 增加
                 FileStorageProperties.MinioConfig config = new FileStorageProperties.MinioConfig();
-                config.setPlatform("minio-1");
+                config.setPlatform(storeActive.getDesc());
                 config.setAccessKey(faConfig.getMinioAk());
                 config.setSecretKey(faConfig.getMinioSk());
                 config.setEndPoint(faConfig.getMinioEndPoint());
@@ -315,6 +318,19 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
                 config.setBasePath(faConfig.getMinioBasePath());
 
                 list.addAll(FileStorageServiceBuilder.buildMinioFileStorage(Collections.singletonList(config), null));
+            }
+            case QINIU -> {
+                removeStorage(storeActive.getDesc());
+
+                FileStorageProperties.QiniuKodoConfig config = new FileStorageProperties.QiniuKodoConfig();
+                config.setPlatform(storeActive.getDesc());
+                config.setAccessKey(faConfig.getQiniuAk());
+                config.setSecretKey(faConfig.getQiniuSk());
+                config.setBucketName(faConfig.getQiniuBucketName());
+                config.setDomain(faConfig.getQiniuDomain());
+                config.setBasePath(faConfig.getQiniuBasePath());
+
+                list.addAll(FileStorageServiceBuilder.buildQiniuKodoFileStorage(Collections.singletonList(config), null));
             }
             case LOCAL_PLUS -> {
                 LocalPlusFileStorage storage = fileStorageService.getFileStorage("local-plus-1");
