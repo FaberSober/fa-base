@@ -1,5 +1,6 @@
 package com.faber.api.base.admin.entity;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -78,5 +79,12 @@ public class FileSave extends BaseDelEntity {
 
     @ExcelProperty("外部链接")
     private String outUrl;
+
+    public String getFileNameWithoutExtension() {
+        if (StrUtil.isEmpty(filename)) {
+            return filename;
+        }
+        return filename.substring(0, filename.lastIndexOf("."));
+    }
 
 }
