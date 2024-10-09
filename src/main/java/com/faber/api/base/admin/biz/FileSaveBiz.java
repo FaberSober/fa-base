@@ -188,9 +188,9 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
             return new File(fileFullPath);
         } else {
-            String filePath = "." + File.separator + fileSave.getOriginalFilename();
-            fileStorageService.download(fileSave.getUrl()).file(filePath);
-            return new File(filePath);
+            File tempFile = FileUtil.createTempFile(fileSave.getFileNameWithoutExtension(), "." + fileSave.getExt(), true);
+            fileStorageService.download(getFileInfo(fileSave)).file(tempFile);
+            return tempFile;
         }
     }
 
@@ -352,6 +352,10 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Override
     public FileInfo getFileInfoById(String fileId) {
         FileSave fileSave = this.getById(fileId);
+        return getFileInfo(fileSave);
+    }
+
+    public FileInfo getFileInfo(FileSave fileSave) {
         FileInfo fileInfo = new FileInfo();
         BeanUtil.copyProperties(fileSave, fileInfo, "attr");
         return fileInfo;
