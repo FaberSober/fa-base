@@ -49,7 +49,7 @@ export default function ${className}List() {
             <AuthDelBtn handleDelete={() => handleDelete(r.id)} />
           </Space>
         ),
-        width: 160,
+        width: 170,
         fixed: 'right',
         tcRequired: true,
         tcType: 'menu',
