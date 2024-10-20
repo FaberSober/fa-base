@@ -34,8 +34,8 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
     @FaCacheClear(pre = "rbac:")
     @Override
     public boolean save(RbacMenu entity) {
-        long count = lambdaQuery().eq(RbacMenu::getLinkUrl, entity.getLinkUrl()).count();
-        if (count > 0) throw new BuzzException("链接已存在，不可重复录入");
+//        long count = lambdaQuery().eq(RbacMenu::getLinkUrl, entity.getLinkUrl()).count();
+//        if (count > 0) throw new BuzzException("链接已存在，不可重复录入");
 
         return super.save(entity);
     }
@@ -54,8 +54,8 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
             throw new BuzzException("父节点不能选择本节点的子节点");
         }
 
-        long count = lambdaQuery().eq(RbacMenu::getLinkUrl, entity.getLinkUrl()).ne(RbacMenu::getId, entity.getId()).count();
-        if (count > 0) throw new BuzzException("链接已存在，不可重复录入");
+//        long count = lambdaQuery().eq(RbacMenu::getLinkUrl, entity.getLinkUrl()).ne(RbacMenu::getId, entity.getId()).count();
+//        if (count > 0) throw new BuzzException("链接已存在，不可重复录入");
 
         return super.updateById(entity);
     }
