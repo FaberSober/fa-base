@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjUtil;
 import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.api.base.admin.mapper.LogLoginMapper;
+import com.faber.api.base.admin.vo.query.LogLoginCountByDayReqVo;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.vo.chart.ChartSeriesVo;
 import com.faber.core.web.biz.BaseBiz;
@@ -21,9 +22,9 @@ import java.util.*;
 @Service
 public class LogLoginBiz extends BaseBiz<LogLoginMapper, LogLogin> {
 
-    public List<ChartSeriesVo> countByDay(Map<String, Object> params) {
-        Date startDate = DateUtil.beginOfDay(DateUtil.parse((String) params.get("startDate")));
-        Date endDate = DateUtil.endOfDay(DateUtil.parse((String) params.get("endDate")));
+    public List<ChartSeriesVo> countByDay(LogLoginCountByDayReqVo reqVo) {
+        Date startDate = reqVo.getStartDate();
+        Date endDate = reqVo.getEndDate();
 
         if (startDate.after(endDate)) throw new BuzzException("开始日期需要小于结束日期");
 

@@ -3,6 +3,7 @@ package com.faber.api.base.admin.rest;
 
 import com.faber.api.base.admin.biz.LogLoginBiz;
 import com.faber.api.base.admin.entity.LogLogin;
+import com.faber.api.base.admin.vo.query.LogLoginCountByDayReqVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.enums.LogCrudEnum;
@@ -29,8 +30,8 @@ public class LogLoginController extends BaseController<LogLoginBiz, LogLogin, In
     @FaLogOpr(value = "按天统计", crud = LogCrudEnum.R)
     @RequestMapping(value = "/countByDay", method = RequestMethod.POST)
     @ResponseBody
-    public Ret<List<ChartSeriesVo>> countByDay(@RequestBody Map<String, Object> params) {
-        List<ChartSeriesVo> data = baseBiz.countByDay(params);
+    public Ret<List<ChartSeriesVo>> countByDay(@RequestBody LogLoginCountByDayReqVo reqVo) {
+        List<ChartSeriesVo> data = baseBiz.countByDay(reqVo);
         return ok(data);
     }
 
