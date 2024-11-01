@@ -78,7 +78,11 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
         List<Long> menuIds = roleMenuList.stream().map(RbacRoleMenu::getMenuId).collect(Collectors.toList());
         if (menuIds.isEmpty()) return new ArrayList<>();
 
-        return rbacMenuBiz.lambdaQuery().in(RbacMenu::getId, menuIds).orderByAsc(RbacMenu::getSort).list();
+        return rbacMenuBiz.lambdaQuery()
+                .eq(RbacMenu::getStatus, true)
+                .in(RbacMenu::getId, menuIds)
+                .orderByAsc(RbacMenu::getSort)
+                .list();
     }
 
 //    @Cached(name="rbac:userMenus:", key="#userId")
