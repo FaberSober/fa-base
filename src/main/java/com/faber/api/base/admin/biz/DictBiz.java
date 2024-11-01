@@ -7,22 +7,20 @@ import com.faber.api.base.admin.entity.Dict;
 import com.faber.api.base.admin.mapper.DictMapper;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
+import com.faber.core.service.DictService;
 import com.faber.core.utils.FaEnumUtils;
 import com.faber.core.vo.utils.DictOption;
 import com.faber.core.web.biz.BaseTreeBiz;
 import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 字典
  */
 @Service
-public class DictBiz extends BaseTreeBiz<DictMapper, Dict> {
+public class DictBiz extends BaseTreeBiz<DictMapper, Dict> implements DictService {
 
     private static final Map<String, Object> enumClassCache = new HashMap<>();
 
@@ -63,6 +61,24 @@ public class DictBiz extends BaseTreeBiz<DictMapper, Dict> {
 
     public Dict getByCode(String code) {
         return lambdaQuery().eq(Dict::getCode, code).one();
+    }
+
+    @Override
+    public List<DictOption<Serializable>> getOptionsByCode(String code) {
+        Dict dict = getByCode(code);
+        if (dict == null || dict.getOptions() == null || dict.getOptions().length == 0) {
+            return List.of();
+        }
+        List<DictOption<Serializable>> dictOptions = new ArrayList<>();
+        for (int i = 0; i < dict.getOptions().length; i++) {
+            Dict.Option option = dict.getOptions()[i];
+            DictOption<Serializable> o = new DictOption<>();
+            o.setLabel(option.getLabel());
+            o.setValue(option.getValue());
+            o.setSort(i + 1);
+            dictOptions.add(o);
+        }
+        return dictOptions;
     }
 
     public <T extends Serializable> List<DictOption<T>> listEnum(String enumName) {
