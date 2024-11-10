@@ -304,7 +304,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         CopyOnWriteArrayList<FileStorage> list = fileStorageService.getFileStorageList();
         ConfigSysStorageActiveEnum storeActive = faConfig.getStoreActive();
         switch (storeActive) {
-            case MINIO -> {
+            case MINIO: {
                 removeStorage(storeActive.getDesc());
 
                 // 增加
@@ -318,8 +318,8 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
                 config.setBasePath(faConfig.getMinioBasePath());
 
                 list.addAll(FileStorageServiceBuilder.buildMinioFileStorage(Collections.singletonList(config), null));
-            }
-            case QINIU -> {
+            } break;
+            case QINIU: {
                 removeStorage(storeActive.getDesc());
 
                 FileStorageProperties.QiniuKodoConfig config = new FileStorageProperties.QiniuKodoConfig();
@@ -331,8 +331,8 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
                 config.setBasePath(faConfig.getQiniuBasePath());
 
                 list.addAll(FileStorageServiceBuilder.buildQiniuKodoFileStorage(Collections.singletonList(config), null));
-            }
-            case LOCAL_PLUS -> {
+            } break;
+            case LOCAL_PLUS: {
                 LocalPlusFileStorage storage = fileStorageService.getFileStorage("local-plus-1");
                 String storeLocalPath = configSysService.getStoreLocalPath();
                 if (StrUtil.isNotEmpty(storeLocalPath) && !storeLocalPath.endsWith(File.separator)) {
@@ -340,7 +340,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
                 }
                 log.info("storeLocalPath: {}", storeLocalPath);
                 storage.setStoragePath(storeLocalPath);
-            }
+            } break;
         }
     }
 
