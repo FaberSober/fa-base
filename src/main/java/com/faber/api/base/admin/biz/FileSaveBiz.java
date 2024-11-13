@@ -294,7 +294,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      */
     @Override
     public void syncStorageDatabaseConfig() {
-        log.info("------------------------ Scan Database Storage Config ------------------------");
+        log.info("------------ Scan Database Storage Config ------------");
         FaConfig faConfig = configSysService.getConfig();
         if (faConfig.getStoreActive() == null) {
             faConfig.setStoreActive(ConfigSysStorageActiveEnum.LOCAL_PLUS);

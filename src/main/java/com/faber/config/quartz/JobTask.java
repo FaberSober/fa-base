@@ -62,7 +62,7 @@ public class JobTask {
             scheduler.scheduleJob(jobDetail, trigger);
             // 启动
             scheduler.start();
-            log.info("---任务[" + triggerKey.getName() + "]启动成功-------");
+            log.info("----- 任务[" + triggerKey.getName() + "]启动成功 ----->>>");
 
             // 删除任务
 //            scheduler.pauseTrigger(triggerKey);
@@ -92,10 +92,10 @@ public class JobTask {
             // 启动
             if (!scheduler.isShutdown()) {
                 scheduler.start();
-                log.info("---任务[{}]启动成功-------", triggerKey.getName());
+                log.info("----- 任务[{}]启动成功 ----->>>", triggerKey.getName());
                 return true;
             } else {
-                log.info("---任务[{}]已经运行，请勿再次启动-------", triggerKey.getName());
+                log.info("----- 任务[{}]已经运行，请勿再次启动 ----->>>", triggerKey.getName());
             }
         } catch (Exception e) {
 //            throw new RuntimeException(e);
@@ -128,7 +128,7 @@ public class JobTask {
             HashSet<Trigger> triggerSet = new HashSet<>();
             triggerSet.add(trigger);
             scheduler.scheduleJob(jobDetail, triggerSet, true);
-            log.info("---任务[{}]更新成功-------", triggerKey.getName());
+            log.info("----- 任务[{}]更新成功 ----->>>", triggerKey.getName());
             return true;
         } catch (SchedulerException e) {
             log.error(e.getMessage(), e);
@@ -148,7 +148,7 @@ public class JobTask {
                 scheduler.pauseTrigger(triggerKey);
                 scheduler.unscheduleJob(triggerKey);
                 scheduler.deleteJob(JobKey.jobKey(this.getJobKeyName(job), Scheduler.DEFAULT_GROUP));
-                log.info("---任务[" + triggerKey.getName() + "]删除成功-------");
+                log.info("----- 任务[" + triggerKey.getName() + "]删除成功 -----xxx");
                 return true;
             }
         } catch (SchedulerException e) {

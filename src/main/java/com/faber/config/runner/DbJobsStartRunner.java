@@ -42,7 +42,7 @@ public class DbJobsStartRunner implements CommandLineRunner {
         List<Job> jobList = jobBiz.getStartUpJobs();
 
         jobList.forEach(job -> {
-            log.info("==> 任务[{}-{}]系统 init == 开始启动 ==>>>", job.getId(), job.getJobName());
+            log.info("----- 任务[{}-{}]系统 init -- 开始启动 ----->>>", job.getId(), job.getJobName());
             jobTask.startJob(job);
         });
 
