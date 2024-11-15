@@ -81,6 +81,9 @@ public class LogApi extends BaseCrtEntity {
     @ExcelProperty("地址")
     private String addr;
 
+    @ExcelProperty("请求头")
+    private String headers;
+
     @ExcelProperty("请求内容")
     private String request;
 

@@ -1,8 +1,10 @@
 package com.faber.config.filter;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.servlet.ServletUtil;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
+import cn.hutool.json.JSONUtil;
 import com.faber.api.base.admin.biz.LogApiBiz;
 import com.faber.api.base.admin.entity.LogApi;
 import com.faber.core.config.filter.wrapper.BodyHttpServletRequestWrapper;
@@ -10,6 +12,7 @@ import com.faber.core.config.filter.wrapper.BodyHttpServletResponseWrapper;
 import com.faber.core.constant.CommonConstants;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.enums.LogCrudEnum;
+import com.faber.core.utils.FaServletUtil;
 import com.faber.core.utils.IpUtils;
 import com.faber.core.vo.utils.IpAddr;
 import jakarta.annotation.Resource;
@@ -23,10 +26,7 @@ import jakarta.servlet.annotation.WebFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 请求重复读取日志记录Filter
@@ -124,6 +124,14 @@ public class RequestAgainFilter implements Filter {
             log.error(e.getMessage(), e);
         }
         logApi.setVersionName(requestWrapper.getHeader(CommonConstants.FA_VERSION_NAME));
+
+        // 获取完整Header信息
+        try {
+            Map<String, String> headerMap = FaServletUtil.getHeaderMap((HttpServletRequest) servletRequest);
+            logApi.setHeaders(JSONUtil.parseObj(headerMap).toString());
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
 
         logApi.setCrtHost(IpUtils.getRequestIp(requestWrapper));
         logApi.setRequest(requestWrapper.getBody());
