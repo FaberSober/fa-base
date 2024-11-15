@@ -14,6 +14,7 @@ import com.faber.core.utils.IpUtils;
 import com.faber.core.vo.utils.IpAddr;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.connector.RequestFacade;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -59,7 +60,11 @@ public class RequestAgainFilter implements Filter {
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
         long startTime = System.currentTimeMillis();
 
-        if (SKIP_URLS.contains(servletRequest.getServletContext().getContextPath() + ((HttpServletRequest) servletRequest).getRequestURI())) {
+        // 判断是否是跳过判断的URL
+        boolean isSkipUrl = SKIP_URLS.contains(servletRequest.getServletContext().getContextPath() + ((HttpServletRequest) servletRequest).getRequestURI());
+        // 判断是否是websocket请求
+        boolean isWebSocket = "websocket".equalsIgnoreCase(((RequestFacade) servletRequest).getHeader("upgrade"));
+        if (isSkipUrl || isWebSocket) {
             filterChain.doFilter(servletRequest, servletResponse);
             return;
         }

@@ -3,6 +3,7 @@ package com.faber.config.websocket;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.core.config.websocket.ClientInfoEntity;
@@ -43,7 +44,13 @@ public class WsChatEndpoint {
 
     private static final int EXIST_TIME_HOUR = 6;
 
-    @Resource UserBiz userBiz;
+    private static UserBiz userBiz;
+
+    public void init() {
+        if (userBiz == null) {
+            userBiz = SpringUtil.getBean(UserBiz.class);
+        }
+    }
 
     /**
      * 连接建立成功调用的方法
@@ -54,6 +61,7 @@ public class WsChatEndpoint {
      */
     @OnOpen
     public void onOpen(Session session, EndpointConfig sec, @PathParam("token") String token) {
+        init();
         if (uavWebSocketInfoMap.containsKey(token)) {
             throw new ServiceException("token已建立连接");
         }
