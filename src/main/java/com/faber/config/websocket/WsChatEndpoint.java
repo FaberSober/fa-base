@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @CrossOrigin(origins = "*")
-@ServerEndpoint(value = "/api/websocket/{token}")
+@ServerEndpoint(value = "/api/websocket/base/{token}")
 public class WsChatEndpoint {
     // key：客户端连接唯一标识(token)
     // value：ClientInfoEntity
