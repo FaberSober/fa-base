@@ -8,22 +8,19 @@ import cn.hutool.json.JSONObject;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.core.config.websocket.ClientInfoEntity;
-import com.faber.core.config.websocket.GetHttpSessionConfig;
 import com.faber.core.config.websocket.ServiceException;
-import jakarta.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import jakarta.websocket.*;
+import jakarta.websocket.server.PathParam;
+import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.CrossOrigin;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.websocket.*;
-import jakarta.websocket.server.PathParam;
-import jakarta.websocket.server.ServerEndpoint;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WsChatEndpoint {
     // key：客户端连接唯一标识(token)
     // value：ClientInfoEntity
-    private static final Map<String, ClientInfoEntity> uavWebSocketInfoMap = new ConcurrentHashMap<String, ClientInfoEntity>();
+    private static final Map<String, WsClientInfoEntity> uavWebSocketInfoMap = new ConcurrentHashMap<String, WsClientInfoEntity>();
 
     private static final int EXIST_TIME_HOUR = 6;
 
@@ -104,7 +101,7 @@ public class WsChatEndpoint {
     public void onMessage(Session session, @PathParam("token") String token, String message) throws IOException {
         log.info("接收到消息：{}", message);
 
-        ClientInfoEntity entity = uavWebSocketInfoMap.get(token);
+        WsClientInfoEntity entity = uavWebSocketInfoMap.get(token);
         // 如果是心跳包
         if("ping".equals(message)){
             // 只要接受到客户端的消息就进行续命(时间)
@@ -119,13 +116,14 @@ public class WsChatEndpoint {
         JSONObject json = new JSONObject(message);
         String type = json.getStr("type");
         JSONObject data = json.getJSONObject("data");
+        WsHolder.processMessage(entity, type, data);
 
 
         // 只要接受到客户端的消息就进行续命(时间)
         entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR));
-        if (entity.getSession().isOpen()) {
-            entity.sendSuccess();
-        }
+//        if (entity.getSession().isOpen()) {
+//            entity.sendSuccess();
+//        }
     }
 
     /**
@@ -149,9 +147,9 @@ public class WsChatEndpoint {
         // 当没有客户端连接时阻塞等待
         if (!uavWebSocketInfoMap.isEmpty()) {
             // 超过存活时间进行删除
-            Iterator<Map.Entry<String, ClientInfoEntity>> iterator = uavWebSocketInfoMap.entrySet().iterator();
+            Iterator<Map.Entry<String, WsClientInfoEntity>> iterator = uavWebSocketInfoMap.entrySet().iterator();
             while (iterator.hasNext()) {
-                Map.Entry<String, ClientInfoEntity> entry = iterator.next();
+                Map.Entry<String, WsClientInfoEntity> entry = iterator.next();
                 if (!entry.getValue().getExistTime().isAfter(LocalDateTime.now())) {
                     log.info("WebSocket {} 已到存活时间，自动断开连接", entry.getKey());
                     try {
