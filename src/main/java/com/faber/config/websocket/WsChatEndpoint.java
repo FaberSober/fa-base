@@ -4,6 +4,7 @@ package com.faber.config.websocket;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.extra.spring.SpringUtil;
+import cn.hutool.json.JSONObject;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.core.config.websocket.ClientInfoEntity;
@@ -105,20 +106,25 @@ public class WsChatEndpoint {
 
         ClientInfoEntity entity = uavWebSocketInfoMap.get(token);
         // 如果是心跳包
-        if("heartbeat".equals(message)){
+        if("ping".equals(message)){
             // 只要接受到客户端的消息就进行续命(时间)
             entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR));
             if (entity.getSession().isOpen()) {
-                entity.getSession().getBasicRemote().sendText("{\"msg\": \"success\", \"code\": 0}");
+                entity.sendSuccess();
             }
             return;
         }
-        // 业务逻辑
+
+        // 业务逻辑：业务逻辑使用JSON格式： {"type": "xxx", "data": {}}
+        JSONObject json = new JSONObject(message);
+        String type = json.getStr("type");
+        JSONObject data = json.getJSONObject("data");
+
 
         // 只要接受到客户端的消息就进行续命(时间)
         entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR));
         if (entity.getSession().isOpen()) {
-            entity.getSession().getBasicRemote().sendText("{\"msg\": \"success\", \"code\": 0}");
+            entity.sendSuccess();
         }
     }
 
@@ -157,7 +163,7 @@ public class WsChatEndpoint {
                     iterator.remove();
                 }
             }
-            sendMessageToAll(FORMAT.format(new Date()));
+            // sendMessageToAll(FORMAT.format(new Date()));
         }
     }
 
