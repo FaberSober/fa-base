@@ -11,11 +11,14 @@ import java.util.List;
 @ToString
 public class RoleMenuVo implements Serializable {
 
-    // 角色ID
+    /** 角色ID */
     private Long roleId;
-    // 全勾选的菜单ID
+
+    /** 全勾选的菜单ID */
     private List<Long> checkedMenuIds = new ArrayList<>();
-    // 半勾选的菜单ID
+
+    /** 半勾选的菜单ID */
+    @Deprecated
     private List<Long> halfCheckedMenuIds = new ArrayList<>();
 
 }

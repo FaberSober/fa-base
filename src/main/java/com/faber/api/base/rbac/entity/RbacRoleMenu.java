@@ -40,6 +40,7 @@ public class RbacRoleMenu extends BaseDelEntity {
 
     @SqlEquals
     @ExcelProperty("是否半勾选")
-    private Boolean halfChecked;
+    @Deprecated
+    private Boolean halfChecked = false;
 
 }

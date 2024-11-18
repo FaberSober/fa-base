@@ -46,10 +46,9 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         return super.removeById(id);
     }
 
-    public List<Long> getMenuIdsWithHalfCheck(Long roleId, Boolean bool) {
+    public List<Long> getMenuIdsWithHalfCheck(Long roleId) {
         return lambdaQuery()
                 .eq(RbacRoleMenu::getRoleId, roleId)
-                .eq(RbacRoleMenu::getHalfChecked, bool)
                 .list()
                 .stream()
                 .map(RbacRoleMenu::getMenuId)
@@ -59,8 +58,7 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
     public RoleMenuVo getRoleMenu(Long roleId) {
         RoleMenuVo vo = new RoleMenuVo();
         vo.setRoleId(roleId);
-        vo.setCheckedMenuIds(this.getMenuIdsWithHalfCheck(roleId, false));
-        vo.setHalfCheckedMenuIds(this.getMenuIdsWithHalfCheck(roleId, true));
+        vo.setCheckedMenuIds(this.getMenuIdsWithHalfCheck(roleId));
         return vo;
     }
 
@@ -74,9 +72,9 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         for (Long menuId : roleMenuVo.getCheckedMenuIds()) {
             list.add(new RbacRoleMenu(null, roleId, menuId, false));
         }
-        for (Long menuId : roleMenuVo.getHalfCheckedMenuIds()) {
-            list.add(new RbacRoleMenu(null, roleId, menuId, true));
-        }
+//        for (Long menuId : roleMenuVo.getHalfCheckedMenuIds()) {
+//            list.add(new RbacRoleMenu(null, roleId, menuId, true));
+//        }
 
         this.saveBatch(list);
     }
