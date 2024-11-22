@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -181,6 +182,19 @@ public class WsChatEndpoint {
             // 则避免尽量一次发送全部消息，使用部分消息来发送，可以看到下面sendMessageToTarget方法内就用的getBasicRemote，因为这个方法是根据用户id来私发的，所以不是全部一起发送。
             item.getSession().getAsyncRemote().sendText(message);
         });
+    }
+
+    public static List<WsClientInfoEntity> getByUserId(String userId) {
+        return uavWebSocketInfoMap.values().stream()
+                .filter(item -> item.getUser().getId().equals(userId))
+                .toList();
+    }
+
+    public static void sendMessageToUser(String userId, String type, Object msg) {
+        List<WsClientInfoEntity> clientList = getByUserId(userId);
+        for (WsClientInfoEntity client : clientList) {
+            client.sendMessage(type, msg);
+        }
     }
 
 }

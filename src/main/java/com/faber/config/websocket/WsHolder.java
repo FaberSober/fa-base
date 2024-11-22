@@ -4,6 +4,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.json.JSONObject;
 import com.faber.core.annotation.FaWsService;
+import com.faber.core.context.BaseContextHandler;
+import com.faber.core.enums.WsTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -49,6 +51,20 @@ public class WsHolder {
         for (WsBaseService impl : list) {
             impl.onMessage(entity, msg);
         }
+    }
+
+    /**
+     * send message to session user
+     * @param type
+     * @param msg
+     */
+    public static void sendMessage(WsTypeEnum type, Object msg) {
+        sendMessage(type.getValue(), msg);
+    }
+
+    public static void sendMessage(String type, Object msg) {
+        String userId = BaseContextHandler.getUserId();
+        WsChatEndpoint.sendMessageToUser(userId, type, msg);
     }
 
 }
