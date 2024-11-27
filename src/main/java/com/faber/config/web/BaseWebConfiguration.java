@@ -1,8 +1,5 @@
 package com.faber.config.web;
 
-import com.alibaba.fastjson.serializer.SerializerFeature;
-import com.alibaba.fastjson.support.config.FastJsonConfig;
-import com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter;
 import com.faber.core.config.exception.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -75,50 +72,6 @@ public abstract class BaseWebConfiguration extends WebMvcConfigurationSupport {
         // 设置格式化内容
         converter.setObjectMapper(objectMapper);
         converters.add(0, converter);
-
-//        FastJsonHttpMessageConverter fastConverter = new FastJsonHttpMessageConverter();
-//        FastJsonConfig fastJsonConfig = new FastJsonConfig();
-//        fastJsonConfig.setCharset(StandardCharsets.UTF_8);
-//        fastJsonConfig.setDateFormat(dateFormatPattern);
-//        fastJsonConfig.setSerializerFeatures(
-//                SerializerFeature.WriteClassName,
-//                SerializerFeature.WriteMapNullValue,
-//                SerializerFeature.PrettyFormat,
-//                SerializerFeature.WriteNullListAsEmpty,
-//                SerializerFeature.WriteNullStringAsEmpty
-//        );
-//
-//        List<MediaType> supportedMediaTypes = new ArrayList<>();
-//        supportedMediaTypes.add(MediaType.APPLICATION_JSON);
-//        supportedMediaTypes.add(MediaType.TEXT_EVENT_STREAM);
-//        fastConverter.setSupportedMediaTypes(supportedMediaTypes);
-//
-//        converters.add(fastConverter);
-//
-//        this.addDefaultHttpMessageConverters(converters);
-
-//        List<MediaType> supportedMediaTypes = new ArrayList<>();
-//        supportedMediaTypes.add(MediaType.APPLICATION_JSON);
-//        supportedMediaTypes.add(MediaType.APPLICATION_ATOM_XML);
-//        supportedMediaTypes.add(MediaType.APPLICATION_FORM_URLENCODED);
-//        supportedMediaTypes.add(MediaType.APPLICATION_OCTET_STREAM);
-//        supportedMediaTypes.add(MediaType.APPLICATION_PDF);
-//        supportedMediaTypes.add(MediaType.APPLICATION_RSS_XML);
-//        supportedMediaTypes.add(MediaType.APPLICATION_XHTML_XML);
-//        supportedMediaTypes.add(MediaType.APPLICATION_XML);
-//        supportedMediaTypes.add(MediaType.IMAGE_GIF);
-//        supportedMediaTypes.add(MediaType.IMAGE_JPEG);
-//        supportedMediaTypes.add(MediaType.IMAGE_PNG);
-//        supportedMediaTypes.add(MediaType.TEXT_EVENT_STREAM);
-//        supportedMediaTypes.add(MediaType.TEXT_HTML);
-//        supportedMediaTypes.add(MediaType.TEXT_MARKDOWN);
-//        supportedMediaTypes.add(MediaType.TEXT_PLAIN);
-//        supportedMediaTypes.add(MediaType.TEXT_XML);
-//        converter.setSupportedMediaTypes(supportedMediaTypes);
-
-//        SSEEventSourceHttpMessageConverter sseEventSourceHttpMessageConverter = new SSEEventSourceHttpMessageConverter();
-//        converters.add(sseEventSourceHttpMessageConverter);
-
         super.extendMessageConverters(converters);
     }
 

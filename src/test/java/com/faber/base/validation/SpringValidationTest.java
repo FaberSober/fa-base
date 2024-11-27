@@ -1,6 +1,6 @@
 package com.faber.base.validation;
 
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSONObject;
 import com.faber.base.BaseLoginTest;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;

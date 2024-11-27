@@ -91,6 +91,8 @@ public class WsChatEndpoint {
         if (ObjectUtil.isNotEmpty(token) && uavWebSocketInfoMap.containsKey(token)) {
             uavWebSocketInfoMap.remove(token);
             log.info("WebSocket 连接关闭成功: {}", token);
+
+            // TODO 通知WsBaseService实现类进行关闭处理
         }
     }
 
