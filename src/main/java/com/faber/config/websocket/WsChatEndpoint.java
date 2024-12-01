@@ -66,7 +66,15 @@ public class WsChatEndpoint {
         }
 
         String userId = (String) StpUtil.getLoginIdByToken(token);
-        User user = userBiz.getByIdWithCache(userId);
+        User user = userBiz.getById(userId);
+        if (user == null) {
+            try {
+                session.close();
+            } catch (IOException e) {
+                log.error("用户信息为空，userId=" + userId + ", token=" + token);
+            }
+            return;
+        }
 
         // 把成功建立连接的会话在实体类中保存
         WsClientInfoEntity entity = new WsClientInfoEntity();
