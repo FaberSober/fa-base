@@ -201,9 +201,17 @@ public class WsChatEndpoint {
     }
 
     public static void sendMessageToUser(String userId, String type, Object msg) {
-        List<WsClientInfoEntity> clientList = getByUserId(userId);
-        for (WsClientInfoEntity client : clientList) {
-            client.sendMessage(type, msg);
+        try {
+            List<WsClientInfoEntity> clientList = getByUserId(userId);
+            for (WsClientInfoEntity client : clientList) {
+                try {
+                    client.sendMessage(type, msg);
+                } catch (Exception e) {
+                    log.error(e.getMessage(), e);
+                }
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
         }
     }
 
