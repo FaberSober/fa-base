@@ -1,6 +1,7 @@
 package com.faber.api.base.rbac.rest;
 
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
+import com.faber.api.base.rbac.enums.RbacMenuScopeEnum;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleQueryVo;
 import com.faber.api.base.rbac.entity.RbacUserRole;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleUpdateVo;
@@ -57,8 +58,8 @@ public class RbacUserRoleController extends BaseController<RbacUserRoleBiz, Rbac
     @FaLogOpr("登录账户菜单")
     @RequestMapping(value = "/getMyMenus", method = RequestMethod.GET)
     @ResponseBody
-    public Ret<List<RbacMenu>> getMyMenus() {
-        List<RbacMenu> o = baseBiz.getUserMenus(getLoginUserId());
+    public Ret<List<RbacMenu>> getMyMenus(@RequestParam(value = "scope", defaultValue = "1") Integer scope) {
+        List<RbacMenu> o = baseBiz.getUserMenus(getLoginUserId(), RbacMenuScopeEnum.fromValue(scope));
         return ok(o);
     }
 
@@ -66,8 +67,8 @@ public class RbacUserRoleController extends BaseController<RbacUserRoleBiz, Rbac
     @RequestMapping(value = "/getMyMenusTree", method = RequestMethod.GET)
     @ResponseBody
     @LogNoRet
-    public Ret<List<TreeNode<RbacMenu>>> getMyMenusTree() {
-        List<TreeNode<RbacMenu>> o = baseBiz.getUserMenusTree(getLoginUserId());
+    public Ret<List<TreeNode<RbacMenu>>> getMyMenusTree(@RequestParam(value = "scope", defaultValue = "1") Integer scope) {
+        List<TreeNode<RbacMenu>> o = baseBiz.getUserMenusTree(getLoginUserId(), RbacMenuScopeEnum.fromValue(scope));
         return ok(o);
     }
 

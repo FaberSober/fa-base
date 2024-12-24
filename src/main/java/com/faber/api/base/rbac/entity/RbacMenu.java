@@ -4,6 +4,7 @@ import com.alibaba.excel.annotation.ExcelProperty;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.faber.api.base.rbac.enums.RbacMenuScopeEnum;
 import com.faber.core.annotation.*;
 import com.faber.core.bean.BaseDelEntity;
 import com.faber.api.base.rbac.enums.RbacLinkTypeEnum;
@@ -48,6 +49,9 @@ public class RbacMenu extends BaseDelEntity {
     @SqlSorter
     @ExcelProperty("排序")
     private Integer sort;
+
+    @ExcelProperty("模块：1-web/2-app")
+    private RbacMenuScopeEnum scope;
 
     @NotNull
     @ExcelProperty("菜单等级：0-模块/1-菜单/9-按钮")

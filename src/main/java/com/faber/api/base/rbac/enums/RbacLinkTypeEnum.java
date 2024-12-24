@@ -8,7 +8,8 @@ import lombok.Getter;
 @Getter
 public enum RbacLinkTypeEnum implements IEnum<Integer> {
     INNER(1, "内部链接"),
-    OUT(2, "外部链接");
+    OUT(2, "外部链接"),
+    PATH(3, "路径");
 
     @JsonValue
     @EnumValue

@@ -7,6 +7,7 @@ import com.faber.api.base.rbac.entity.RbacMenu;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.rbac.entity.RbacRoleMenu;
 import com.faber.api.base.rbac.entity.RbacUserRole;
+import com.faber.api.base.rbac.enums.RbacMenuScopeEnum;
 import com.faber.api.base.rbac.mapper.RbacUserRoleMapper;
 import com.faber.api.base.rbac.vo.RbacUserRoleRetVo;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleQueryVo;
@@ -70,24 +71,27 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
         return rbacRoleBiz.lambdaQuery().eq(RbacRole::getStatus, true).in(RbacRole::getId, roleIds).list();
     }
 
-    public List<RbacMenu> getUserMenus(String userId) {
+    public List<RbacMenu> getUserMenus(String userId, RbacMenuScopeEnum scope) {
         List<Long> roleIds = this.getUserRoleIds(userId);
         if (roleIds.isEmpty()) return new ArrayList<>();
 
-        List<RbacRoleMenu> roleMenuList = rbacRoleMenuBiz.lambdaQuery().in(RbacRoleMenu::getRoleId, roleIds).list();
+        List<RbacRoleMenu> roleMenuList = rbacRoleMenuBiz.lambdaQuery()
+                .in(RbacRoleMenu::getRoleId, roleIds)
+                .list();
         List<Long> menuIds = roleMenuList.stream().map(RbacRoleMenu::getMenuId).collect(Collectors.toList());
         if (menuIds.isEmpty()) return new ArrayList<>();
 
         return rbacMenuBiz.lambdaQuery()
                 .eq(RbacMenu::getStatus, true)
+                .eq(RbacMenu::getScope, scope)
                 .in(RbacMenu::getId, menuIds)
                 .orderByAsc(RbacMenu::getSort)
                 .list();
     }
 
 //    @Cached(name="rbac:userMenus:", key="#userId")
-    public List<TreeNode<RbacMenu>> getUserMenusTree(String userId) {
-        List<RbacMenu> list = this.getUserMenus(userId);
+    public List<TreeNode<RbacMenu>> getUserMenusTree(String userId, RbacMenuScopeEnum scope) {
+        List<RbacMenu> list = this.getUserMenus(userId, scope);
         return rbacMenuBiz.listToTree(list, CommonConstants.ROOT);
     }
 
