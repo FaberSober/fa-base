@@ -61,15 +61,15 @@ public class FileBizBiz extends BaseBiz<FileBizMapper,FileBiz> {
      * @return
      */
     public List<FileBiz> saveBatch(Object mainBizId, Object bizId, String type, List<String> fileIds) {
-        return this.saveBatch(mainBizId, bizId, type, fileIds, true);
+        return this.saveBatch(StrUtil.toString(mainBizId), StrUtil.toString(bizId), type, fileIds, true);
     }
 
     public List<FileBiz> saveBatch(Object mainBizId, Object bizId, String type, List<String> fileIds, boolean deleteBeforeSave) {
         // delete before save
         if (deleteBeforeSave) {
             this.lambdaUpdate()
-                    .eq(FileBiz::getMainBizId, mainBizId)
-                    .eq(FileBiz::getBizId, bizId)
+                    .eq(FileBiz::getMainBizId, StrUtil.toString(mainBizId))
+                    .eq(FileBiz::getBizId, StrUtil.toString(bizId))
                     .eq(FileBiz::getType, type)
                     .remove();
         }
