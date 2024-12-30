@@ -90,7 +90,7 @@ public class FileBizBiz extends BaseBiz<FileBizMapper,FileBiz> {
                .eq(FileBiz::getMainBizId, mainBizId)
                .eq(FileBiz::getBizId, bizId)
                .eq(FileBiz::getType, type)
-                .orderByAsc(FileBiz::getId)
+               .orderByAsc(FileBiz::getId)
                .list();
     }
 
