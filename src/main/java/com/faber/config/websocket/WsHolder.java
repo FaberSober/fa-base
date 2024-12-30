@@ -71,4 +71,12 @@ public class WsHolder {
         }
     }
 
+    public static void sendMessage(String userId, String type, Object msg) {
+        try {
+            WsChatEndpoint.sendMessageToUser(userId, type, msg);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+    }
+
 }

@@ -1,5 +1,6 @@
 package com.faber.api.base.msg.helper.impl;
 
+import cn.hutool.json.JSONUtil;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.msg.helper.config.MsgSendConfig;
@@ -7,6 +8,7 @@ import com.faber.api.base.msg.helper.properties.SmsConfiguration;
 import com.faber.api.base.msg.biz.MsgBiz;
 import com.faber.api.base.msg.helper.MsgHelper;
 import com.faber.api.base.msg.entity.Msg;
+import com.faber.config.websocket.WsHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -54,6 +56,9 @@ public class MsgHelperImpl implements MsgHelper {
                     log.error(e.getMessage(), e);
                 }
             }
+
+            // send through websocket
+            WsHolder.sendMessage(toUserId, "PLAIN_MSG", msg);
 
             msgBiz.save(msg);
         }
