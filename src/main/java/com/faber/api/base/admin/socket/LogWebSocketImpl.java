@@ -24,7 +24,7 @@ public class LogWebSocketImpl implements WsBaseService, CommandLineRunner {
 
     private static final Set<WsClientInfoEntity> uavWebSocketInfoSet = new ConcurrentHashSet<>();
 
-    @Autowired ThreadPoolTaskExecutor executor;
+    @Autowired Executor executor;
 
     @Override
     public void onMessage(WsClientInfoEntity entity, JSONObject msg) {
