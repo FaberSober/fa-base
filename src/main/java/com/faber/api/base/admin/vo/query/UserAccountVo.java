@@ -2,6 +2,9 @@ package com.faber.api.base.admin.vo.query;
 
 import com.faber.core.config.validator.validator.TelNoValidator;
 import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.util.Date;
 
 /**
  * 用户更新字段Bean
@@ -15,7 +18,8 @@ public class UserAccountVo {
 
     private String name;
 
-    private String birthday;
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    private Date birthday;
 
     private String address;
 

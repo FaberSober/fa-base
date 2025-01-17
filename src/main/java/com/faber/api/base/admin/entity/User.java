@@ -15,6 +15,7 @@ import com.faber.core.bean.BaseDelEntity;
 import com.faber.core.enums.SexEnum;
 import com.faber.core.config.validator.validator.TelNoValidator;
 import com.faber.core.config.validator.validator.Vg;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import jakarta.validation.constraints.Email;
@@ -56,6 +57,7 @@ public class User extends BaseDelEntity {
     private String name;
 
     @ExcelProperty("生日")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private Date birthday;
 
     @ExcelProperty("联系地址")
