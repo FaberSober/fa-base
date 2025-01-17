@@ -493,4 +493,26 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return entity;
     }
 
+    @Override
+    public User getDetailById(Serializable id) {
+        // 调用父类的方法获取基本数据
+        User user = super.getById(id);
+        this.populateUserRoles(user);
+        return user;
+    }
+    /**
+     * 根据用户的ID查找角色信息
+     *
+     * @param user
+     */
+    private void populateUserRoles(User user) {
+        if (user != null && user.getId() != null) {
+            // 查找与当前用户相关的角色数据
+            List<Long> userRoles = rbacUserRoleBiz.getUserRoleIds(user.getId());
+            // 处理角色信息，假设返回的是一个角色列表
+            if (userRoles != null && !userRoles.isEmpty()) {
+                user.setRoleIds(userRoles);
+            }
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package com.faber.api.base.admin.vo.query;
 
 import com.faber.core.config.validator.validator.TelNoValidator;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -18,7 +19,7 @@ public class UserAccountVo {
 
     private String name;
 
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private Date birthday;
 
     private String address;
