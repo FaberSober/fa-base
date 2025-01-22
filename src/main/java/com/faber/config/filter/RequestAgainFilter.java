@@ -1,6 +1,7 @@
 package com.faber.config.filter;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.SecureUtil;
 import cn.hutool.extra.servlet.ServletUtil;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
@@ -10,10 +11,13 @@ import com.faber.api.base.admin.entity.LogApi;
 import com.faber.core.config.filter.wrapper.BodyHttpServletRequestWrapper;
 import com.faber.core.config.filter.wrapper.BodyHttpServletResponseWrapper;
 import com.faber.core.constant.CommonConstants;
+import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.enums.LogCrudEnum;
+import com.faber.core.exception.BuzzException;
 import com.faber.core.utils.FaServletUtil;
 import com.faber.core.utils.IpUtils;
+import com.faber.core.vo.config.FaConfig;
 import com.faber.core.vo.utils.IpAddr;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -53,8 +57,8 @@ public class RequestAgainFilter implements Filter {
         SKIP_URLS.add(url);
     }
 
-    @Resource
-    private LogApiBiz logApiBiz;
+    @Resource LogApiBiz logApiBiz;
+    @Resource FaSetting faSetting;
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
@@ -71,6 +75,41 @@ public class RequestAgainFilter implements Filter {
 
         BodyHttpServletRequestWrapper requestWrapper = new BodyHttpServletRequestWrapper((HttpServletRequest) servletRequest);
         BodyHttpServletResponseWrapper responseWrapper = new BodyHttpServletResponseWrapper((HttpServletResponse) servletResponse);
+
+        // request basic information
+        int timestamp = requestWrapper.getIntHeader("timestamp");
+        String url = requestWrapper.getRequestURI();
+        if (StrUtil.isNotEmpty(requestWrapper.getQueryString())) {
+            url += "?" + requestWrapper.getQueryString();
+        }
+        String urlFrom = requestWrapper.getHeader(CommonConstants.FA_FROM);
+        if (faSetting.getSafety().isIntact()) {
+            String sigSecret = faSetting.getSafety().getSecret();
+            if ("web".equalsIgnoreCase(urlFrom)) {
+                // 这里还可以根据签名做请求重放验证
+                // url验证
+                {
+                    String urlSig = SecureUtil.md5(url + "@@" + timestamp + "@@" + sigSecret);
+                    String clientUrlSig = requestWrapper.getHeader("us");
+                    if (!urlSig.equalsIgnoreCase(clientUrlSig)) {
+                        throw new BuzzException("请求不完整，请确认");
+                    }
+                }
+
+                // body验证
+                {
+                    String body = requestWrapper.getBody();
+                    if (StrUtil.isEmpty(body)) {
+                        body = "{}";
+                    }
+                    String bodySig = SecureUtil.md5(body + "@@" + timestamp + "@@" + sigSecret);
+                    String clientBodySig = requestWrapper.getHeader("bs");
+                    if (!clientBodySig.equalsIgnoreCase(bodySig)) {
+                        throw new BuzzException("请求体不完整，请确认");
+                    }
+                }
+            }
+        }
 
         // 交给下一个过滤器或servlet处理
         filterChain.doFilter(requestWrapper, responseWrapper);
@@ -98,11 +137,6 @@ public class RequestAgainFilter implements Filter {
         logApi.setOprRemark(BaseContextHandler.getLogOprRemark());
         logApi.setCrud((LogCrudEnum) requestWrapper.getAttribute("FaLogCrud"));
 
-        // request basic information
-        String url = requestWrapper.getRequestURI();
-        if (StrUtil.isNotEmpty(requestWrapper.getQueryString())) {
-            url += "?" + requestWrapper.getQueryString();
-        }
         logApi.setUrl(url);
         logApi.setMethod(requestWrapper.getMethod());
         logApi.setAgent(requestWrapper.getHeader("User-Agent"));
@@ -115,7 +149,7 @@ public class RequestAgainFilter implements Filter {
         logApi.setMobile(ua.isMobile() ? true : false);
 
         // 自定义Header信息
-        logApi.setFaFrom(requestWrapper.getHeader(CommonConstants.FA_FROM));
+        logApi.setFaFrom(urlFrom);
         try {
             if (StrUtil.isNotEmpty(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE))) {
                 logApi.setVersionCode(Long.parseLong(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE)));
