@@ -4,4 +4,4 @@
 -- ------------------------- info -------------------------
 
 ALTER TABLE `base_rbac_menu` MODIFY COLUMN `scope` tinyint(4) NULL DEFAULT 1 COMMENT '模块：1-web/2-app' AFTER `parent_id`;
-UPDATE base_rbac_menu SET link_url = '/admin/system/base/menu' WHERE link_url = '/admin/system/base/menuV2'
+UPDATE base_rbac_menu SET link_url = '/admin/system/base/menu' WHERE link_url = '/admin/system/base/menuV2';
