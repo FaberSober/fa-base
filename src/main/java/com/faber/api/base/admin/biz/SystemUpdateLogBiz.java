@@ -21,6 +21,7 @@ import lombok.SneakyThrows;
 import org.apache.ibatis.jdbc.ScriptRunner;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
@@ -79,41 +80,47 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         org.springframework.core.io.Resource[] resources = resolver.getResources("classpath*:sql/" + no + "/*.sql");
 
         // 4. 解析sql文件
-        ListUtil.of(resources).stream().map(resource -> {
-                    try {
-                        return getSqlFileHeader(resource);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }).filter(i -> i != null)
-                .sorted(Comparator.comparing(FaSqlHeader::getVer)) // 按照版本号升序排列
-                .filter(i -> {
-                    if (latestLog == null) return true;
-                    return i.getVer() > latestLog.getVer();
-                }) // 过滤需要升级的sql
+        Connection conn = dataSource.getConnection();
+        try {
+            ListUtil.of(resources).stream().map(resource -> {
+                        try {
+                            return getSqlFileHeader(resource);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }).filter(i -> i != null)
+                    .sorted(Comparator.comparing(FaSqlHeader::getVer)) // 按照版本号升序排列
+                    .filter(i -> {
+                        if (latestLog == null) return true;
+                        return i.getVer() > latestLog.getVer();
+                    }) // 过滤需要升级的sql
 //                .sorted(Comparator.comparing(FaSqlHeader::getVer)) // 按照版本号升序排列
-                .forEach(i -> {
-                    // 执行升级sql
-                    String errorMsg = "";
-                    try {
-                        _logger.info("执行升级sql: no: {} name: {} ver: {} verNo: {}", no, name, i.getVer(), i.getVerNo());
-                        executeSql(i.getSql());
-                    } catch (Exception e) {
-                        _logger.error(e.getMessage(), e);
-                        errorMsg = ExceptionUtil.stacktraceToString(e);
-                    }
+                    .forEach(i -> {
+                        // 执行升级sql
+                        String errorMsg = "";
+                        try {
+                            _logger.info("执行升级sql: no: {} name: {} ver: {} verNo: {}", no, name, i.getVer(), i.getVerNo());
+                            executeSql(conn, i.getSql());
+                            Thread.sleep(1000);
+                        } catch (Exception e) {
+                            _logger.error(e.getMessage(), e);
+                            errorMsg = ExceptionUtil.stacktraceToString(e);
+                        }
 
-                    // 2. 记录升级日志
-                    SystemUpdateLog updateLog = new SystemUpdateLog();
-                    updateLog.setNo(no);
-                    updateLog.setName(name);
-                    updateLog.setVer(i.getVer());
-                    updateLog.setVerNo(i.getVerNo());
-                    updateLog.setRemark(i.getInfo());
-                    updateLog.setLog(i.getSql() + "\r\n" + errorMsg);
+                        // 2. 记录升级日志
+                        SystemUpdateLog updateLog = new SystemUpdateLog();
+                        updateLog.setNo(no);
+                        updateLog.setName(name);
+                        updateLog.setVer(i.getVer());
+                        updateLog.setVerNo(i.getVerNo());
+                        updateLog.setRemark(i.getInfo());
+                        updateLog.setLog(i.getSql() + "\r\n" + errorMsg);
 
-                    super.save(updateLog);
-                });
+                        super.save(updateLog);
+                    });
+        } finally {
+            conn.close();
+        }
     }
 
     private FaSqlHeader getSqlFileHeader(org.springframework.core.io.Resource resource) throws IOException {
@@ -174,8 +181,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
      * @param sql
      * @throws SQLException
      */
-    public void executeSql(String sql) throws SQLException {
-        Connection conn = dataSource.getConnection();
+    public void executeSql(Connection conn, String sql) throws SQLException {
         // 执行sql脚本
         ScriptRunner runner = new ScriptRunner(conn);
         runner.setFullLineDelimiter(false);
