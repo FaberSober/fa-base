@@ -373,4 +373,17 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         }
     }
 
+    public String getFileUrl(String fileId) {
+        return this.getFileUrl(faSetting.getUrl().getServerHost(), fileId);
+    }
+
+    public String getFileUrl(String server, String fileId) {
+        FileSave fileSave = getById(fileId);
+        // 本地存储
+        if (fileSave.getPlatform().startsWith("local-")) {
+            return server + "/api/base/admin/fileSave/getFile/" + fileId;
+        }
+        return fileSave.getUrl();
+    }
+
 }
