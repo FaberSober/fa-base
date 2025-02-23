@@ -386,4 +386,12 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         return fileSave.getUrl();
     }
 
+    public String getFileUrl(String server, FileSave fileSave) {
+        // 本地存储
+        if (fileSave.getPlatform().startsWith("local-")) {
+            return server + "/api/base/admin/fileSave/getFile/" + fileSave.getId();
+        }
+        return fileSave.getUrl();
+    }
+
 }
