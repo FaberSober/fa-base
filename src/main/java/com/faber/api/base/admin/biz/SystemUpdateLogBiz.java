@@ -16,6 +16,7 @@ import com.faber.core.config.dbinit.vo.FaDdlTableCreate;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.utils.FaDateUtils;
 import com.faber.core.utils.FaResourceUtils;
+import com.faber.core.utils.SqlUtils;
 import com.faber.core.web.biz.BaseBiz;
 import lombok.SneakyThrows;
 import org.apache.ibatis.jdbc.ScriptRunner;
@@ -100,7 +101,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                         String errorMsg = "";
                         try {
                             _logger.info("执行升级sql: no: {} name: {} ver: {} verNo: {}", no, name, i.getVer(), i.getVerNo());
-                            executeSql(conn, i.getSql());
+                            SqlUtils.executeSql(conn, i.getSql());
                             Thread.sleep(1000);
                         } catch (Exception e) {
                             _logger.error(e.getMessage(), e);
@@ -173,24 +174,6 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
             _logger.error(e.getMessage(), e);
         }
         return null;
-    }
-
-    /**
-     * 执行sql脚本
-     *
-     * @param sql
-     * @throws SQLException
-     */
-    public void executeSql(Connection conn, String sql) throws SQLException {
-        // 执行sql脚本
-        ScriptRunner runner = new ScriptRunner(conn);
-        runner.setFullLineDelimiter(false);
-        runner.setDelimiter(";");//语句结束符号设置
-        runner.setLogWriter(null);//日志数据输出，这样就不会输出过程
-        runner.setSendFullScript(false);
-        runner.setAutoCommit(true);
-        runner.setStopOnError(true);
-        runner.runScript(new StringReader(sql));
     }
 
 }
