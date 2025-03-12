@@ -13,4 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(rollbackFor = Exception.class)
 public class LogApiBiz extends BaseBiz<LogApiMapper, LogApi> {
 
+    public void deleteAll() {
+        baseMapper.deleteAll();
+    }
+
 }
