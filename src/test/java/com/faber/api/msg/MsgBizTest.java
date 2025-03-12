@@ -20,7 +20,7 @@ public class MsgBizTest {
 
     @Test
     public void testDeletePermanentById() {
-        msgMapper.deletePermanentById(1L);
+        msgMapper.deleteByIdIgnoreLogic(1L);
     }
 
     @Test
@@ -31,7 +31,7 @@ public class MsgBizTest {
         msgMapper.deleteById(1L);
         log.debug("----after logic deleted---->>>");
         log.debug("msg: {}", msgMapper.selectById(1L));
-        log.debug("msg: {}", msgMapper.selectByIdPure(1L));
+        log.debug("msg: {}", msgMapper.selectByIdIgnoreLogic(1L));
     }
 
 }
