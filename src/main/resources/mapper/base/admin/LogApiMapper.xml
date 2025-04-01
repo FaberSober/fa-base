@@ -3,4 +3,8 @@
 
 <mapper namespace="com.faber.api.base.admin.mapper.LogApiMapper" >
 
+    <delete id="deleteAll">
+        delete from base_log_api
+    </delete>
+
 </mapper>
