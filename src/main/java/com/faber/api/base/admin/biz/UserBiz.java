@@ -7,6 +7,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 //import com.alicp.jetcache.anno.CacheInvalidate;
 //import com.alicp.jetcache.anno.Cached;
+import com.faber.core.enums.SexEnum;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
@@ -299,8 +300,12 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         if (usernameCount > 0) throw new BuzzException("账户重复");
 
         User user = getById(userId);
-        BeanUtils.copyProperties(vo, user);
-
+        // 手动处理 sex 字段的转换
+        if (vo.getSex() != null) {
+            SexEnum sexEnum = SexEnum.fromValue(vo.getSex());
+            user.setSex(sexEnum);
+        }
+        BeanUtils.copyProperties(vo, user,"sex");
         return super.updateById(user);
     }
 

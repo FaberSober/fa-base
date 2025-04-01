@@ -29,7 +29,7 @@ public class UserAccountVo {
 
     private String email;
 
-    private String sex;
+    private Integer sex;
 
     private String description;
 
