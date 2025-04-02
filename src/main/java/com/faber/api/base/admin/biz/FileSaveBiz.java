@@ -49,6 +49,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Resource FileStorageService fileStorageService;
     @Resource ConfigSysService configSysService;
     @Resource FaSetting faSetting;
+    @Resource FileBizBiz fileBizBiz;
 
     /**
      * 下载URL文件到本地，并入库
@@ -351,8 +352,13 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     @Override
     public FileInfo getFileInfoById(String fileId) {
-        FileSave fileSave = this.getById(fileId);
+        FileSave fileSave = this.getByIdWithCache(fileId);
         return getFileInfo(fileSave);
+    }
+
+    @Override
+    public void saveFileBiz(String mainBizId, String bizId, String type, String fileId) {
+        fileBizBiz.saveFile(mainBizId, bizId, type, fileId);
     }
 
     public FileInfo getFileInfo(FileSave fileSave) {

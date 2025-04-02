@@ -30,7 +30,7 @@ public class FileBizBiz extends BaseBiz<FileBizMapper,FileBiz> {
 
     @Override
     protected void saveBefore(FileBiz entity) {
-        FileSave fileSave = fileSaveBiz.getById(entity.getFileId());
+        FileSave fileSave = fileSaveBiz.getByIdWithCache(entity.getFileId());
         entity.setFileName(fileSave.getOriginalFilename());
         entity.setExt(fileSave.getExt());
 
