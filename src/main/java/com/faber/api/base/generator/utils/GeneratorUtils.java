@@ -78,6 +78,10 @@ public class GeneratorUtils {
             case "timestamp":
                 return "Date";
 
+            // ----------------------- date -----------------------
+            case "json":
+                return "Map<String, Object>";
+
             default:
                 return "String";
         }
@@ -112,6 +116,7 @@ public class GeneratorUtils {
         ColumnVo pkCol = null;
         String pkColAttrType = null; // pk col java type
         String pkColAttrTsType = null; // pk col ts type
+        boolean hasJSON = false;
         for (ColumnVo column : columns) {
             //列名转换成Java属性名
             String attrName = columnToJava(column.getColumnName());
@@ -131,6 +136,11 @@ public class GeneratorUtils {
                 pkCol = column;
                 pkColAttrType = attrType;
                 pkColAttrTsType = attrTsType;
+            }
+
+            // 是否有JSON
+            if ("json".equalsIgnoreCase(column.getColumnType())) {
+                hasJSON = true;
             }
         }
 
@@ -155,6 +165,7 @@ public class GeneratorUtils {
         map.put("classNameLowerCaseFirstOne", toLowerCaseFirstOne(className));
         map.put("pathName", className.toLowerCase());
         map.put("columns", columns);
+        map.put("hasJSON", hasJSON);
         map.put("package", codeGenReqVo.getPackageName());
         map.put("author", codeGenReqVo.getAuthor());
         map.put("email", codeGenReqVo.getEmail());
