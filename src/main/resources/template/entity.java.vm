@@ -11,9 +11,12 @@ import lombok.Data;
 
 import java.util.Date;
 #if(${hasJSON})
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.baomidou.mybatisplus.annotation.TableField;
 import java.util.Map;
 #end
 ###if(${hasBigDecimal})
+import java.math.BigDecimal;
 ###end
 
 /**
