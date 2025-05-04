@@ -51,6 +51,7 @@ public class RequestAgainFilter implements Filter {
      * TODO 这里要支持写入配置文件中
      */
     private static final List<String> NO_LOG_APIS = Arrays.asList("/api/admin/logApi/page", "/api/admin/logLogin/page", "/api/admin/dict/getSystemConfig");
+    private static final List<String> WEBSOCKET_APIS = Arrays.asList("/api/websocket/base");
     private static final Set<String> SKIP_URLS = new HashSet<>();
 
     public static void addSkipUrl(String url) {
@@ -65,9 +66,17 @@ public class RequestAgainFilter implements Filter {
         long startTime = System.currentTimeMillis();
 
         // 判断是否是跳过判断的URL
-        boolean isSkipUrl = SKIP_URLS.contains(servletRequest.getServletContext().getContextPath() + ((HttpServletRequest) servletRequest).getRequestURI());
+        String uri = servletRequest.getServletContext().getContextPath() + ((HttpServletRequest) servletRequest).getRequestURI();
+        boolean isSkipUrl = SKIP_URLS.contains(uri);
         // 判断是否是websocket请求
         boolean isWebSocket = "websocket".equalsIgnoreCase(((RequestFacade) servletRequest).getHeader("upgrade"));
+        for (String api : WEBSOCKET_APIS) {
+            try {
+                if (uri.contains(api)) {
+                    isWebSocket = true;
+                }
+            } catch (Exception e) {}
+        }
         if (isSkipUrl || isWebSocket) {
             filterChain.doFilter(servletRequest, servletResponse);
             return;
