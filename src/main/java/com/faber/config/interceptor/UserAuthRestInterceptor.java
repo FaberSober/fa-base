@@ -1,5 +1,6 @@
 package com.faber.config.interceptor;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.biz.UserBiz;
@@ -70,7 +71,11 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
             userId = StpUtil.getLoginIdAsString();
         } catch (Exception e) {
             // 这里不处理异常，是为了简化可以同时兼容api token调用的形式，简化了操作，但是有安全性的问题。如果项目安全要求较高，可以自行修改抛出异常
-             log.error(e.getMessage(), e);
+            if (e instanceof UserTokenException || e instanceof NotLoginException) {
+                log.warn(e.getMessage());
+            } else {
+                log.error(e.getMessage(), e);
+            }
 
             // 尝试ApiToken登录
             UserToken userToken = userTokenBiz.getById(token);
