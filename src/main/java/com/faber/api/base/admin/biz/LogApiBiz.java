@@ -17,10 +17,15 @@ public class LogApiBiz extends BaseBiz<LogApiMapper, LogApi> {
     @Resource ConfigSysBiz configSysBiz;
 
     public void deleteAll() {
-        int rowCount = baseMapper.deleteAll();
-        while (rowCount > 0) {
-            rowCount = baseMapper.deleteAll();
+        LogApi logApi = lambdaQuery()
+                .orderByDesc(LogApi::getId)
+                .last("LIMIT 1")
+                .one();
+        if (logApi == null) {
+            return;
         }
+        Long id = logApi.getId();
+        deleteLessMinId(id);
     }
 
     public void deleteOverSize() {
@@ -35,7 +40,10 @@ public class LogApiBiz extends BaseBiz<LogApiMapper, LogApi> {
             return;
         }
         Long id = logApi.getId();
+        deleteLessMinId(id);
+    }
 
+    public void deleteLessMinId(Long id) {
         int rowCount = baseMapper.deleteOverSize(id);
         while (rowCount > 0) {
             rowCount = baseMapper.deleteOverSize(id);
