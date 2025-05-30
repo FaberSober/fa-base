@@ -4,7 +4,13 @@
 <mapper namespace="com.faber.api.base.admin.mapper.LogApiMapper" >
 
     <delete id="deleteAll">
-        delete from base_log_api
+        delete from base_log_api LIMIT 1000
+    </delete>
+
+    <delete id="deleteOverSize" parameterType="map">
+        DELETE FROM base_log_api
+        WHERE id &lt;= #{minId}
+        LIMIT 1000
     </delete>
 
 </mapper>

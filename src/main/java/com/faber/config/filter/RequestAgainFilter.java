@@ -6,6 +6,7 @@ import cn.hutool.extra.servlet.ServletUtil;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
 import cn.hutool.json.JSONUtil;
+import com.faber.api.base.admin.biz.ConfigSysBiz;
 import com.faber.api.base.admin.biz.LogApiBiz;
 import com.faber.api.base.admin.entity.LogApi;
 import com.faber.core.config.filter.wrapper.BodyHttpServletRequestWrapper;
@@ -60,6 +61,7 @@ public class RequestAgainFilter implements Filter {
 
     @Resource LogApiBiz logApiBiz;
     @Resource FaSetting faSetting;
+    @Resource ConfigSysBiz configSysBiz;
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
@@ -78,6 +80,12 @@ public class RequestAgainFilter implements Filter {
             } catch (Exception e) {}
         }
         if (isSkipUrl || isWebSocket) {
+            filterChain.doFilter(servletRequest, servletResponse);
+            return;
+        }
+
+        String logSaveLevel = configSysBiz.getConfig().getLogSaveLevel();
+        if ("no".equalsIgnoreCase(logSaveLevel)) { // no log save
             filterChain.doFilter(servletRequest, servletResponse);
             return;
         }
@@ -192,6 +200,11 @@ public class RequestAgainFilter implements Filter {
             logApi.setResponse("");
         } else {
             logApi.setResponse(responseData);
+        }
+
+        if ("simple".equalsIgnoreCase(logSaveLevel)) { // don't save log request and response content
+            logApi.setRequest("");
+            logApi.setResponse("");
         }
 
         logApi.setRetSize(responseData.length());
