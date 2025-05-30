@@ -1,5 +1,6 @@
 package com.faber.config.interceptor;
 
+import com.faber.core.annotation.FaNoLog;
 import com.faber.core.annotation.LogNoRet;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,6 +24,10 @@ public class GateLogInterceptor extends AbstractInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
         LogNoRet annotation = super.getMethodAnno(handler, LogNoRet.class);
         response.setHeader("LogNoRet", annotation != null ? "1" : "0");
+
+        FaNoLog annotation1 = super.getMethodAnno(handler, FaNoLog.class);
+        response.setHeader("FaNoLog", annotation1 != null ? "1" : "0");
+
         super.afterCompletion(request, response, handler, ex);
     }
 

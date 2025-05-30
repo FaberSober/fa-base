@@ -138,6 +138,12 @@ public class RequestAgainFilter implements Filter {
             return;
         }
 
+        String faNoLog = responseWrapper.getHeader("FaNoLog");
+        if ("1".equals(faNoLog)) {
+            BaseContextHandler.remove(); // 销毁上下文中记录的登录用户信息
+            return;
+        }
+
         String logNoRet = responseWrapper.getHeader("LogNoRet");
         LogApi logApi = new LogApi();
 
