@@ -2,7 +2,7 @@ package com.faber.base.utils;
 
 import cn.hutool.system.oshi.CpuInfo;
 import cn.hutool.system.oshi.OshiUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import oshi.SystemInfo;
 import oshi.hardware.*;
 import oshi.software.os.OSFileStore;

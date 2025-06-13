@@ -3,7 +3,7 @@ package com.faber.base.utils;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.crypto.symmetric.SymmetricAlgorithm;
 import cn.hutool.crypto.symmetric.SymmetricCrypto;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class CryptTest {
 

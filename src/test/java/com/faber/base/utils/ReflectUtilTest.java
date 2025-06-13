@@ -7,7 +7,7 @@ import com.faber.api.base.admin.entity.User;
 import com.faber.core.annotation.FaPropIgnore;
 import com.faber.core.bean.BaseDelEntity;
 import com.faber.core.utils.FaReflectUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 

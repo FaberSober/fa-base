@@ -1,7 +1,7 @@
 package com.faber.base.utils;
 
 import cn.hutool.core.util.ZipUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.nio.file.StandardCopyOption;

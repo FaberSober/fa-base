@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.annotation.IEnum;
 import com.faber.core.utils.FaEnumUtils;
 import com.faber.core.vo.utils.DictOption;
 import com.faber.api.base.msg.entity.Msg;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;

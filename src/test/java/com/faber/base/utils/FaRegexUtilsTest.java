@@ -1,7 +1,7 @@
 package com.faber.base.utils;
 
 import cn.hutool.core.util.ReUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

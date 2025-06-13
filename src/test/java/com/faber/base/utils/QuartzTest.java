@@ -1,7 +1,7 @@
 package com.faber.base.utils;
 
 import cn.hutool.core.date.DateUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.quartz.CronExpression;
 
 import java.text.ParseException;

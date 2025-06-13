@@ -2,7 +2,7 @@ package com.faber.base.utils;
 
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class UserAgentUtilTest {
 

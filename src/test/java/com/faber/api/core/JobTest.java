@@ -2,7 +2,7 @@ package com.faber.api.core;
 
 import cn.hutool.core.util.ClassUtil;
 import com.faber.core.annotation.FaJob;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Set;
 

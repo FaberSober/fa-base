@@ -3,8 +3,8 @@ package com.faber.base.validation;
 import com.alibaba.fastjson2.JSONObject;
 import com.faber.base.BaseLoginTest;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MvcResult;
@@ -35,8 +35,8 @@ public class SpringValidationTest extends BaseLoginTest {
         String msg = json.getString("message");
         log.debug("content: {}", json);
 
-        Assert.assertEquals(400, response.getStatus());
-        Assert.assertEquals("departmentId:must not be null; status:must not be null; tel:must not be null; name:must not be null; username:must not be null; id:must be null", msg);
+        Assertions.assertEquals(400, response.getStatus());
+        Assertions.assertEquals("departmentId:must not be null; status:must not be null; tel:must not be null; name:must not be null; username:must not be null; id:must be null", msg);
     }
 
     @Test

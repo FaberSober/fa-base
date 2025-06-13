@@ -3,14 +3,15 @@ package com.faber.base;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.faber.FaTestApp;
-import org.junit.Before;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.junit4.SpringRunner;
+
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -18,7 +19,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 /**
  * 需要登录的测试用例，先登录获取token
  */
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = {FaTestApp.class}, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc //need this in Spring Boot test
 public class BaseLoginTest {
@@ -29,7 +30,7 @@ public class BaseLoginTest {
     protected MockMvc mvc;
     protected String token;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         JSONObject params = new JSONObject();
         params.put("username", "admin");

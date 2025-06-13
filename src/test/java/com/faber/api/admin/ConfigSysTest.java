@@ -5,15 +5,16 @@ import com.faber.api.base.admin.biz.ConfigSysBiz;
 import com.faber.api.base.admin.entity.ConfigSys;
 import com.faber.api.base.admin.vo.ret.SystemConfigPo;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
+
 
 import jakarta.annotation.Resource;
 
 @Slf4j
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = {FaTestApp.class}, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class ConfigSysTest {
 

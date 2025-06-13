@@ -3,7 +3,7 @@ package com.faber.base.shell;
 import com.faber.core.utils.FaShell;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.SftpException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
