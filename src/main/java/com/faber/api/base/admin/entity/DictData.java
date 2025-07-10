@@ -47,16 +47,19 @@ public class DictData extends BaseDelEntity {
     @ExcelProperty("排序ID")
     private Integer sortId;
 
+    @SqlSearch
     @SqlTreeName
     @ExcelProperty("字典键")
     private String label;
 
+    @SqlSearch
     @ExcelProperty("字典值")
     private String value;
 
     @ExcelProperty("是否默认值（0否 1是）")
     private Boolean isDefault;
 
+    @SqlSearch
     @ExcelProperty("描述")
     private String description;
 
