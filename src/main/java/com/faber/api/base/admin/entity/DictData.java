@@ -3,6 +3,7 @@ package com.faber.api.base.admin.entity;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.alibaba.excel.annotation.write.style.ColumnWidth;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.faber.core.annotation.*;
@@ -35,8 +36,12 @@ public class DictData extends BaseDelEntity {
     private Integer parentId;
 
     @SqlEquals
-    @ExcelProperty("字典分类ID")
+    // @ExcelProperty("字典分类ID")
     private Integer dictId;
+
+    @TableField(exist = false)
+    @ExcelProperty("字典分类")
+    private String dictName;
 
     @SqlSorter
     @ExcelProperty("排序ID")

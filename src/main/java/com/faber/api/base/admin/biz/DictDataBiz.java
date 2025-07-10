@@ -1,8 +1,12 @@
 package com.faber.api.base.admin.biz;
 
+import cn.hutool.core.util.ObjUtil;
+import com.faber.api.base.admin.entity.Dict;
 import com.faber.api.base.admin.entity.DictData;
 import com.faber.api.base.admin.mapper.DictDataMapper;
 import com.faber.core.web.biz.BaseTreeBiz;
+import jakarta.annotation.Resource;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 /**
@@ -14,4 +18,29 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class DictDataBiz extends BaseTreeBiz<DictDataMapper,DictData> {
+
+    @Lazy @Resource DictBiz dictBiz;
+
+    @Override
+    public void decorateOne(DictData i) {
+        Dict dict = dictBiz.getByIdWithCache(i.getDictId());
+        i.setDictName(dict != null ? dict.getName() : "");
+    }
+
+    public void toggleDefaultById(Integer id) {
+        DictData dictData = getById(id);
+
+        // update same dictId isDefault to false
+        lambdaUpdate()
+                .eq(DictData::getDictId, dictData.getDictId())
+                .set(DictData::getIsDefault, false)
+                .update();
+
+        boolean isDefault = ObjUtil.equal(true, dictData.getIsDefault()) ? false : true;
+        lambdaUpdate()
+                .set(DictData::getIsDefault, isDefault)
+                .eq(DictData::getId, id)
+                .update();
+    }
+
 }
