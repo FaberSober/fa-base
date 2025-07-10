@@ -64,6 +64,9 @@ public class Dict extends BaseDelEntity {
     @TableField(typeHandler = JacksonTypeHandler.class)
     private Option[] options;
 
+    @ExcelProperty("字典值")
+    private String value;
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
