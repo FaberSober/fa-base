@@ -27,6 +27,33 @@ public class DictDataBiz extends BaseTreeBiz<DictDataMapper,DictData> {
         i.setDictName(dict != null ? dict.getName() : "");
     }
 
+    @Override
+    protected void saveBefore(DictData entity) {
+        if (entity.getIsDefault() == null) {
+            entity.setIsDefault(false);
+        }
+    }
+
+    @Override
+    protected void afterSave(DictData entity) {
+        updateDefault(entity);
+    }
+
+    @Override
+    protected void afterUpdate(DictData entity) {
+        updateDefault(entity);
+    }
+
+    private void updateDefault(DictData entity) {
+        if (entity.getIsDefault()) {
+            lambdaUpdate()
+                    .eq(DictData::getDictId, entity.getDictId())
+                    .ne(DictData::getId, entity.getId())
+                    .set(DictData::getIsDefault, false)
+                    .update();
+        }
+    }
+
     public void toggleDefaultById(Integer id) {
         DictData dictData = getById(id);
 
