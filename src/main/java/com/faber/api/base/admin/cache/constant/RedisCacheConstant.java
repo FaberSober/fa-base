@@ -14,10 +14,10 @@ public class RedisCacheConstant {
     public static final String INVENTORY_ALERT_KEY_PREFIX = "inventory:alert:";
 
     /** 库存预警缓存默认过期时间 */
-    public static final long INVENTORY_ALERT_EXPIRE = 24;
+    public static final long INVENTORY_ALERT_EXPIRE = 365;
 
     /** 库存预警缓存过期时间单位 */
-    public static final TimeUnit INVENTORY_ALERT_EXPIRE_UNIT = TimeUnit.HOURS;
+    public static final TimeUnit INVENTORY_ALERT_EXPIRE_UNIT = TimeUnit.DAYS;
 
 
 }
