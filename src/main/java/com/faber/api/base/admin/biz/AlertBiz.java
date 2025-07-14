@@ -48,19 +48,6 @@ public class AlertBiz extends BaseBiz<AlertMapper, Alert> {
     }
 
     /**
-     * 在save、update之后做一些同步数据操作
-     *
-     * @param alert
-     */
-    protected void afterChange(Alert alert) {
-        // 原材料库存不足-各种物料库存量不足发出预警
-        if (alert.getType().contains("原材料库存不足")) {
-            // 同步库存不足告警到Redis
-            this.handleMaterialInventoryAlert(alert);
-        }
-    }
-
-    /**
      * 处理原材料库存不足告警内容及Redis缓存
      *
      * @param alert
@@ -82,16 +69,12 @@ public class AlertBiz extends BaseBiz<AlertMapper, Alert> {
                     existingAlert.setDealStaff(alert.getDealStaff());
                     existingAlert.setDealDesc(alert.getDealDesc());
                     // 重新存入Redis（使用常量类的过期时间）
-                    bucket.set(objectMapper.writeValueAsString(existingAlert),
-                            RedisCacheConstant.INVENTORY_ALERT_EXPIRE,
-                            RedisCacheConstant.INVENTORY_ALERT_EXPIRE_UNIT);
+                    bucket.set(objectMapper.writeValueAsString(existingAlert));
                 }
             } else {
                 // 未处理的告警直接存入Redis
                 faRedisUtils.getRedisson().getBucket(redisKey)
-                        .set(objectMapper.writeValueAsString(alert),
-                                RedisCacheConstant.INVENTORY_ALERT_EXPIRE,
-                                RedisCacheConstant.INVENTORY_ALERT_EXPIRE_UNIT);
+                        .set(objectMapper.writeValueAsString(alert));
             }
         } catch (JsonProcessingException e) {
             log.error("处理库存预警缓存失败", e);
@@ -142,14 +125,12 @@ public class AlertBiz extends BaseBiz<AlertMapper, Alert> {
                     alert.setDeal(false); // 未处理状态
 
                     // 保存到数据库
-                    this.save(alert);
+//                    this.save(alert);
 
-                    // 设置过期时间
+                    // 暂不设置过期时间
                     String redisKey = buildInventoryAlertRedisKey(alert.getId());
                     faRedisUtils.getRedisson().getBucket(redisKey)
-                            .set(objectMapper.writeValueAsString(alert),
-                                    RedisCacheConstant.INVENTORY_ALERT_EXPIRE,
-                                    RedisCacheConstant.INVENTORY_ALERT_EXPIRE_UNIT);
+                            .set(objectMapper.writeValueAsString(alert));
 
                     alertList.add(alert);
                 }
