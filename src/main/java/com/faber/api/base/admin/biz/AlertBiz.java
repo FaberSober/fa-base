@@ -120,7 +120,7 @@ public class AlertBiz extends BaseBiz<AlertMapper, Alert> {
                     BigDecimal shortageAmount = alertValue.subtract(theoryNum);
                     String content = materialName
                             + "当前库存:" + theoryNum.toPlainString()
-                            + ", 不足 " + shortageAmount.toPlainString() + "t";
+                            + ", 不足" + shortageAmount.toPlainString() + "t";
                     alert.setContent(content);
                     alert.setDeal(false); // 未处理状态
 
