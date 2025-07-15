@@ -7,26 +7,37 @@
 
     <select id="checkInventoryShortageAlerts" resultType="com.faber.api.base.admin.vo.ret.MaterialVo">
         <![CDATA[
-        SELECT *
-        FROM (SELECT CASE
-                         WHEN dm.theory_num < m.alert_value THEN '1'
-                         ELSE '0'
-                         END AS is_alert,
-                     dm.theory_num,
-                     m.alert_value,
-                     m.name,
-                     m.type_name,
-                     m.type_id,
-                     m.id,
-                     m.alert_id
-              FROM beam_material m
-                       LEFT JOIN
-                   beam_data_material dm ON m.id = dm.id
-              WHERE m.deleted = 0
-                AND m.alert_value IS NOT NULL
-                AND m.alert_value != '') AS subquery
-        WHERE subquery.is_alert = '1'
-        ORDER BY subquery.id ASC
+        SELECT
+            subquery.*
+        FROM
+            (
+                SELECT
+                    CASE
+                        WHEN
+                            IFNULL(CASE WHEN dm.theory_num = '' THEN '0' ELSE dm.theory_num END, '0') < m.alert_value THEN
+                            '1'
+                        ELSE
+                            '0'
+                        END AS is_alert,
+                    IFNULL(CASE WHEN dm.theory_num = '' THEN '0' ELSE dm.theory_num END, '0') AS theory_num,
+                    m.alert_value,
+                    m.NAME,
+                    m.type_name,
+                    m.type_id,
+                    m.id,
+                    m.alert_id
+                FROM
+                    beam_material m
+                        LEFT JOIN beam_data_material dm ON m.id = dm.id
+                WHERE
+                    m.deleted = 0
+                  AND m.alert_value IS NOT NULL
+                  AND m.alert_value != ''
+            ) AS subquery
+        WHERE
+            subquery.is_alert = '1'
+        ORDER BY
+            subquery.id ASC;
         ]]>
     </select>
 </mapper>
