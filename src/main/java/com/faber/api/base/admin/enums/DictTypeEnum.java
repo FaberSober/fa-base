@@ -11,10 +11,10 @@ import lombok.Getter;
  */
 @Getter
 public enum DictTypeEnum implements IEnum<Integer> {
-    OPTIONS(1, "选择列表"),
-    TEXT(2, "字符串"),
     LINK_OPTIONS(3, "关联列表"),
-    LINK_TREE(4, "关联树");
+    LINK_TREE(4, "关联树"),
+    OPTIONS(1, "选择列表"),
+    TEXT(2, "字符串");
 
     @JsonValue
     @EnumValue
