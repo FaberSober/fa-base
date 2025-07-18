@@ -36,7 +36,7 @@ public class DictData extends BaseDelEntity {
     private Integer parentId;
 
     @SqlEquals
-    // @ExcelProperty("字典分类ID")
+    @ExcelProperty("字典分类ID")
     private Integer dictId;
 
     @TableField(exist = false)
