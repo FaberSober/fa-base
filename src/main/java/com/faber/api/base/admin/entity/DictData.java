@@ -56,8 +56,11 @@ public class DictData extends BaseDelEntity {
     @ExcelProperty("字典值")
     private String value;
 
-    @ExcelProperty("是否默认值（0否 1是）")
+    @ExcelProperty("是否默认值：0否 1是")
     private Boolean isDefault;
+
+    @ExcelProperty("是否生效：0否 1是")
+    private Boolean valid;
 
     @SqlSearch
     @ExcelProperty("描述")
