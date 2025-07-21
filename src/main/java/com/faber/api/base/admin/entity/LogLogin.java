@@ -23,7 +23,7 @@ import lombok.Data;
 public class LogLogin extends BaseDelEntity {
 
     @ExcelProperty("ID")
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(type = IdType.AUTO)
     private Integer id;
 
     @ExcelProperty("访问客户端")
