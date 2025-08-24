@@ -226,6 +226,9 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      */
     public void downloadFileById(String fileId) throws IOException {
         FileSave fileSave = getById(fileId);
+        if (fileSave == null) {
+            return;
+        }
 
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
