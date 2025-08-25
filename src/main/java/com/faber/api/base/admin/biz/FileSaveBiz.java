@@ -182,6 +182,9 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     }
 
     public File getFileObj(FileSave fileSave) {
+        if (fileSave == null) {
+            throw new BuzzException("File Not Found");
+        }
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
             LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
@@ -223,6 +226,9 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      */
     public void downloadFileById(String fileId) throws IOException {
         FileSave fileSave = getById(fileId);
+        if (fileSave == null) {
+            return;
+        }
 
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
@@ -245,6 +251,9 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      */
     public void getFilePreview(String fileId) throws IOException {
         FileSave fileSave = getById(fileId);
+        if (fileSave == null) {
+            return;
+        }
 
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
