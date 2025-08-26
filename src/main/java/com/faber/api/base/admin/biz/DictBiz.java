@@ -2,8 +2,12 @@ package com.faber.api.base.admin.biz;
 
 import cn.hutool.core.util.ClassUtil;
 import cn.hutool.core.util.StrUtil;
+import jakarta.annotation.Resource;
+
 import com.baomidou.mybatisplus.annotation.IEnum;
 import com.faber.api.base.admin.entity.Dict;
+import com.faber.api.base.admin.entity.DictData;
+import com.faber.api.base.admin.enums.DictTypeEnum;
 import com.faber.api.base.admin.mapper.DictMapper;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
@@ -21,6 +25,8 @@ import java.util.*;
  */
 @Service
 public class DictBiz extends BaseTreeBiz<DictMapper, Dict> implements DictService {
+
+    @Resource DictDataBiz dictDataBiz;
 
     private static final Map<String, Object> enumClassCache = new HashMap<>();
 
@@ -66,6 +72,11 @@ public class DictBiz extends BaseTreeBiz<DictMapper, Dict> implements DictServic
     @Override
     public List<DictOption<Serializable>> getOptionsByCode(String code) {
         Dict dict = getByCode(code);
+
+        if (dict.getType() == DictTypeEnum.LINK_OPTIONS || dict.getType() == DictTypeEnum.LINK_TREE) {
+            return dictDataBiz.getOptionsByDictId(dict.getId());
+        }
+
         if (dict == null || dict.getOptions() == null || dict.getOptions().length == 0) {
             return List.of();
         }
