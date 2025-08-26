@@ -3,8 +3,8 @@
 
 <mapper namespace="com.faber.api.base.rbac.mapper.RbacUserRoleMapper">
 
-    <select id="pageVo" parameterType="com.faber.api.base.rbac.vo.req.RbacUserRoleQueryVo" resultType="com.faber.api.base.rbac.vo.RbacUserRoleRetVo">
-        SELECT t.*, u.`name`, u.username
+    <select id="pageVo" resultType="com.faber.api.base.rbac.vo.RbacUserRoleRetVo">
+        SELECT t.*, u.name, u.username
           FROM base_rbac_user_role t
           LEFT JOIN base_user u ON t.user_id = u.id
          WHERE t.deleted = 0
@@ -13,10 +13,10 @@
             AND t.role_id = #{query.roleId}
         </if>
         <if test="query.name != null and query.name != ''">
-            AND u.`name` LIKE concat('%', #{query.name}, '%')
+            AND u.name LIKE concat('%', #{query.name}, '%')
         </if>
         <if test="query.username != null and query.username != ''">
-            AND u.`username` LIKE concat('%', #{query.username}, '%')
+            AND u.username LIKE concat('%', #{query.username}, '%')
         </if>
         <if test="sorter != null and sorter != ''">
             ORDER BY ${sorter}
