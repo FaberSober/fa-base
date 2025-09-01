@@ -55,7 +55,7 @@ public class Dict extends BaseDelEntity {
     @ExcelProperty("描述")
     private String description;
 
-    /** 1-选择列表，2-字符串，3-关联列表，4-关联树 */
+    /** 1-关联列表，2-关联树，3-字符串，4-选择列表 */
     @ExcelProperty("数值类型")
     private DictTypeEnum type;
 
