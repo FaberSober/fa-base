@@ -35,11 +35,14 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import javax.imageio.ImageIO;
 
 
 /**
@@ -111,7 +114,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         String extName = FileUtil.extName(file.getOriginalFilename());
         if (FaFileUtils.isImg(extName)) {
             try {
-                uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+                // 检查图片尺寸，只有当宽高都大于等于200时才生成缩略图
+                BufferedImage image = ImageIO.read(file.getInputStream());
+                if (image != null && image.getWidth() >= 200 && image.getHeight() >= 200) {
+                    uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+                }
             } catch (Exception e) {
                 log.error(e.getMessage() + ", fileName=" + file.getOriginalFilename(), e);
             }
@@ -167,7 +174,15 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         String extName = FileNameUtil.extName(file.getName());
         if (FaFileUtils.isImg(extName)) {
-            uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+            try {
+                // 检查图片尺寸，只有当宽高都大于等于200时才生成缩略图
+                BufferedImage image = ImageIO.read(file);
+                if (image != null && image.getWidth() >= 200 && image.getHeight() >= 200) {
+                    uploadPretreatment = uploadPretreatment.thumbnail(th -> th.size(200, 200));  //生成一张 200*200 的缩略图（这里操作缩略图）;
+                }
+            } catch (Exception e) {
+                log.error(e.getMessage() + ", fileName=" + file.getName(), e);
+            }
         }
 
         String md5 = DigestUtil.md5Hex(file);
@@ -262,19 +277,28 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
-            // 判断大小，如果缩略图大于原图，则直接返回原图
-            String path = fileSave.getThSize() > fileSave.getSize() ? fileSave.getUrl() : fileSave.getThUrl();
+            // 判断大小，如果缩略图大于原图，或者没有缩略图，则直接返回原图
+            String path = hasTh(fileSave) ? fileSave.getThUrl() : fileSave.getUrl();
             LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
             String fileFullPath = storage.getAbsolutePath(path);
 
             FaFileUtils.downloadFileShard(new File(fileFullPath), fileSave.getOriginalFilename());
         } else {
             // TO-DO 其他下载渠道直接返回URL
-            // 判断大小，如果缩略图大于原图，则直接返回原图
-            String url = fileSave.getThSize() > fileSave.getSize() ? fileSave.getUrl() : fileSave.getThUrl();
+            // 判断大小，如果缩略图大于原图，或者没有缩略图，则直接返回原图
+            String url = hasTh(fileSave) ? fileSave.getThUrl() : fileSave.getUrl();
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
             response.sendRedirect(URLUtil.encode(url));
         }
+    }
+
+    /** 判断是否有缩略图 */
+    public boolean hasTh(FileSave fileSave) {
+        if (fileSave == null) return false;
+        if (StrUtil.isEmpty(fileSave.getThUrl())) return false;
+        if (fileSave.getThSize() == null || fileSave.getSize() == null) return false;
+        if (fileSave.getThSize() > fileSave.getSize()) return false;
+        return true;
     }
 
     /**
