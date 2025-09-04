@@ -22,9 +22,14 @@ import com.faber.core.web.biz.BaseBiz;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.dromara.x.file.storage.core.*;
+
+import org.dromara.x.file.storage.core.FileInfo;
+import org.dromara.x.file.storage.core.FileStorageProperties;
+import org.dromara.x.file.storage.core.FileStorageService;
+import org.dromara.x.file.storage.core.FileStorageServiceBuilder;
 import org.dromara.x.file.storage.core.platform.FileStorage;
 import org.dromara.x.file.storage.core.platform.LocalPlusFileStorage;
+import org.dromara.x.file.storage.core.upload.UploadPretreatment;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -257,14 +262,18 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
+            // 判断大小，如果缩略图大于原图，则直接返回原图
+            String path = fileSave.getThSize() > fileSave.getSize() ? fileSave.getUrl() : fileSave.getThUrl();
             LocalPlusFileStorage storage = ((LocalPlusFileStorage) fileStorageService.getFileStorage("local-plus-1"));
-            String fileFullPath = storage.getAbsolutePath(fileSave.getThUrl());
+            String fileFullPath = storage.getAbsolutePath(path);
 
             FaFileUtils.downloadFileShard(new File(fileFullPath), fileSave.getOriginalFilename());
         } else {
             // TO-DO 其他下载渠道直接返回URL
+            // 判断大小，如果缩略图大于原图，则直接返回原图
+            String url = fileSave.getThSize() > fileSave.getSize() ? fileSave.getUrl() : fileSave.getThUrl();
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
-            response.sendRedirect(URLUtil.encode(fileSave.getThUrl()));
+            response.sendRedirect(URLUtil.encode(url));
         }
     }
 
