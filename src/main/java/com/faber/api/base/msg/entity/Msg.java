@@ -11,7 +11,6 @@ import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
 import com.faber.core.annotation.SqlSearch;
 import com.faber.core.bean.BaseDelEntity;
-import com.faber.api.base.msg.enums.MsgBuzzTypeEnum;
 import lombok.Data;
 
 import java.util.Date;
@@ -66,6 +65,14 @@ public class Msg extends BaseDelEntity {
     @SqlEquals
     @ExcelProperty("业务ID")
     private String buzzId;
+
+    @SqlEquals
+    @ExcelProperty("消息来源")
+    private Integer type;
+
+    @ExcelIgnore
+    @ExcelProperty("业务JSON数据")
+    private String buzzContent;
 
     @ExcelIgnore
     @TableField(exist = false)
