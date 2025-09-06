@@ -59,6 +59,8 @@ public class MsgHelperImpl implements MsgHelper {
             String appPushContent = smsConfiguration.genTemplateContent(msgSendConfig);
             msg.setContent(appPushContent);
 
+            msg.setType(msgSendConfig.getType());
+
             // 发送模板短信
             if (msgSendConfig.isSendSms()) {
                 try {
@@ -71,6 +73,7 @@ public class MsgHelperImpl implements MsgHelper {
             // send through websocket
             WsHolder.sendMessage(toUserId, "PLAIN_MSG", msg);
 
+            msgSendConfig.beforeSave(msg);
             msgBiz.save(msg);
         }
     }
