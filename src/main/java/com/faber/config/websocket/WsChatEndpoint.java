@@ -215,5 +215,11 @@ public class WsChatEndpoint {
         }
     }
 
+    public static void sendMessageToUsers(List<String> userIds, String type, Object msg) {
+        for (String userId: userIds) {
+            sendMessageToUser(userId, type, msg);
+        }
+    }
+
 }
 

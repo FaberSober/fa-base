@@ -79,4 +79,20 @@ public class WsHolder {
         }
     }
 
+    public static void sendMessage(String userId, WsTypeEnum type, Object msg) {
+        try {
+            WsChatEndpoint.sendMessageToUser(userId, type.getValue(), msg);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+    }
+
+    public static void sendMessage(List<String> userIds, WsTypeEnum type, Object msg) {
+        try {
+            WsChatEndpoint.sendMessageToUsers(userIds, type.getValue(), msg);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+    }
+
 }
