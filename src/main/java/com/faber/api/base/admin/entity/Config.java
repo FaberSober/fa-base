@@ -8,9 +8,13 @@ import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
 import com.faber.core.bean.BaseDelEntity;
+import com.faber.core.config.mybatis.handler.GenericJsonTypeHandler;
+import com.fasterxml.jackson.core.type.TypeReference;
+
 import lombok.Data;
 import lombok.ToString;
 
+import java.util.List;
 import java.util.Map;
 
 
@@ -38,8 +42,10 @@ public class Config extends BaseDelEntity {
     @SqlEquals
     private String type;
 
-    /** 配置JSON */
-    @TableField(typeHandler = JacksonTypeHandler.class)
-    private Object data;
+    // /** 配置JSON */
+    // @TableField(typeHandler = JacksonTypeHandler.class)
+    @TableField(typeHandler = GenericJsonTypeHandler.class)
+    // @TableField(typeHandler = GenericJsonTypeHandler.forType(new TypeReference<List<Map<String,Object>>>(){}))
+    private List<Map<String, Object>> data;
 
 }
