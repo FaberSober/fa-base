@@ -24,7 +24,7 @@ import java.util.*;
  * 字典
  */
 @Service
-public class DictBiz extends BaseTreeBiz<DictMapper, Dict, Integer> implements DictService {
+public class DictBiz extends BaseTreeBiz<DictMapper, Dict> implements DictService {
 
     @Resource DictDataBiz dictDataBiz;
 

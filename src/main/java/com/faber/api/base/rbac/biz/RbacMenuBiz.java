@@ -23,7 +23,7 @@ import java.util.Optional;
  * @date 2022-09-19 11:40:40
  */
 @Service
-public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu, Long> {
+public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
 
 //    @Cached(name="rbac:allMenuTree", key="new String('')", expire = 3600)
     @Override
