@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
  * @date 2025-07-08 17:22:52
  */
 @Service
-public class DictDataBiz extends BaseTreeBiz<DictDataMapper,DictData> {
+public class DictDataBiz extends BaseTreeBiz<DictDataMapper,DictData, Integer> {
 
     @Lazy @Resource DictBiz dictBiz;
 

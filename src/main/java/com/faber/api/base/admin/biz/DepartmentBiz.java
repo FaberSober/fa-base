@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
  * @date 2020-06-07 19:26:53
  */
 @Service
-public class DepartmentBiz extends BaseTreeBiz<DepartmentMapper, Department> {
+public class DepartmentBiz extends BaseTreeBiz<DepartmentMapper, Department, String> {
 
     @Resource
     private UserBiz userBiz;
