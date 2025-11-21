@@ -6,6 +6,7 @@ import com.faber.api.base.admin.entity.FileSave;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.annotation.LogNoRet;
+import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.vo.msg.Ret;
@@ -24,6 +25,7 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
 
     @FaLogOpr(value = "上传文件", crud = LogCrudEnum.C)
     @PostMapping("/upload")
+    @ApiToken
     @ResponseBody
     public Ret<FileSave> upload(@RequestParam("file") MultipartFile file) throws IOException {
         FileSave data = baseBiz.upload(file);
