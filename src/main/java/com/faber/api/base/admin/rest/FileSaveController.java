@@ -25,7 +25,6 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
 
     @FaLogOpr(value = "上传文件", crud = LogCrudEnum.C)
     @PostMapping("/upload")
-    @ApiToken
     @ResponseBody
     public Ret<FileSave> upload(@RequestParam("file") MultipartFile file) throws IOException {
         FileSave data = baseBiz.upload(file);
@@ -77,4 +76,12 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
 //        return ok(json);
 //    }
 
+    @FaLogOpr(value = "上传文件-通过api上传", crud = LogCrudEnum.C)
+    @PostMapping("/uploadByApi")
+    @ApiToken
+    @ResponseBody
+    public Ret<FileSave> uploadByApi(@RequestParam("file") MultipartFile file) throws IOException {
+        FileSave data = baseBiz.upload(file);
+        return ok(data);
+    }
 }
