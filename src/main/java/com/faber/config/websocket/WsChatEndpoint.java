@@ -201,17 +201,27 @@ public class WsChatEndpoint {
     }
 
     public static void sendMessageToUser(String userId, String type, Object msg) {
+        sendMessageToUser(userId, type, null, msg);
+    }
+
+    public static void sendMessageToUser(String userId, String type, String channel, Object msg) {
         try {
             List<WsClientInfoEntity> clientList = getByUserId(userId);
             for (WsClientInfoEntity client : clientList) {
                 try {
-                    client.sendMessage(type, msg);
+                    client.sendMessage(type, channel, msg);
                 } catch (Exception e) {
                     log.error(e.getMessage(), e);
                 }
             }
         } catch (Exception e) {
             log.error(e.getMessage(), e);
+        }
+    }
+
+    public static void sendMessageToUsers(List<String> userIds, String type, String channel, Object msg) {
+        for (String userId: userIds) {
+            sendMessageToUser(userId, type, channel, msg);
         }
     }
 
