@@ -53,6 +53,10 @@ public class WsHolder {
         }
     }
 
+    public static void setChannel(String channel) {
+        BaseContextHandler.setWsChannel(channel);
+    }
+
     /**
      * send message to session user
      * @param type
@@ -65,7 +69,8 @@ public class WsHolder {
     public static void sendMessage(String type, Object msg) {
         try {
             String userId = BaseContextHandler.getUserId();
-            WsChatEndpoint.sendMessageToUser(userId, type, msg);
+            String channel = BaseContextHandler.getWsChannel();
+            WsChatEndpoint.sendMessageToUser(userId, type, channel, msg);
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
