@@ -77,7 +77,7 @@ export default function ${className}Modal({ children, title, record, fetchFinish
         onOk={() => form.submit()}
         confirmLoading={loading}
         onCancel={() => setOpen(false)}
-        width={700}
+        size={700}
         {...props}
       >
         <Form form={form} onFinish={onFinish} {...FaUtils.formItemFullLayout}>
