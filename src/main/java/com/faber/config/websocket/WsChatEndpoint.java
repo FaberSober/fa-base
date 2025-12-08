@@ -113,6 +113,10 @@ public class WsChatEndpoint {
         log.debug("接收到消息：{}", message);
 
         WsClientInfoEntity entity = uavWebSocketInfoMap.get(token);
+        if (entity == null) {
+            log.error("无法找到对应的WebSocket实体，token={}", token);
+            return;
+        }
         // 如果是心跳包
         if("ping".equals(message)){
             // 只要接受到客户端的消息就进行续命(时间)
