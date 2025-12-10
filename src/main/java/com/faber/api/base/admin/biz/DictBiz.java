@@ -69,6 +69,18 @@ public class DictBiz extends BaseTreeBiz<DictMapper, Dict> implements DictServic
         return lambdaQuery().eq(Dict::getCode, code).one();
     }
 
+    public String getStrByCode(String code) {
+        return getStrByCode(code, null);
+    }
+
+    public String getStrByCode(String code, String defaultValue) {
+        Dict dict = getByCode(code);
+        if (dict == null) {
+            return defaultValue;
+        }
+        return dict.getValue();
+    }
+
     @Override
     public List<DictOption<Serializable>> getOptionsByCode(String code) {
         Dict dict = getByCode(code);
