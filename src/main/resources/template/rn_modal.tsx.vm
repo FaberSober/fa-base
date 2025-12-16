@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import { get } from 'lodash';
 import { Button, Form, Input } from 'antd';
 import { EditOutlined, PlusOutlined } from "@ant-design/icons";
@@ -77,10 +77,10 @@ export default function ${className}Modal({ children, title, record, fetchFinish
         onOk={() => form.submit()}
         confirmLoading={loading}
         onCancel={() => setOpen(false)}
-        size={700}
+        width={800}
         {...props}
       >
-        <Form form={form} onFinish={onFinish} {...FaUtils.formItemFullLayout}>
+        <Form form={form} onFinish={onFinish} className='fa-grid2 fa-mt12' {...FaUtils.formItemHalfLayout}>
 #foreach($column in $columns)
 #if($column.columnName == $pk.columnName)
 #elseif ($column.attrname != 'crtTime' and $column.attrname != 'crtUser' and $column.attrname != 'crtName' and $column.attrname != 'crtHost' and $column.attrname != 'updTime' and $column.attrname != 'updUser' and $column.attrname != 'updName' and $column.attrname != 'updHost' and $column.attrname != 'deleted')
