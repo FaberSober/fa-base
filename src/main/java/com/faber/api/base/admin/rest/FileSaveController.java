@@ -1,6 +1,8 @@
 package com.faber.api.base.admin.rest;
 
 import cn.hutool.core.map.MapUtil;
+
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.entity.FileSave;
 import com.faber.core.annotation.FaLogBiz;
@@ -75,6 +77,13 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
 //        JSONObject json = baseBiz.getQiniuUploadToken();
 //        return ok(json);
 //    }
+
+    @GetMapping("/getWorkerId")
+    @ResponseBody
+    public Ret<String> getWorkerId() {
+        String id = IdWorker.getId() + "";
+        return ok(id);
+    }
 
     @FaLogOpr(value = "上传文件-通过api上传", crud = LogCrudEnum.C)
     @PostMapping("/uploadByApi")

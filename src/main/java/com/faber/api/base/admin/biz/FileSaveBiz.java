@@ -8,6 +8,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.http.HttpUtil;
+
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.faber.api.base.admin.entity.FileSave;
 import com.faber.api.base.admin.mapper.FileSaveMapper;
 import com.faber.core.bean.BaseCrtEntity;
@@ -16,6 +18,7 @@ import com.faber.core.enums.ConfigSysStorageActiveEnum;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.service.ConfigSysService;
 import com.faber.core.service.StorageService;
+import com.faber.core.utils.FaDateUtils;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.vo.config.FaConfig;
 import com.faber.core.web.biz.BaseBiz;
@@ -131,14 +134,16 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         }
 
 //        String md5 = DigestUtil.md5Hex(file.getBytes());
-
+        String dir = DateUtil.thisYear() + "/" + FaDateUtils.thisMonth() + "/" + DateUtil.thisDayOfMonth() + "/";
+        String id = IdWorker.getId() + "";
         FileInfo fileInfo = uploadPretreatment
-                .setPath(DateUtil.today() + "/")
-                .setSaveFilename(FaFileUtils.addTimestampToFileName(file.getOriginalFilename()))
+                .setPath(dir)
+                .setSaveFilename(FaFileUtils.addTsAndIdToFileName(file.getOriginalFilename(), id))
                 .upload();
 
         FileSave fileSave = new FileSave();
         BeanUtil.copyProperties(fileInfo, fileSave);
+        fileSave.setId(id);
 
 //        fileSave.setMd5(md5);
 
@@ -187,13 +192,16 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         String md5 = DigestUtil.md5Hex(file);
 
+        String dir = DateUtil.thisYear() + "/" + FaDateUtils.thisMonth() + "/" + DateUtil.thisDayOfMonth() + "/";
+        String id = IdWorker.getId() + "";
         FileInfo fileInfo = uploadPretreatment
-                .setPath(DateUtil.today() + "/")
-                .setSaveFilename(FaFileUtils.addTimestampToFileName(file.getName()))
+                .setPath(dir)
+                .setSaveFilename(FaFileUtils.addTsAndIdToFileName(file.getName(), id))
                 .upload();
 
         FileSave fileSave = new FileSave();
         BeanUtil.copyProperties(fileInfo, fileSave);
+        fileSave.setId(id);
 
         fileSave.setMd5(md5);
 
