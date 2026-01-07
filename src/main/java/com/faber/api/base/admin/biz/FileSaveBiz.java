@@ -134,7 +134,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         }
 
 //        String md5 = DigestUtil.md5Hex(file.getBytes());
-        String dir = DateUtil.thisYear() + "/" + FaDateUtils.thisMonth() + "/" + DateUtil.thisDayOfMonth() + "/";
+        String dir = "file" + "/" + DateUtil.thisYear() + "/" + FaDateUtils.thisMonth() + "/" + DateUtil.thisDayOfMonth() + "/";
         String id = IdWorker.getId() + "";
         FileInfo fileInfo = uploadPretreatment
                 .setPath(dir)
@@ -229,7 +229,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         String md5 = DigestUtil.md5Hex(file);
 
-        String dir = DateUtil.thisYear() + "/" + FaDateUtils.thisMonth() + "/" + DateUtil.thisDayOfMonth() + "/";
+        String dir = "file" + "/" + DateUtil.thisYear() + "/" + FaDateUtils.thisMonth() + "/" + DateUtil.thisDayOfMonth() + "/";
         String id = IdWorker.getId() + "";
         FileInfo fileInfo = uploadPretreatment
                 .setPath(dir)
