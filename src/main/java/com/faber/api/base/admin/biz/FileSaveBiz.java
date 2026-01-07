@@ -185,7 +185,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         String fullName = url.substring(url.lastIndexOf("/") + 1);
         int dot = fullName.lastIndexOf(".");
         String name = fullName.substring(0, fullName.indexOf("_"));
-        String ext = fullName.substring(dot);
+        String ext = fullName.substring(dot+1);
 
         String path = url.substring(url.indexOf(faConfig.getQiniuBasePath()) + faConfig.getQiniuBasePath().length(), url.lastIndexOf("/"));
 
@@ -194,7 +194,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         fileSave.setUrl(url);
         fileSave.setSize(FaFileUtils.getFileSize(url)); // TODO 获取文件大小
         fileSave.setFilename(fullName);
-        fileSave.setOriginalFilename(name + ext);
+        fileSave.setOriginalFilename(name + '.' + ext);
         fileSave.setBasePath(faConfig.getQiniuBasePath());
         fileSave.setPath(path);
         fileSave.setExt(ext);
