@@ -1,7 +1,9 @@
 package com.faber.api.base.admin.rest;
 
 import cn.hutool.core.map.MapUtil;
+import jakarta.annotation.Resource;
 
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.entity.FileSave;
@@ -10,9 +12,15 @@ import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.annotation.LogNoRet;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
+import com.faber.core.constant.FaSetting;
 import com.faber.core.enums.LogCrudEnum;
+import com.faber.core.service.ConfigSysService;
+import com.faber.core.utils.FaFileUploadUtils;
+import com.faber.core.vo.config.FaConfig;
 import com.faber.core.vo.msg.Ret;
 import com.faber.core.web.rest.BaseController;
+
+import org.dromara.x.file.storage.core.platform.QiniuKodoFileStorage;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +32,8 @@ import java.util.Map;
 @Controller
 @RequestMapping("/api/base/admin/fileSave")
 public class FileSaveController extends BaseController<FileSaveBiz, FileSave, String> {
+
+    @Resource ConfigSysService configSysService;
 
     @FaLogOpr(value = "上传文件", crud = LogCrudEnum.C)
     @PostMapping("/upload")
@@ -39,6 +49,15 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
     public Ret<FileSave> uploadFromUrl(@RequestBody Map<String, Object> params) {
         String url = MapUtil.getStr(params, "url");
         FileSave data = baseBiz.uploadFromUrl(url);
+        return ok(data);
+    }
+
+    @FaLogOpr(value = "同步七牛云URL信息", crud = LogCrudEnum.C)
+    @PostMapping("/syncUrlQiniu")
+    @ResponseBody
+    public Ret<FileSave> syncUrlQiniu(@RequestBody Map<String, Object> params) {
+        String url = MapUtil.getStr(params, "url");
+        FileSave data = baseBiz.syncUrlQiniu(url);
         return ok(data);
     }
 
@@ -70,13 +89,20 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
         return ok(data);
     }
 
-//    @FaLogOpr("七牛云token")
-//    @GetMapping("/getQiniuUploadToken")
-//    @ResponseBody
-//    public Ret<JSONObject> getQiniuUploadToken() {
-//        JSONObject json = baseBiz.getQiniuUploadToken();
-//        return ok(json);
-//    }
+   @FaLogOpr("七牛云token")
+   @GetMapping("/getQiniuUploadToken")
+   @ResponseBody
+   public Ret<JSONObject> getQiniuUploadToken() {
+        FaConfig faConfig = configSysService.getConfig();
+        String token = FaFileUploadUtils.getQiniuUploadToken(faConfig.getQiniuAk(), faConfig.getQiniuSk(), faConfig.getQiniuBucketName());
+
+        JSONObject data = new JSONObject();
+        data.put("token", token);
+        data.put("domain", faConfig.getQiniuDomain());
+        data.put("bucketName", faConfig.getQiniuBucketName());
+        data.put("basePath", faConfig.getQiniuBasePath());
+        return ok(data);
+    }
 
     @GetMapping("/getWorkerId")
     @ResponseBody

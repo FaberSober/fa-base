@@ -169,6 +169,43 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     }
 
     /**
+     * 同步七牛云URL信息
+     * @param url 形如：http://www.fa.top/base_path/modal_path/2026/01/07/ikun_20260107153219_2008803872863117313.mp4
+     * @return
+     */
+    public FileSave syncUrlQiniu(String url) {
+        // parse id
+        String id = FaFileUtils.parseIdFromUrl(url);
+        if (StrUtil.isEmpty(id)) {
+            throw new BuzzException("无法从URL中解析出文件ID");
+        }
+
+        FaConfig faConfig = configSysService.getConfig();
+        
+        String fullName = url.substring(url.lastIndexOf("/") + 1);
+        int dot = fullName.lastIndexOf(".");
+        String name = fullName.substring(0, fullName.indexOf("_"));
+        String ext = fullName.substring(dot);
+
+        String path = url.substring(url.indexOf(faConfig.getQiniuBasePath()) + faConfig.getQiniuBasePath().length(), url.lastIndexOf("/"));
+
+        FileSave fileSave = new FileSave();
+        fileSave.setId(id);
+        fileSave.setUrl(url);
+        fileSave.setSize(FaFileUtils.getFileSize(url)); // TODO 获取文件大小
+        fileSave.setFilename(fullName);
+        fileSave.setOriginalFilename(name + ext);
+        fileSave.setBasePath(faConfig.getQiniuBasePath());
+        fileSave.setPath(path);
+        fileSave.setExt(ext);
+        fileSave.setContentType("ext"); // TODO MIME类型
+        fileSave.setPlatform(ConfigSysStorageActiveEnum.QINIU.getDesc());
+        fileSave.setAttr("{}");
+        super.save(fileSave);
+        return fileSave;
+    }
+
+    /**
      * 上传文件
      *
      * @param file
