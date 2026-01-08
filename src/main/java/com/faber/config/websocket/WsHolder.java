@@ -84,6 +84,14 @@ public class WsHolder {
         }
     }
 
+    public static void sendMessageWithChannel(String userId, String type, String channel, Object msg) {
+        try {
+            WsChatEndpoint.sendMessageToUser(userId, type, channel, msg);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+    }
+
     public static void sendMessage(String userId, WsTypeEnum type, Object msg) {
         try {
             WsChatEndpoint.sendMessageToUser(userId, type.getValue(), msg);
