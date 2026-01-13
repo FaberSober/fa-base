@@ -1,131 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.faber.api.base.generator.mapper.GeneratorMapper">
 
-    <!-- 查询表列表 -->
-    <select id="queryTable" parameterType="com.faber.api.base.generator.vo.req.TableQueryVo"
-            resultType="com.faber.api.base.generator.vo.ret.TableVo">
-
-        SELECT
-            t.table_name,
-            <!-- MySQL 有 engine，PostgreSQL 没有，统一置空 -->
-            <choose>
-                <when test="_databaseId == 'mysql'">
-                    t.engine AS engine,
-                </when>
-                <otherwise>
-                    '' AS engine,
-                </otherwise>
-            </choose>
-            <!-- table_comment：MySQL / PostgreSQL 不同 -->
-            <choose>
-                <when test="_databaseId == 'mysql'">
-                    t.table_comment,
-                </when>
-                <otherwise>
-                    obj_description(
-                        (quote_ident(t.table_schema) || '.' || quote_ident(t.table_name))::regclass
-                    ) AS table_comment,
-                </otherwise>
-            </choose>
-            <choose>
-                <when test="_databaseId == 'mysql'">
-                    t.create_time,
-                </when>
-                <otherwise>
-                    NULL AS create_time,
-                </otherwise>
-            </choose>
-        FROM information_schema.tables t
-        WHERE
-        <choose>
-            <when test="_databaseId == 'mysql'">
-                t.table_schema = (SELECT DATABASE())
-            </when>
-            <otherwise>
-                t.table_schema = 'public'
-                <!-- t.table_schema = (SELECT current_database()) -->
-            </otherwise>
-        </choose>
-
+    <select id="queryTable" parameterType="com.faber.api.base.generator.vo.req.TableQueryVo" resultType="com.faber.api.base.generator.vo.ret.TableVo">
+        select t.table_name, t.engine, t.table_comment, t.create_time
+        from information_schema.tables t
+        where t.table_schema = (select database())
         <if test="query.tableName != null and query.tableName.trim() != ''">
-            AND t.table_name LIKE CONCAT('%', #{query.tableName}, '%')
+            and t.table_name like concat('%', #{query.tableName}, '%')
         </if>
-
         <if test="query.tableComment != null and query.tableComment.trim() != ''">
-            AND t.table_comment LIKE CONCAT('%', #{query.tableComment}, '%')
+            and t.table_comment like concat('%', #{tableComment}, '%')
         </if>
-
         <if test="sorter != null and sorter != ''">
             ORDER BY ${sorter}
         </if>
-
     </select>
 
-    <!-- 根据表名查询表 -->
-    <select id="getTableByName" parameterType="map"
-            resultType="com.faber.api.base.generator.vo.ret.TableVo">
-        SELECT
-            table_name,
-            <choose>
-                <when test="_databaseId == 'mysql'">
-                    engine,
-                </when>
-                <otherwise>
-                    '' AS engine,
-                </otherwise>
-            </choose>
-            table_comment,
-            create_time
-        FROM information_schema.tables
-        WHERE
-        <choose>
-            <when test="_databaseId == 'mysql'">
-                table_schema = (SELECT DATABASE())
-            </when>
-            <otherwise>
-                table_schema = (SELECT current_database())
-            </otherwise>
-        </choose>
-          AND table_name = #{tableName}
+    <select id="getTableByName" parameterType="map" resultType="com.faber.api.base.generator.vo.ret.TableVo">
+        select table_name, engine, table_comment, create_time
+        from information_schema.tables
+        where table_schema = (select database())
+          and table_name = #{tableName}
     </select>
 
-    <!-- 查询字段 -->
-    <select id="queryColumns" parameterType="map"
-            resultType="com.faber.api.base.generator.vo.ret.ColumnVo">
-
-        SELECT
-            column_name,
-            data_type,
-
-            <!-- PostgreSQL 没有 column_type，用 udt_name 替代 -->
-            <choose>
-                <when test="_databaseId == 'mysql'">
-                    column_type AS column_type,
-                </when>
-                <otherwise>
-                    udt_name AS column_type,
-                </otherwise>
-            </choose>
-
-            column_comment,
-            column_key,
-            extra
-        FROM information_schema.columns
-        WHERE
-            table_name = #{tableName}
-            AND
-            <choose>
-                <when test="_databaseId == 'mysql'">
-                    table_schema = (SELECT DATABASE())
-                </when>
-                <otherwise>
-                    table_schema = (SELECT current_database())
-                </otherwise>
-            </choose>
-        ORDER BY ordinal_position
+    <select id="queryColumns" parameterType="map" resultType="com.faber.api.base.generator.vo.ret.ColumnVo">
+        select column_name, data_type, column_type, column_comment, column_key, extra
+        from information_schema.columns
+        where table_name = #{tableName}
+          and table_schema = (select database())
+        order by ordinal_position
     </select>
 
 </mapper>

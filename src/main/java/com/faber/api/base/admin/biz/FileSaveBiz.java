@@ -8,6 +8,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.http.HttpUtil;
+
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.faber.api.base.admin.entity.FileSave;
 import com.faber.api.base.admin.mapper.FileSaveMapper;
 import com.faber.core.bean.BaseCrtEntity;
@@ -16,6 +18,7 @@ import com.faber.core.enums.ConfigSysStorageActiveEnum;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.service.ConfigSysService;
 import com.faber.core.service.StorageService;
+import com.faber.core.utils.FaDateUtils;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.vo.config.FaConfig;
 import com.faber.core.web.biz.BaseBiz;
@@ -131,14 +134,16 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         }
 
 //        String md5 = DigestUtil.md5Hex(file.getBytes());
-
+        String dir = "file" + "/" + DateUtil.thisYear() + "/" + FaDateUtils.thisMonth() + "/" + DateUtil.thisDayOfMonth() + "/";
+        String id = IdWorker.getId() + "";
         FileInfo fileInfo = uploadPretreatment
-                .setPath(DateUtil.today() + "/")
-                .setSaveFilename(FaFileUtils.addTimestampToFileName(file.getOriginalFilename()))
+                .setPath(dir)
+                .setSaveFilename(FaFileUtils.addTsAndIdToFileName(file.getOriginalFilename(), id))
                 .upload();
 
         FileSave fileSave = new FileSave();
         BeanUtil.copyProperties(fileInfo, fileSave);
+        fileSave.setId(id);
 
 //        fileSave.setMd5(md5);
 
@@ -161,6 +166,43 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         File tmpFile = FileUtil.createTempFile(name, suffix, false);
         HttpUtil.downloadFile(url, tmpFile);
         return upload(tmpFile);
+    }
+
+    /**
+     * 同步七牛云URL信息
+     * @param url 形如：http://www.fa.top/base_path/modal_path/2026/01/07/ikun_20260107153219_2008803872863117313.mp4
+     * @return
+     */
+    public FileSave syncUrlQiniu(String url) {
+        // parse id
+        String id = FaFileUtils.parseIdFromUrl(url);
+        if (StrUtil.isEmpty(id)) {
+            throw new BuzzException("无法从URL中解析出文件ID");
+        }
+
+        FaConfig faConfig = configSysService.getConfig();
+        
+        String fullName = url.substring(url.lastIndexOf("/") + 1);
+        int dot = fullName.lastIndexOf(".");
+        String name = fullName.substring(0, fullName.indexOf("_"));
+        String ext = fullName.substring(dot+1);
+
+        String path = url.substring(url.indexOf(faConfig.getQiniuBasePath()) + faConfig.getQiniuBasePath().length(), url.lastIndexOf("/"));
+
+        FileSave fileSave = new FileSave();
+        fileSave.setId(id);
+        fileSave.setUrl(url);
+        fileSave.setSize(FaFileUtils.getFileSize(url)); // TODO 获取文件大小
+        fileSave.setFilename(fullName);
+        fileSave.setOriginalFilename(name + '.' + ext);
+        fileSave.setBasePath(faConfig.getQiniuBasePath());
+        fileSave.setPath(path);
+        fileSave.setExt(ext);
+        fileSave.setContentType("ext"); // TODO MIME类型
+        fileSave.setPlatform(ConfigSysStorageActiveEnum.QINIU.getDesc());
+        fileSave.setAttr("{}");
+        super.save(fileSave);
+        return fileSave;
     }
 
     /**
@@ -187,13 +229,16 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
         String md5 = DigestUtil.md5Hex(file);
 
+        String dir = "file" + "/" + DateUtil.thisYear() + "/" + FaDateUtils.thisMonth() + "/" + DateUtil.thisDayOfMonth() + "/";
+        String id = IdWorker.getId() + "";
         FileInfo fileInfo = uploadPretreatment
-                .setPath(DateUtil.today() + "/")
-                .setSaveFilename(FaFileUtils.addTimestampToFileName(file.getName()))
+                .setPath(dir)
+                .setSaveFilename(FaFileUtils.addTsAndIdToFileName(file.getName(), id))
                 .upload();
 
         FileSave fileSave = new FileSave();
         BeanUtil.copyProperties(fileInfo, fileSave);
+        fileSave.setId(id);
 
         fileSave.setMd5(md5);
 
