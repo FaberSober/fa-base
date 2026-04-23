@@ -99,4 +99,32 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         });
     }
 
+    public List<TenantUser> getUserTenants(String userId) {
+        return lambdaQuery()
+                .eq(TenantUser::getUserId, userId)
+                .eq(TenantUser::getStatus, true)
+                .orderByAsc(TenantUser::getSort)
+                .orderByAsc(TenantUser::getId)
+                .list();
+    }
+
+    public String getDefaultTenantId(String userId) {
+        List<TenantUser> list = getUserTenants(userId);
+        if (CollUtil.isEmpty(list)) {
+            return null;
+        }
+        return list.get(0).getTenantId();
+    }
+
+    public boolean hasUserTenant(String userId, String tenantId) {
+        if (StrUtil.hasBlank(userId, tenantId)) {
+            return false;
+        }
+        return lambdaQuery()
+                .eq(TenantUser::getUserId, userId)
+                .eq(TenantUser::getTenantId, tenantId)
+                .eq(TenantUser::getStatus, true)
+                .count() > 0;
+    }
+
 }
