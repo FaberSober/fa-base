@@ -100,12 +100,14 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
     }
 
     public List<TenantUser> getUserTenants(String userId) {
-        return lambdaQuery()
+        List<TenantUser> list = lambdaQuery()
                 .eq(TenantUser::getUserId, userId)
                 .eq(TenantUser::getStatus, true)
                 .orderByAsc(TenantUser::getSort)
                 .orderByAsc(TenantUser::getId)
                 .list();
+        decorateList(list);
+        return list;
     }
 
     public String getDefaultTenantId(String userId) {
