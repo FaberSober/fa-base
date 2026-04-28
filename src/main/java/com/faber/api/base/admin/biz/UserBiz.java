@@ -139,6 +139,10 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         return super.selectPageByQuery(query);
     }
 
+    public TableRet<User> selectSuperPageByQuery(QueryParams query) {
+        return super.selectPageByQuery(query);
+    }
+
     private void appendTenantUserQueryIfNeed(QueryParams query) {
         if (faSetting.getTenant() == null || !faSetting.getTenant().isOn()) {
             return;
