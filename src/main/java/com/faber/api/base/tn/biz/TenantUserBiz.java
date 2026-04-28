@@ -129,4 +129,19 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                 .count() > 0;
     }
 
+    public List<String> getUserIdsByTenantId(String tenantId) {
+        if (StrUtil.isBlank(tenantId)) {
+            return Collections.emptyList();
+        }
+        return lambdaQuery()
+                .eq(TenantUser::getTenantId, tenantId)
+                .eq(TenantUser::getStatus, true)
+                .list()
+                .stream()
+                .map(TenantUser::getUserId)
+                .filter(StrUtil::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
 }
