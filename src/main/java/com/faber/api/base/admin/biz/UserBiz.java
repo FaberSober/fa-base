@@ -144,7 +144,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     }
 
     private void appendTenantUserQueryIfNeed(QueryParams query) {
-        if (faSetting.getTenant() == null || !faSetting.getTenant().isOn()) {
+        if (faSetting.getTenant() == null || !faSetting.getTenant().isEnabled()) {
             return;
         }
         String tenantId = BaseContextHandler.getTenantId();
@@ -224,8 +224,26 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         super.save(entity);
 
         this.updateUserRoles(entity);
+        this.bindTenantUserIfNeed(entity);
 
         return true;
+    }
+
+    private void bindTenantUserIfNeed(User entity) {
+        if (faSetting.getTenant() == null || !faSetting.getTenant().isEnabled()) {
+            return;
+        }
+
+        Department department = departmentBiz.getById(entity.getDepartmentId());
+        String tenantId = department == null ? null : department.getTenantId();
+        if (StrUtil.isBlank(tenantId)) {
+            tenantId = getCurrentTenantId();
+        }
+        if (StrUtil.isBlank(tenantId)) {
+            throw new BuzzException("新增用户所属部门租户为空");
+        }
+
+        tenantUserBiz.bindUserTenantIfAbsent(tenantId, entity.getId());
     }
 
 //    @CacheInvalidate(name = "user:", key = "#entity.id")

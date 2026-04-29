@@ -100,6 +100,28 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
     }
 
     public List<TenantUser> getUserTenants(String userId) {
+        if (isSuperAdminUser(userId)) {
+            return tenantBiz.lambdaQuery()
+                    .eq(Tenant::getStatus, true)
+                    .orderByAsc(Tenant::getSort)
+                    .orderByAsc(Tenant::getId)
+                    .list()
+                    .stream()
+                    .map(tenant -> {
+                        TenantUser item = new TenantUser();
+                        item.setId(tenant.getId());
+                        item.setTenantId(tenant.getId());
+                        item.setTenantName(tenant.getName());
+                        item.setUserId(userId);
+                        item.setIsAdmin(true);
+                        item.setStatus(true);
+                        item.setSort(tenant.getSort());
+                        item.setDescription(tenant.getDescription());
+                        return item;
+                    })
+                    .collect(Collectors.toList());
+        }
+
         List<TenantUser> list = lambdaQuery()
                 .eq(TenantUser::getUserId, userId)
                 .eq(TenantUser::getStatus, true)
@@ -122,11 +144,45 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         if (StrUtil.hasBlank(userId, tenantId)) {
             return false;
         }
+        if (isSuperAdminUser(userId)) {
+            return tenantBiz.lambdaQuery()
+                    .eq(Tenant::getId, tenantId)
+                    .eq(Tenant::getStatus, true)
+                    .count() > 0;
+        }
         return lambdaQuery()
                 .eq(TenantUser::getUserId, userId)
                 .eq(TenantUser::getTenantId, tenantId)
                 .eq(TenantUser::getStatus, true)
                 .count() > 0;
+    }
+
+    public void bindUserTenantIfAbsent(String tenantId, String userId) {
+        if (StrUtil.hasBlank(tenantId, userId)) {
+            return;
+        }
+
+        TenantUser exist = getTop(lambdaQuery()
+                .eq(TenantUser::getTenantId, tenantId)
+                .eq(TenantUser::getUserId, userId)
+                .orderByAsc(TenantUser::getId));
+        if (exist != null) {
+            if (!Boolean.TRUE.equals(exist.getStatus())) {
+                lambdaUpdate()
+                        .eq(TenantUser::getId, exist.getId())
+                        .set(TenantUser::getStatus, true)
+                        .update();
+            }
+            return;
+        }
+
+        TenantUser entity = new TenantUser();
+        entity.setTenantId(tenantId);
+        entity.setUserId(userId);
+        entity.setIsAdmin(false);
+        entity.setStatus(true);
+        entity.setSort(0);
+        save(entity);
     }
 
     public List<String> getUserIdsByTenantId(String tenantId) {
