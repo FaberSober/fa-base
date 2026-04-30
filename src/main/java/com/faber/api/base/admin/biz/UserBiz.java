@@ -129,6 +129,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     public User getLoginUser() {
         User user = getById(getCurrentUserId());
         if (!user.getStatus()) throw new BuzzException("无效账户");
+        this.decorateOne(user);
         user.setPassword(null);
         return user;
     }
@@ -337,6 +338,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
     @Override
     public void decorateOne(User i) {
+        i.setSuperAdmin(isSuperAdminUser(i.getId()));
         Department department = departmentBiz.getByIdWithCache(i.getDepartmentId());
         if (department != null) {
             i.setDepartmentName(department.getName());

@@ -157,6 +157,21 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                 .count() > 0;
     }
 
+    public boolean isTenantAdminUser(String userId, String tenantId) {
+        if (StrUtil.hasBlank(userId, tenantId)) {
+            return false;
+        }
+        if (isSuperAdminUser(userId)) {
+            return hasUserTenant(userId, tenantId);
+        }
+        return lambdaQuery()
+                .eq(TenantUser::getUserId, userId)
+                .eq(TenantUser::getTenantId, tenantId)
+                .eq(TenantUser::getIsAdmin, true)
+                .eq(TenantUser::getStatus, true)
+                .count() > 0;
+    }
+
     public void bindUserTenantIfAbsent(String tenantId, String userId) {
         if (StrUtil.hasBlank(tenantId, userId)) {
             return;
