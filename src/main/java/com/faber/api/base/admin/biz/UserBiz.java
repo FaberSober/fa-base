@@ -8,7 +8,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 //import com.alicp.jetcache.anno.CacheInvalidate;
 //import com.alicp.jetcache.anno.Cached;
-import com.faber.core.enums.SexEnum;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
@@ -24,6 +24,7 @@ import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.constant.CommonConstants;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
+import com.faber.core.enums.SexEnum;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
 import com.faber.core.exception.auth.UserInvalidException;
@@ -142,6 +143,15 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
     public TableRet<User> selectSuperPageByQuery(QueryParams query) {
         return super.selectPageByQuery(query);
+    }
+
+    @Override
+    public QueryWrapper<User> parseQuery(QueryParams query) {
+        QueryWrapper<User> wrapper = super.parseQuery(query);
+        if (!isSuperAdminUser(getCurrentUserId())) {
+            wrapper.ne("id", CommonConstants.SUPER_ADMIN_ID);
+        }
+        return wrapper;
     }
 
     private void appendTenantUserQueryIfNeed(QueryParams query) {

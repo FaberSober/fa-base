@@ -2,10 +2,12 @@ package com.faber.api.base.rbac.biz;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.faber.api.base.tn.biz.TenantUserBiz;
 import com.faber.api.base.rbac.mapper.RbacRoleMapper;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.rbac.enums.RbacRoleTypeEnum;
+import com.faber.api.base.tn.biz.TenantBiz;
+import com.faber.api.base.tn.biz.TenantUserBiz;
+import com.faber.api.base.tn.entity.Tenant;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.vo.query.QueryParams;
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * BASE-角色表
@@ -30,6 +34,10 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     @Lazy
     @Resource
     private TenantUserBiz tenantUserBiz;
+
+    @Lazy
+    @Resource
+    private TenantBiz tenantBiz;
 
     @Override
     public QueryWrapper<RbacRole> parseQuery(QueryParams query) {
@@ -82,6 +90,35 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         wrapper.eq("status", true).in("id", roleIds);
         appendRoleScopeQuery(wrapper);
         return list(wrapper);
+    }
+
+    @Override
+    public void decorateOne(RbacRole role) {
+        if (role == null || StrUtil.isBlank(role.getTenantId())) {
+            return;
+        }
+        Tenant tenant = tenantBiz.getById(role.getTenantId());
+        if (tenant != null) {
+            role.setTenantName(tenant.getName());
+        }
+    }
+
+    @Override
+    public void decorateList(List<RbacRole> list) {
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        List<String> tenantIds = list.stream()
+                .map(RbacRole::getTenantId)
+                .filter(StrUtil::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        if (tenantIds.isEmpty()) {
+            return;
+        }
+        Map<String, String> tenantNameMap = tenantBiz.listByIds(tenantIds).stream()
+                .collect(Collectors.toMap(Tenant::getId, Tenant::getName, (a, b) -> a));
+        list.forEach(role -> role.setTenantName(tenantNameMap.get(role.getTenantId())));
     }
 
     public void checkCanViewRole(Long roleId) {
