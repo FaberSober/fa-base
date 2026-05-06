@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.faber.api.base.tn.biz.TenantUserBiz;
 import com.faber.api.base.rbac.mapper.RbacRoleMapper;
 import com.faber.api.base.rbac.entity.RbacRole;
+import com.faber.api.base.rbac.enums.RbacRoleTypeEnum;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.vo.query.QueryParams;
@@ -116,9 +117,9 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
 
         String tenantId = getCurrentTenantId();
         wrapper.and(ew -> {
-            ew.eq("`global`", true).or().isNull("`global`");
+            ew.eq("type", RbacRoleTypeEnum.GLOBAL.getValue());
             if (StrUtil.isNotBlank(tenantId)) {
-                ew.or().eq("tenant_id", tenantId);
+                ew.or(query -> query.eq("type", RbacRoleTypeEnum.TENANT.getValue()).eq("tenant_id", tenantId));
             }
         });
     }
@@ -127,7 +128,11 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         if (isSuperAdminUser(getCurrentUserId())) {
             return true;
         }
-        if (isGlobalRole(role)) {
+        RbacRoleTypeEnum type = getRoleType(role);
+        if (type == RbacRoleTypeEnum.GLOBAL_SUPER) {
+            return false;
+        }
+        if (type == RbacRoleTypeEnum.GLOBAL) {
             return true;
         }
         String tenantId = getCurrentTenantId();
@@ -138,13 +143,18 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         if (isSuperAdminUser(getCurrentUserId())) {
             return true;
         }
-        if (isGlobalRole(role)) {
+        RbacRoleTypeEnum type = getRoleType(role);
+        if (type == RbacRoleTypeEnum.GLOBAL_SUPER) {
             return false;
         }
         String tenantId = getCurrentTenantId();
-        return StrUtil.isNotBlank(tenantId)
-                && StrUtil.equals(tenantId, role.getTenantId())
-                && tenantUserBiz.isTenantAdminUser(getCurrentUserId(), tenantId);
+        if (StrUtil.isBlank(tenantId) || !tenantUserBiz.isTenantAdminUser(getCurrentUserId(), tenantId)) {
+            return false;
+        }
+        if (type == RbacRoleTypeEnum.GLOBAL) {
+            return true;
+        }
+        return StrUtil.equals(tenantId, role.getTenantId());
     }
 
     private void fillAndCheckSaveRole(RbacRole entity) {
@@ -157,8 +167,7 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         if (!tenantUserBiz.isTenantAdminUser(getCurrentUserId(), tenantId)) {
             throw new BuzzException("无权新增角色");
         }
-        entity.setGlobal(false);
-        entity.setTenantId(tenantId);
+        fillTenantAdminRoleScope(entity, tenantId);
     }
 
     private void fillAndCheckUpdateRole(RbacRole entity) {
@@ -170,16 +179,22 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
             return;
         }
 
-        entity.setGlobal(false);
-        entity.setTenantId(db.getTenantId());
+        fillTenantAdminRoleScope(entity, getCurrentTenantId());
     }
 
     private void fillSuperAdminRoleScope(RbacRole entity) {
-        if (Boolean.TRUE.equals(entity.getGlobal())) {
+        RbacRoleTypeEnum type = entity.getType();
+        if (type == null) {
+            type = RbacRoleTypeEnum.TENANT;
+            entity.setType(type);
+        }
+        if (type == RbacRoleTypeEnum.GLOBAL_SUPER || type == RbacRoleTypeEnum.GLOBAL) {
             entity.setTenantId(null);
             return;
         }
-        entity.setGlobal(false);
+        if (type != RbacRoleTypeEnum.TENANT) {
+            throw new BuzzException("角色类型错误");
+        }
         if (StrUtil.isBlank(entity.getTenantId())) {
             entity.setTenantId(getCurrentTenantId());
         }
@@ -188,8 +203,34 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         }
     }
 
-    private boolean isGlobalRole(RbacRole role) {
-        return Boolean.TRUE.equals(role.getGlobal()) || (role.getGlobal() == null && StrUtil.isBlank(role.getTenantId()));
+    private void fillTenantAdminRoleScope(RbacRole entity, String tenantId) {
+        if (StrUtil.isBlank(tenantId)) {
+            throw new BuzzException("当前租户不能为空");
+        }
+        RbacRoleTypeEnum type = entity.getType() == null ? RbacRoleTypeEnum.TENANT : entity.getType();
+        if (type == RbacRoleTypeEnum.GLOBAL_SUPER) {
+            throw new BuzzException("无权管理全局超管角色");
+        }
+        if (type == RbacRoleTypeEnum.GLOBAL) {
+            entity.setType(RbacRoleTypeEnum.GLOBAL);
+            entity.setTenantId(null);
+            return;
+        }
+        if (type != RbacRoleTypeEnum.TENANT) {
+            throw new BuzzException("角色类型错误");
+        }
+        entity.setType(RbacRoleTypeEnum.TENANT);
+        entity.setTenantId(tenantId);
+    }
+
+    private RbacRoleTypeEnum getRoleType(RbacRole role) {
+        if (role.getType() != null) {
+            return role.getType();
+        }
+        if (role.getId() != null && role.getId() == 1L) {
+            return RbacRoleTypeEnum.GLOBAL_SUPER;
+        }
+        return StrUtil.isBlank(role.getTenantId()) ? RbacRoleTypeEnum.GLOBAL : RbacRoleTypeEnum.TENANT;
     }
 
 }
