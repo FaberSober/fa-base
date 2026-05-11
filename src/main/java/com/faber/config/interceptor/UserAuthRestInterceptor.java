@@ -12,6 +12,7 @@ import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.constant.CommonConstants;
+import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.auth.UserTokenException;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
     @Resource
     private TenantUserBiz tenantUserBiz;
+
+    @Resource
+    private FaSetting faSetting;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -102,6 +106,11 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
     }
 
     private void resolveUserTenant(HttpServletRequest request, String userId) {
+        if (faSetting.getTenant() == null || !faSetting.getTenant().isEnabled()) {
+            BaseContextHandler.setTenantId(null);
+            return;
+        }
+
         String tenantId = request.getHeader(CommonConstants.FA_TN_TENANT_ID);
         if (StrUtil.isNotBlank(tenantId)) {
             if (!tenantUserBiz.hasUserTenant(userId, tenantId)) {
