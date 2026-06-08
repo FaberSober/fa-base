@@ -73,4 +73,9 @@ ALTER TABLE `base_rbac_role` ADD COLUMN `tenant_id` varchar(32) NULL COMMENT '�
 -- 兼容历史角色数据：超管为全局超管，其余未绑定租户角色为全局角色
 UPDATE `base_rbac_role` SET `type` = CASE WHEN `id` = 1 THEN 1 WHEN `tenant_id` IS NULL THEN 2 ELSE 3 END WHERE `type` IS NULL;
 
+-- 租户相关菜单
+INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (21030040, 12000000, 1, '租户管理', 4, 1, 'mdi:office-building-cog', 1, 1, '/admin/system/tn', '2026-04-23 14:33:56', '1', '超级管理员', '192.168.5.57', '2026-04-23 14:33:56', NULL, NULL, NULL, 0);
+INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (21030041, 21030040, 1, '租户管理', 0, 1, 'mdi:domain', 1, 1, '/admin/system/tn/tenant', '2026-04-23 14:34:30', '1', '超级管理员', '192.168.5.57', '2026-04-23 14:34:30', '1', '超级管理员', '192.168.5.57', 0);
+INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (21030042, 21030040, 1, '租户用户管理', 1, 1, 'mdi:account-cog-outline', 1, 1, '/admin/system/tn/tenantUser', '2026-04-23 14:35:20', '1', '超级管理员', '192.168.5.57', '2026-04-23 14:35:20', NULL, NULL, NULL, 0);
+
 SET FOREIGN_KEY_CHECKS = 1;
