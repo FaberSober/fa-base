@@ -114,7 +114,7 @@ COMMENT ON COLUMN base_department.tenant_id IS '租户ID';
 
 -- 角色表增加类型和租户ID
 ALTER TABLE base_rbac_role
-  ADD COLUMN IF NOT EXISTS type integer NULL;
+  ADD COLUMN IF NOT EXISTS "type" integer NULL;
 
 COMMENT ON COLUMN base_rbac_role.type IS '类型：1全局超管/2全局/3租户';
 
