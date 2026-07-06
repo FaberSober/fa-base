@@ -1,6 +1,6 @@
 -- ------------------------- info -------------------------
 -- @@ver: 1_000_025
--- @@info: 基础表增加租户字段，角色表增加类型字段
+-- @@info: 基础表增加租户字段，角色表增加类型字段，增加智能人事和租户菜单
 -- ------------------------- info -------------------------
 
 SET NAMES utf8mb4;
@@ -77,5 +77,9 @@ UPDATE `base_rbac_role` SET `type` = CASE WHEN `id` = 1 THEN 1 WHEN `tenant_id` 
 INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (21030040, 12000000, 1, '租户管理', 4, 1, 'mdi:office-building-cog', 1, 1, '/admin/system/tn', '2026-04-23 14:33:56', '1', '超级管理员', '192.168.5.57', '2026-04-23 14:33:56', NULL, NULL, NULL, 0);
 INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (21030041, 21030040, 1, '租户管理', 0, 1, 'mdi:domain', 1, 1, '/admin/system/tn/tenant', '2026-04-23 14:34:30', '1', '超级管理员', '192.168.5.57', '2026-04-23 14:34:30', '1', '超级管理员', '192.168.5.57', 0);
 INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (21030042, 21030040, 1, '租户用户管理', 1, 1, 'mdi:account-cog-outline', 1, 1, '/admin/system/tn/tenantUser', '2026-04-23 14:35:20', '1', '超级管理员', '192.168.5.57', '2026-04-23 14:35:20', NULL, NULL, NULL, 0);
+
+-- 智能人事相关菜单
+INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (12010200, 12010000, 1, '部门管理', 1, 1, 'mdi:account-group-outline', 1, 1, '/admin/system/hr/department', '2026-07-06 13:58:00', '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
+INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES (12010400, 12010000, 1, '超级用户管理', 3, 1, 'mdi:account-supervisor-circle-outline', 1, 1, '/admin/system/hr/userSuper', '2026-07-06 13:58:00', '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
 
 SET FOREIGN_KEY_CHECKS = 1;
