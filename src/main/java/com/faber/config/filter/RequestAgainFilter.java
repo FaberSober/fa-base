@@ -2,7 +2,6 @@ package com.faber.config.filter;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
-import cn.hutool.extra.servlet.ServletUtil;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
 import cn.hutool.json.JSONUtil;
@@ -18,13 +17,10 @@ import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.utils.FaServletUtil;
 import com.faber.core.utils.IpUtils;
-import com.faber.core.vo.config.FaConfig;
 import com.faber.core.vo.utils.IpAddr;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.catalina.connector.RequestFacade;
 import org.apache.commons.io.IOUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import jakarta.servlet.*;
 import jakarta.servlet.annotation.WebFilter;
@@ -54,6 +50,15 @@ public class RequestAgainFilter implements Filter {
     private static final List<String> NO_LOG_APIS = Arrays.asList("/api/admin/logApi/page", "/api/admin/logLogin/page", "/api/admin/dict/getSystemConfig");
     private static final List<String> WEBSOCKET_APIS = Arrays.asList("/api/websocket/base");
     private static final Set<String> SKIP_URLS = new HashSet<>();
+    private static final Set<String> SENSITIVE_LOG_HEADERS = new HashSet<>(Arrays.asList(
+            "authorization",
+            "cookie",
+            "faapitoken",
+            "proxy-authorization",
+            "satoken",
+            "token",
+            "x-api-key"
+    ));
 
     public static void addSkipUrl(String url) {
         SKIP_URLS.add(url);
@@ -65,172 +70,172 @@ public class RequestAgainFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
-        long startTime = System.currentTimeMillis();
+        try {
+            long startTime = System.currentTimeMillis();
+            HttpServletRequest request = (HttpServletRequest) servletRequest;
+            HttpServletResponse response = (HttpServletResponse) servletResponse;
 
-        // 判断是否是跳过判断的URL
-        String uri = servletRequest.getServletContext().getContextPath() + ((HttpServletRequest) servletRequest).getRequestURI();
-        boolean isSkipUrl = SKIP_URLS.contains(uri);
-        // 判断是否是websocket请求
-        boolean isWebSocket = "websocket".equalsIgnoreCase(((RequestFacade) servletRequest).getHeader("upgrade"));
-        for (String api : WEBSOCKET_APIS) {
-            try {
+            // 判断是否是跳过判断的URL
+            String uri = servletRequest.getServletContext().getContextPath() + request.getRequestURI();
+            boolean isSkipUrl = SKIP_URLS.contains(uri);
+            // 判断是否是websocket请求
+            boolean isWebSocket = "websocket".equalsIgnoreCase(request.getHeader("upgrade"));
+            for (String api : WEBSOCKET_APIS) {
                 if (uri.contains(api)) {
                     isWebSocket = true;
+                    break;
                 }
-            } catch (Exception e) {}
-        }
-        if (isSkipUrl || isWebSocket) {
-            filterChain.doFilter(servletRequest, servletResponse);
-            return;
-        }
+            }
+            if (isSkipUrl || isWebSocket) {
+                filterChain.doFilter(servletRequest, servletResponse);
+                return;
+            }
 
-        String logSaveLevel = configSysBiz.getConfig().getLogSaveLevel();
-        if ("no".equalsIgnoreCase(logSaveLevel)) { // no log save
-            filterChain.doFilter(servletRequest, servletResponse);
-            return;
-        }
+            String logSaveLevel = configSysBiz.getConfig().getLogSaveLevel();
+            if ("no".equalsIgnoreCase(logSaveLevel)) { // no log save
+                filterChain.doFilter(servletRequest, servletResponse);
+                return;
+            }
 
-        // HEAD类型不记录
-        if ("HEAD".equalsIgnoreCase(((HttpServletRequest) servletRequest).getMethod())) {
-            filterChain.doFilter(servletRequest, servletResponse);
-            return;
-        }
+            // HEAD类型不记录
+            if ("HEAD".equalsIgnoreCase(request.getMethod())) {
+                filterChain.doFilter(servletRequest, servletResponse);
+                return;
+            }
 
-        BodyHttpServletRequestWrapper requestWrapper = new BodyHttpServletRequestWrapper((HttpServletRequest) servletRequest);
-        BodyHttpServletResponseWrapper responseWrapper = new BodyHttpServletResponseWrapper((HttpServletResponse) servletResponse);
+            BodyHttpServletRequestWrapper requestWrapper = new BodyHttpServletRequestWrapper(request);
+            BodyHttpServletResponseWrapper responseWrapper = new BodyHttpServletResponseWrapper(response);
 
-        // request basic information
-        int timestamp = requestWrapper.getIntHeader("timestamp");
-        String url = requestWrapper.getRequestURI();
-        if (StrUtil.isNotEmpty(requestWrapper.getQueryString())) {
-            url += "?" + requestWrapper.getQueryString();
-        }
-        String urlFrom = requestWrapper.getHeader(CommonConstants.FA_FROM);
-        if (faSetting.getSafety().isIntact()) {
-            String sigSecret = faSetting.getSafety().getSecret();
-            if ("web".equalsIgnoreCase(urlFrom)) {
-                // 这里还可以根据签名做请求重放验证
-                // url验证
-                {
-                    String urlSig = SecureUtil.md5(url + "@@" + timestamp + "@@" + sigSecret);
-                    String clientUrlSig = requestWrapper.getHeader("us");
-                    if (!urlSig.equalsIgnoreCase(clientUrlSig)) {
-                        throw new BuzzException("请求不完整，请确认");
+            // request basic information
+            int timestamp = requestWrapper.getIntHeader("timestamp");
+            String url = requestWrapper.getRequestURI();
+            if (StrUtil.isNotEmpty(requestWrapper.getQueryString())) {
+                url += "?" + requestWrapper.getQueryString();
+            }
+            String urlFrom = requestWrapper.getHeader(CommonConstants.FA_FROM);
+            if (faSetting.getSafety().isIntact()) {
+                String sigSecret = faSetting.getSafety().getSecret();
+                if ("web".equalsIgnoreCase(urlFrom)) {
+                    // 这里还可以根据签名做请求重放验证
+                    // url验证
+                    {
+                        String urlSig = SecureUtil.md5(url + "@@" + timestamp + "@@" + sigSecret);
+                        String clientUrlSig = requestWrapper.getHeader("us");
+                        if (!urlSig.equalsIgnoreCase(clientUrlSig)) {
+                            throw new BuzzException("请求不完整，请确认");
+                        }
                     }
-                }
 
-                // body验证
-                {
-                    String body = requestWrapper.getBody();
-                    if (StrUtil.isEmpty(body)) {
-                        body = "{}";
-                    }
-                    String bodySig = SecureUtil.md5(body + "@@" + timestamp + "@@" + sigSecret);
-                    String clientBodySig = requestWrapper.getHeader("bs");
-                    if (!clientBodySig.equalsIgnoreCase(bodySig)) {
-                        throw new BuzzException("请求体不完整，请确认");
+                    // body验证
+                    {
+                        String body = requestWrapper.getBody();
+                        if (StrUtil.isEmpty(body)) {
+                            body = "{}";
+                        }
+                        String bodySig = SecureUtil.md5(body + "@@" + timestamp + "@@" + sigSecret);
+                        String clientBodySig = requestWrapper.getHeader("bs");
+                        if (!bodySig.equalsIgnoreCase(clientBodySig)) {
+                            throw new BuzzException("请求体不完整，请确认");
+                        }
                     }
                 }
             }
-        }
 
-        // 交给下一个过滤器或servlet处理
-        filterChain.doFilter(requestWrapper, responseWrapper);
+            // 交给下一个过滤器或servlet处理
+            filterChain.doFilter(requestWrapper, responseWrapper);
 
-        byte[] content = responseWrapper.getContent();
-        //获取response的值
-        String responseData = IOUtils.toString(content, "UTF-8");
+            byte[] content = responseWrapper.getContent();
+            //获取response的值
+            String responseData = IOUtils.toString(content, "UTF-8");
 
-        //注意 此处是servletResponse 不是responseWrapper,写responseWrapper的话 依旧响应不了
-        ServletOutputStream outputStream = servletResponse.getOutputStream();
-        outputStream.write(content);
-        outputStream.flush();
-        outputStream.close();
+            //注意 此处是servletResponse 不是responseWrapper,写responseWrapper的话 依旧响应不了
+            ServletOutputStream outputStream = servletResponse.getOutputStream();
+            outputStream.write(content);
+            outputStream.flush();
 
-        if (NO_LOG_APIS.contains(requestWrapper.getRequestURI())) {
-            BaseContextHandler.remove(); // 销毁上下文中记录的登录用户信息
-            return;
-        }
-
-        String faNoLog = responseWrapper.getHeader("FaNoLog");
-        if ("1".equals(faNoLog)) {
-            BaseContextHandler.remove(); // 销毁上下文中记录的登录用户信息
-            return;
-        }
-
-        String logNoRet = responseWrapper.getHeader("LogNoRet");
-        LogApi logApi = new LogApi();
-
-        logApi.setBiz(StrUtil.toString(requestWrapper.getAttribute("FaLogBiz")));
-        logApi.setOpr(StrUtil.toString(requestWrapper.getAttribute("FaLogOpr")));
-        logApi.setOprRemark(BaseContextHandler.getLogOprRemark());
-        logApi.setCrud((LogCrudEnum) requestWrapper.getAttribute("FaLogCrud"));
-
-        logApi.setUrl(url);
-        logApi.setMethod(requestWrapper.getMethod());
-        logApi.setAgent(requestWrapper.getHeader("User-Agent"));
-
-        // 解析agent字符串
-        UserAgent ua = UserAgentUtil.parse(logApi.getAgent());
-        logApi.setOs(ua.getOs().toString());
-        logApi.setBrowser(ua.getBrowser().toString());
-        logApi.setVersion(ua.getVersion());
-        logApi.setMobile(ua.isMobile() ? true : false);
-
-        // 自定义Header信息
-        logApi.setFaFrom(urlFrom);
-        try {
-            if (StrUtil.isNotEmpty(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE))) {
-                logApi.setVersionCode(Long.parseLong(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE)));
+            if (NO_LOG_APIS.contains(requestWrapper.getRequestURI())) {
+                return;
             }
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
+
+            String faNoLog = responseWrapper.getHeader("FaNoLog");
+            if ("1".equals(faNoLog)) {
+                return;
+            }
+
+            String logNoRet = responseWrapper.getHeader("LogNoRet");
+            LogApi logApi = new LogApi();
+
+            logApi.setBiz(StrUtil.toString(requestWrapper.getAttribute("FaLogBiz")));
+            logApi.setOpr(StrUtil.toString(requestWrapper.getAttribute("FaLogOpr")));
+            logApi.setOprRemark(BaseContextHandler.getLogOprRemark());
+            logApi.setCrud((LogCrudEnum) requestWrapper.getAttribute("FaLogCrud"));
+
+            logApi.setUrl(url);
+            logApi.setMethod(requestWrapper.getMethod());
+            logApi.setAgent(requestWrapper.getHeader("User-Agent"));
+
+            // 解析agent字符串
+            UserAgent ua = UserAgentUtil.parse(logApi.getAgent());
+            logApi.setOs(ua.getOs().toString());
+            logApi.setBrowser(ua.getBrowser().toString());
+            logApi.setVersion(ua.getVersion());
+            logApi.setMobile(ua.isMobile() ? true : false);
+
+            // 自定义Header信息
+            logApi.setFaFrom(urlFrom);
+            try {
+                if (StrUtil.isNotEmpty(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE))) {
+                    logApi.setVersionCode(Long.parseLong(requestWrapper.getHeader(CommonConstants.FA_VERSION_CODE)));
+                }
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            }
+            logApi.setVersionName(requestWrapper.getHeader(CommonConstants.FA_VERSION_NAME));
+
+            // 获取完整Header信息
+            try {
+                Map<String, String> headerMap = FaServletUtil.getHeaderMap(request);
+                headerMap.keySet().removeIf(RequestAgainFilter::isSensitiveLogHeader);
+                logApi.setHeaders(JSONUtil.parseObj(headerMap).toString());
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            }
+
+            logApi.setCrtHost(IpUtils.getRequestIp(requestWrapper));
+            logApi.setRequest(requestWrapper.getBody());
+            logApi.setReqSize(logApi.getRequest().length());
+
+            logApi.setRetStatus(responseWrapper.getStatus());
+            logApi.setResponse("1".equals(logNoRet) ? "" : responseData);
+
+            if ("simple".equalsIgnoreCase(logSaveLevel)) { // don't save log request and response content
+                logApi.setRequest("");
+                logApi.setResponse("");
+            }
+
+            logApi.setRetSize(content.length);
+
+            logApi.setDuration(System.currentTimeMillis() - startTime);
+
+            // 获取IP地址
+            IpAddr ipAddr = IpUtils.getIpAddrByApi(logApi.getCrtHost());
+            if (ipAddr != null) {
+                logApi.setPro(ipAddr.getPro());
+                logApi.setCity(ipAddr.getCity());
+                logApi.setAddr(ipAddr.getAddr());
+            }
+
+            // 取备注
+            logApi.setRemark(BaseContextHandler.getLogRemark());
+
+            logApiBiz.save(logApi);
+        } finally {
+            BaseContextHandler.remove(); // 销毁上下文中记录的登录用户信息
         }
-        logApi.setVersionName(requestWrapper.getHeader(CommonConstants.FA_VERSION_NAME));
+    }
 
-        // 获取完整Header信息
-        try {
-            Map<String, String> headerMap = FaServletUtil.getHeaderMap((HttpServletRequest) servletRequest);
-            logApi.setHeaders(JSONUtil.parseObj(headerMap).toString());
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
-        }
-
-        logApi.setCrtHost(IpUtils.getRequestIp(requestWrapper));
-        logApi.setRequest(requestWrapper.getBody());
-        logApi.setReqSize(logApi.getRequest().length());
-
-        logApi.setRetStatus(responseWrapper.getStatus());
-
-        if ("1".equals(logNoRet) && !"200".equals(logApi.getRetStatus())) {
-            logApi.setResponse("");
-        } else {
-            logApi.setResponse(responseData);
-        }
-
-        if ("simple".equalsIgnoreCase(logSaveLevel)) { // don't save log request and response content
-            logApi.setRequest("");
-            logApi.setResponse("");
-        }
-
-        logApi.setRetSize(responseData.length());
-
-        logApi.setDuration(System.currentTimeMillis() - startTime);
-
-        // 获取IP地址
-        IpAddr ipAddr = IpUtils.getIpAddrByApi(logApi.getCrtHost());
-        if (ipAddr != null) {
-            logApi.setPro(ipAddr.getPro());
-            logApi.setCity(ipAddr.getCity());
-            logApi.setAddr(ipAddr.getAddr());
-        }
-
-        // 取备注
-        logApi.setRemark(BaseContextHandler.getLogRemark());
-
-        logApiBiz.save(logApi);
-
-        BaseContextHandler.remove(); // 销毁上下文中记录的登录用户信息
+    private static boolean isSensitiveLogHeader(String headerName) {
+        return headerName != null && SENSITIVE_LOG_HEADERS.contains(headerName.toLowerCase(Locale.ROOT));
     }
 
     /**
