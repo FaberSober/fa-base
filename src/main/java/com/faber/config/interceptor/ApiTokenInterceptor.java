@@ -8,6 +8,7 @@ import com.faber.core.context.BaseContextHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * 1. 过滤request#header的jwt token授权字段：Authorization
  */
 @Slf4j
+@Component
 public class ApiTokenInterceptor extends AbstractInterceptor {
 
     @Autowired
