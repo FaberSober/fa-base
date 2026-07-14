@@ -160,6 +160,9 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         }
         String tenantId = BaseContextHandler.getTenantId();
         if (StrUtil.isBlank(tenantId)) {
+            if (isSuperAdminUser(getCurrentUserId())) {
+                return;
+            }
             throw new BuzzException("当前租户上下文为空");
         }
 
