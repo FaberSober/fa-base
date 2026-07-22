@@ -21,6 +21,7 @@ import com.faber.core.vo.utils.IpAddr;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.springframework.util.AntPathMatcher;
 
 import jakarta.servlet.*;
 import jakarta.servlet.annotation.WebFilter;
@@ -49,6 +50,7 @@ public class RequestAgainFilter implements Filter {
      */
     private static final List<String> NO_LOG_APIS = Arrays.asList("/api/admin/logApi/page", "/api/admin/logLogin/page", "/api/admin/dict/getSystemConfig");
     private static final List<String> WEBSOCKET_APIS = Arrays.asList("/api/websocket/base");
+    private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
     private static final Set<String> SKIP_URLS = new HashSet<>();
     private static final Set<String> SENSITIVE_LOG_HEADERS = new HashSet<>(Arrays.asList(
             "authorization",
@@ -76,8 +78,8 @@ public class RequestAgainFilter implements Filter {
             HttpServletResponse response = (HttpServletResponse) servletResponse;
 
             // 判断是否是跳过判断的URL
-            String uri = servletRequest.getServletContext().getContextPath() + request.getRequestURI();
-            boolean isSkipUrl = SKIP_URLS.contains(uri);
+            String uri = getRequestPath(request);
+            boolean isSkipUrl = matchesSkipUrl(uri);
             // 判断是否是websocket请求
             boolean isWebSocket = "websocket".equalsIgnoreCase(request.getHeader("upgrade"));
             for (String api : WEBSOCKET_APIS) {
@@ -236,6 +238,19 @@ public class RequestAgainFilter implements Filter {
 
     private static boolean isSensitiveLogHeader(String headerName) {
         return headerName != null && SENSITIVE_LOG_HEADERS.contains(headerName.toLowerCase(Locale.ROOT));
+    }
+
+    static String getRequestPath(HttpServletRequest request) {
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (StrUtil.isNotEmpty(contextPath) && requestUri.startsWith(contextPath)) {
+            return requestUri.substring(contextPath.length());
+        }
+        return requestUri;
+    }
+
+    static boolean matchesSkipUrl(String uri) {
+        return SKIP_URLS.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, uri));
     }
 
     /**
