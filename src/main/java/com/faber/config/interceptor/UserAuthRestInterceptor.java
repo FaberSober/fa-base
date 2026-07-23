@@ -102,12 +102,20 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         // 用户登录状态设置
         User user = userBiz.getById(userId);
         userBiz.setUserLogin(user);
-        if (!request.getRequestURI().startsWith("/api/portal/") && !Boolean.TRUE.equals(user.getAdminEnabled())) {
-            throw new UserNoPermissionException("当前账号未开通后台访问权限");
-        }
+        requireApplicationAccess(request.getRequestURI(), user);
         this.resolveUserTenant(request, userId);
 
         return super.preHandle(request, response, handler);
+    }
+
+    static void requireApplicationAccess(String requestUri, User user) {
+        if (requiresAdminAccess(requestUri) && !Boolean.TRUE.equals(user.getAdminEnabled())) {
+            throw new UserNoPermissionException("当前账号未开通后台访问权限");
+        }
+    }
+
+    static boolean requiresAdminAccess(String requestUri) {
+        return !(requestUri.equals("/api/portal") || requestUri.startsWith("/api/portal/"));
     }
 
     private void resolveUserTenant(HttpServletRequest request, String userId) {
