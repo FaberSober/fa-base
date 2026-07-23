@@ -56,7 +56,13 @@ public class AuthBiz implements LogoutService {
      */
     public SaTokenInfo login(LoginReqVo loginReqVo) {
         User user = userBiz.validate(loginReqVo.getUsername(), loginReqVo.getPassword());
+        requireAdminAccess(user);
         return login(user, "web");
+    }
+
+    public SaTokenInfo portalLogin(LoginReqVo loginReqVo) {
+        User user = userBiz.validate(loginReqVo.getUsername(), loginReqVo.getPassword());
+        return login(user, "portal");
     }
 
     public SaTokenInfo loginByToken(String apiToken) {
@@ -64,6 +70,7 @@ public class AuthBiz implements LogoutService {
         if (userToken != null && userToken.getValid()) {
             String userId = userToken.getUserId();
             User user = userBiz.getById(userId);
+            requireAdminAccess(user);
             return login(user, "web");
         }
         throw new BuzzException("token error");
@@ -108,6 +115,12 @@ public class AuthBiz implements LogoutService {
         StpUtil.login(user.getId(), source);
         SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
         return tokenInfo;
+    }
+
+    private void requireAdminAccess(User user) {
+        if (!Boolean.TRUE.equals(user.getAdminEnabled())) {
+            throw new BuzzException("当前账号未开通后台访问权限");
+        }
     }
 
     @Override

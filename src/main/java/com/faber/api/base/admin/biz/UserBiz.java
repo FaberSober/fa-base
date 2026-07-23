@@ -234,6 +234,9 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         // 密码加密存储
         String password = FaPwdUtils.encryptPwd(entity.getPassword());
         entity.setPassword(password);
+        if (entity.getAdminEnabled() == null) {
+            entity.setAdminEnabled(false);
+        }
 
         super.save(entity);
 
@@ -297,6 +300,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         // 可以更新的属性
         return lambdaUpdate()
                 .set(entity.getStatus() != null, User::getStatus, entity.getStatus())
+                .set(entity.getAdminEnabled() != null, User::getAdminEnabled, entity.getAdminEnabled())
                 .eq(User::getId, entity.getId())
                 .update();
     }
@@ -499,6 +503,10 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     }
 
     public void registry(UserRegistryVo params) {
+        if (!ObjectUtil.equal(params.getPassword(), params.getPasswordConfirm())) {
+            throw new BuzzException("两次输入的密码不一致");
+        }
+
         User entity = new User();
         BeanUtils.copyProperties(params, entity);
 
@@ -509,6 +517,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         entity.setPassword(password);
 
         entity.setStatus(true);
+        entity.setAdminEnabled(false);
         entity.setDepartmentId("1");
 
         super.save(entity);

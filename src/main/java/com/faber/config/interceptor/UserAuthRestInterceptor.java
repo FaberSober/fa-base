@@ -15,6 +15,7 @@ import com.faber.core.constant.CommonConstants;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.auth.UserTokenException;
+import com.faber.core.exception.auth.UserNoPermissionException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -99,7 +100,11 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         }
 
         // 用户登录状态设置
-        userBiz.setUserLogin(userId);
+        User user = userBiz.getById(userId);
+        userBiz.setUserLogin(user);
+        if (!request.getRequestURI().startsWith("/api/portal/") && !Boolean.TRUE.equals(user.getAdminEnabled())) {
+            throw new UserNoPermissionException("当前账号未开通后台访问权限");
+        }
         this.resolveUserTenant(request, userId);
 
         return super.preHandle(request, response, handler);

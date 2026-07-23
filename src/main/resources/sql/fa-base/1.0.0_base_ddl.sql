@@ -506,6 +506,7 @@ CREATE TABLE IF NOT EXISTS `base_user` (
   `address` varchar(255) DEFAULT NULL COMMENT '地址',
   `email` varchar(255) DEFAULT NULL COMMENT '邮箱',
   `status` tinyint(1) NOT NULL COMMENT '状态：1-有效/0-锁定',
+  `admin_enabled` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否允许访问后台管理端',
   `role_names` varchar(255) DEFAULT NULL COMMENT '角色名称',
   `description` varchar(255) DEFAULT NULL COMMENT '描述',
   `img` varchar(255) DEFAULT NULL COMMENT '头像URL',
@@ -521,6 +522,35 @@ CREATE TABLE IF NOT EXISTS `base_user` (
   `deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否删除',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='BASE-用户';
+
+
+-- ----------------------------
+-- Table structure for portal_contact_inquiry
+-- ----------------------------
+
+CREATE TABLE IF NOT EXISTS `portal_contact_inquiry` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `name` varchar(100) NOT NULL COMMENT '联系人',
+  `company` varchar(200) DEFAULT NULL COMMENT '公司名称',
+  `tel` varchar(32) NOT NULL COMMENT '联系电话',
+  `email` varchar(255) DEFAULT NULL COMMENT '联系邮箱',
+  `subject` varchar(200) NOT NULL COMMENT '咨询主题',
+  `message` text NOT NULL COMMENT '咨询内容',
+  `status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '处理状态：0待处理/1处理中/2已完成',
+  `source` varchar(32) NOT NULL DEFAULT 'PORTAL' COMMENT '来源',
+  `crt_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `crt_user` varchar(32) NOT NULL COMMENT '创建用户ID',
+  `crt_name` varchar(255) NOT NULL COMMENT '创建用户',
+  `crt_host` varchar(255) DEFAULT NULL COMMENT '创建IP',
+  `upd_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `upd_user` varchar(32) DEFAULT NULL COMMENT '更新用户ID',
+  `upd_name` varchar(255) DEFAULT NULL COMMENT '更新用户',
+  `upd_host` varchar(255) DEFAULT NULL COMMENT '更新IP',
+  `deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_portal_contact_inquiry_status` (`status`, `crt_time`) USING BTREE,
+  KEY `idx_portal_contact_inquiry_tel` (`tel`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Portal-官网咨询';
 
 
 -- ----------------------------
@@ -623,7 +653,7 @@ COMMIT;
 -- Records of base_user
 -- ----------------------------
 BEGIN;
-INSERT INTO `base_user` (`id`, `department_id`, `username`, `password`, `name`, `tel`, `birthday`, `sex`, `address`, `email`, `status`, `role_names`, `description`, `img`, `api_token`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES ('1', 'c1eafdca1d4bd02b90c4cd15e3528e66', 'admin', '$2a$12$MAibDd3RbrSyB7i5m8bzMubLmBcoH/vBqSJiIElmZgalMiT9iuj6C', '超级管理员', '13811112222', '2000-01-01', 1, '南京市', 'faberxu@gmail.com', 1, '超级管理员', '', '4dd5c89a66725f5ede372b6bb116ae3a', 'd1d6e6d1ebcb4437bd082c3046671582', '2023-02-03 19:34:30', '1', 'admin', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
+INSERT INTO `base_user` (`id`, `department_id`, `username`, `password`, `name`, `tel`, `birthday`, `sex`, `address`, `email`, `status`, `admin_enabled`, `role_names`, `description`, `img`, `api_token`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`) VALUES ('1', 'c1eafdca1d4bd02b90c4cd15e3528e66', 'admin', '$2a$12$MAibDd3RbrSyB7i5m8bzMubLmBcoH/vBqSJiIElmZgalMiT9iuj6C', '超级管理员', '13811112222', '2000-01-01', 1, '南京市', 'faberxu@gmail.com', 1, 1, '超级管理员', '', '4dd5c89a66725f5ede372b6bb116ae3a', 'd1d6e6d1ebcb4437bd082c3046671582', '2023-02-03 19:34:30', '1', 'admin', '127.0.0.1', NULL, NULL, NULL, NULL, 0);
 COMMIT;
 
 -- ----------------------------
