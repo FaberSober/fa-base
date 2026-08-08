@@ -87,8 +87,11 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                         .map(clazz -> (DbInit) SpringUtil.getBean(clazz))
                         .sorted(Comparator.comparing(DbInit::getOrder))
                         .toList();
+                boolean extendedLogChecked = false;
+                boolean extendedLogSupported = false;
                 for (DbInit dbInit : dbInitList) {
-                    initOneBuzz(dbInit);
+                    extendedLogSupported = initOneBuzz(dbInit, extendedLogChecked, extendedLogSupported);
+                    extendedLogChecked = true;
                 }
 
                 rbacRoleMenuBiz.initAdminRoleMenu();
@@ -102,13 +105,15 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         }
     }
 
-    private void initOneBuzz(DbInit dbInit) throws IOException, SQLException {
+    private boolean initOneBuzz(DbInit dbInit, boolean extendedLogChecked, boolean extendedLogSupported) throws IOException, SQLException {
         String no = dbInit.getNo();
         String name = dbInit.getName();
         List<FaSqlHeader> sqlHeaders = loadAndValidateSqlHeaders(no);
 
         try (Connection conn = dataSource.getConnection()) {
-            boolean extendedLogSupported = hasExtendedLogColumns(conn);
+            if (!extendedLogChecked) {
+                extendedLogSupported = hasExtendedLogColumns(conn);
+            }
             SystemUpdateLog latestLog = getLatestByNo(no, extendedLogSupported);
 
             for (FaSqlHeader header : sqlHeaders) {
@@ -124,6 +129,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                 backfillLogMetadata(no, sqlHeaders);
             }
         }
+        return extendedLogSupported;
     }
 
     private void executeOneSql(
@@ -213,7 +219,25 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     }
 
     private void backfillLogMetadata(String no, List<FaSqlHeader> sqlHeaders) {
+        List<SystemUpdateLog> missingLogs = baseMapper.selectList(
+                new QueryWrapper<SystemUpdateLog>()
+                        .select("ver")
+                        .eq("no", no)
+                        .and(wrapper -> wrapper.isNull("file_name").or().isNull("checksum"))
+        );
+        if (missingLogs.isEmpty()) {
+            return;
+        }
+        Map<Long, FaSqlHeader> headerByVer = new HashMap<>();
         for (FaSqlHeader header : sqlHeaders) {
+            headerByVer.putIfAbsent(header.getVer(), header);
+        }
+        int backfilled = 0;
+        for (SystemUpdateLog missingLog : missingLogs) {
+            FaSqlHeader header = headerByVer.get(missingLog.getVer());
+            if (header == null) {
+                continue;
+            }
             baseMapper.update(
                     null,
                     new UpdateWrapper<SystemUpdateLog>()
@@ -223,7 +247,9 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                             .set("file_name", header.getFileName())
                             .set("checksum", header.getChecksum())
             );
+            backfilled++;
         }
+        _logger.info("回填升级日志元数据: no: {} 数量: {}", no, backfilled);
     }
 
     private List<FaSqlHeader> loadAndValidateSqlHeaders(String no) throws IOException {
@@ -358,17 +384,24 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     }
 
     private boolean hasExtendedLogColumns(Connection conn) throws SQLException {
-        String sql = """
-                SELECT COUNT(*)
-                FROM information_schema.COLUMNS
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'base_system_update_log'
-                  AND COLUMN_NAME IN ('status', 'file_name', 'checksum', 'duration_ms', 'error_msg')
-                """;
+        // 直接用扩展列做零行探测，列或表不存在时MySQL在解析阶段即报错，
+        // 避免查询information_schema.COLUMNS在冷缓存下的长耗时
+        String sql = "SELECT status, file_name, checksum, duration_ms, error_msg FROM base_system_update_log LIMIT 0";
         try (PreparedStatement statement = conn.prepareStatement(sql);
              ResultSet resultSet = statement.executeQuery()) {
-            return resultSet.next() && resultSet.getInt(1) == 5;
+            return true;
+        } catch (SQLException e) {
+            if (isMissingTableOrColumnError(e)) {
+                return false;
+            }
+            throw e;
         }
+    }
+
+    private boolean isMissingTableOrColumnError(SQLException e) {
+        // MySQL: 1054未知列(42S22)、1146表不存在(42S02)
+        return e.getErrorCode() == 1054 || e.getErrorCode() == 1146
+                || "42S22".equals(e.getSQLState()) || "42S02".equals(e.getSQLState());
     }
 
     private void acquireDbInitLock(Connection conn, String lockName) throws SQLException {
