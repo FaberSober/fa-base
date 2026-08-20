@@ -1,40 +1,47 @@
 package com.faber.api.base.admin.biz;
 
-import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.exceptions.ExceptionUtil;
 import cn.hutool.core.util.ClassUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.extra.spring.SpringUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
 import com.faber.api.base.admin.mapper.SystemUpdateLogMapper;
 import com.faber.api.base.admin.vo.dto.FaSqlHeader;
 import com.faber.api.base.rbac.biz.RbacRoleMenuBiz;
 import com.faber.core.config.dbinit.DbInit;
-import com.faber.core.config.dbinit.vo.FaDdl;
-import com.faber.core.config.dbinit.vo.FaDdlAddColumn;
-import com.faber.core.config.dbinit.vo.FaDdlSql;
-import com.faber.core.config.dbinit.vo.FaDdlTableCreate;
 import com.faber.core.context.BaseContextHandler;
-import com.faber.core.utils.FaDateUtils;
+import com.faber.core.exception.BuzzException;
+import com.faber.core.utils.FaExcelUtils;
 import com.faber.core.utils.FaResourceUtils;
 import com.faber.core.utils.SqlUtils;
+import com.faber.core.vo.msg.TableRet;
+import com.faber.core.vo.query.QueryParams;
 import com.faber.core.web.biz.BaseBiz;
 import lombok.SneakyThrows;
-import org.apache.ibatis.jdbc.ScriptRunner;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
 import javax.sql.DataSource;
 import java.io.IOException;
-import java.io.StringReader;
+import java.io.Serializable;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * BASE-系统版本更新日志表
@@ -50,127 +57,395 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     @Resource RbacRoleMenuBiz rbacRoleMenuBiz;
 
     public static final String SQL_SPLITTER = "-- ------------------------- info -------------------------";
+    public static final int STATUS_SUCCESS = 1;
+    public static final int STATUS_FAILED = 9;
 
-    public void initDb() {
-        BaseContextHandler.useAdmin();
-
-        // 1. 初始化数据
-        ClassUtil.scanPackageBySuper("com.faber", DbInit.class)
-                .stream().map(clazz -> (DbInit) SpringUtil.getBean(clazz))
-                .sorted(Comparator.comparing(DbInit::getOrder))
-                .forEach(i -> initOneBuzz(i));
-
-        // 2. 给超级管理员角色赋权限
-        rbacRoleMenuBiz.initAdminRoleMenu();
-    }
+    private static final long EXTENDED_LOG_VERSION = 1_000_027L;
+    private static final int DB_INIT_LOCK_TIMEOUT_SECONDS = 120;
+    private static final Pattern HEADER_LINE_PATTERN = Pattern.compile("^--\\s*@@(ver|info):\\s*(.+?)\\s*$");
+    private static final Pattern HEADER_VERSION_PATTERN = Pattern.compile("^(\\d+)_(\\d{3})_(\\d{3})(?:L)?$");
+    private static final Pattern SQL_FILE_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+).*\\.sql$");
+    private static final String[] LEGACY_PAGE_COLUMNS = {
+            "id", "no", "name", "ver", "ver_no", "remark", "crt_time"
+    };
+    private static final String[] PAGE_COLUMNS = {
+            "id", "no", "name", "ver", "ver_no", "remark", "crt_time",
+            "status", "file_name", "checksum", "duration_ms"
+    };
 
     @SneakyThrows
-    private void initOneBuzz(DbInit dbInit) {
-        // 1. 获取数据库操作信息
-        String no = dbInit.getNo();
-        String name = dbInit.getName();
+    public void initDb() {
+        BaseContextHandler.useAdmin();
+        boolean lockAcquired = false;
+        try (Connection lockConnection = dataSource.getConnection()) {
+            String lockName = buildLockName(lockConnection);
+            acquireDbInitLock(lockConnection, lockName);
+            lockAcquired = true;
+            try {
+                List<DbInit> dbInitList = ClassUtil.scanPackageBySuper("com.faber", DbInit.class)
+                        .stream()
+                        .map(clazz -> (DbInit) SpringUtil.getBean(clazz))
+                        .sorted(Comparator.comparing(DbInit::getOrder))
+                        .toList();
+                boolean extendedLogChecked = false;
+                boolean extendedLogSupported = false;
+                for (DbInit dbInit : dbInitList) {
+                    extendedLogSupported = initOneBuzz(dbInit, extendedLogChecked, extendedLogSupported);
+                    extendedLogChecked = true;
+                }
 
-        // 2. 查询数据库当前记录最新的版本
-        SystemUpdateLog latestLog = this.getLatestByNo(no);
-
-        // 3. 获取sql文件列表
-        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        org.springframework.core.io.Resource[] resources = resolver.getResources("classpath*:sql/" + no + "/*.sql");
-
-        // 4. 解析sql文件
-        Connection conn = dataSource.getConnection();
-        try {
-            ListUtil.of(resources).stream().map(resource -> {
-                        try {
-                            return getSqlFileHeader(resource);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }).filter(i -> i != null)
-                    .sorted(Comparator.comparing(FaSqlHeader::getVer)) // 按照版本号升序排列
-                    .filter(i -> {
-                        if (latestLog == null) return true;
-                        return i.getVer() > latestLog.getVer();
-                    }) // 过滤需要升级的sql
-//                .sorted(Comparator.comparing(FaSqlHeader::getVer)) // 按照版本号升序排列
-                    .forEach(i -> {
-                        // 执行升级sql
-                        String errorMsg = "";
-                        try {
-                            _logger.info("执行升级sql: no: {} name: {} ver: {} verNo: {}", no, name, i.getVer(), i.getVerNo());
-                            SqlUtils.executeSql(conn, i.getSql());
-                            Thread.sleep(1000);
-                        } catch (Exception e) {
-                            _logger.error(e.getMessage(), e);
-                            errorMsg = ExceptionUtil.stacktraceToString(e);
-                        }
-
-                        // 2. 记录升级日志
-                        SystemUpdateLog updateLog = new SystemUpdateLog();
-                        updateLog.setNo(no);
-                        updateLog.setName(name);
-                        updateLog.setVer(i.getVer());
-                        updateLog.setVerNo(i.getVerNo());
-                        updateLog.setRemark(i.getInfo());
-                        updateLog.setLog(i.getSql() + "\r\n" + errorMsg);
-
-                        super.save(updateLog);
-                    });
+                rbacRoleMenuBiz.initAdminRoleMenu();
+            } finally {
+                if (lockAcquired) {
+                    releaseDbInitLock(lockConnection, lockName);
+                }
+            }
         } finally {
-            conn.close();
+            BaseContextHandler.remove();
         }
     }
 
-    private FaSqlHeader getSqlFileHeader(org.springframework.core.io.Resource resource) throws IOException {
-        String sqlStr = FaResourceUtils.getResourceString(resource);
-        if (!sqlStr.contains(SQL_SPLITTER)) {
-            throw new RuntimeException("SQL初始化文件未包含正确的文件头，请检查，文件名：" + resource.getFilename());
+    private boolean initOneBuzz(DbInit dbInit, boolean extendedLogChecked, boolean extendedLogSupported) throws IOException, SQLException {
+        String no = dbInit.getNo();
+        String name = dbInit.getName();
+        List<FaSqlHeader> sqlHeaders = loadAndValidateSqlHeaders(no);
+
+        try (Connection conn = dataSource.getConnection()) {
+            if (!extendedLogChecked) {
+                extendedLogSupported = hasExtendedLogColumns(conn);
+            }
+            SystemUpdateLog latestLog = getLatestByNo(no, extendedLogSupported);
+
+            for (FaSqlHeader header : sqlHeaders) {
+                if (latestLog != null && header.getVer() <= latestLog.getVer()) {
+                    continue;
+                }
+                executeOneSql(conn, no, name, header, extendedLogSupported);
+                if (!extendedLogSupported && header.getVer() >= EXTENDED_LOG_VERSION) {
+                    extendedLogSupported = hasExtendedLogColumns(conn);
+                }
+            }
+            if (extendedLogSupported) {
+                backfillLogMetadata(no, sqlHeaders);
+            }
         }
-        String info = sqlStr.substring(sqlStr.indexOf(SQL_SPLITTER) + SQL_SPLITTER.length(), sqlStr.lastIndexOf(SQL_SPLITTER));
-        String[] ss = info.trim().split("\n");
+        return extendedLogSupported;
+    }
+
+    private void executeOneSql(
+            Connection conn,
+            String no,
+            String name,
+            FaSqlHeader header,
+            boolean extendedLogSupported
+    ) {
+        long startedAt = System.nanoTime();
+        boolean canWriteExtendedLog = extendedLogSupported || header.getVer() >= EXTENDED_LOG_VERSION;
+        try {
+            _logger.info(
+                    "执行升级SQL: no: {} name: {} file: {} ver: {} verNo: {}",
+                    no, name, header.getFileName(), header.getVer(), header.getVerNo()
+            );
+            SqlUtils.executeSql(conn, header.getSql());
+            long durationMs = elapsedMillis(startedAt);
+            saveOrUpdateLog(no, name, header, STATUS_SUCCESS, durationMs, null, canWriteExtendedLog);
+        } catch (Exception e) {
+            long durationMs = elapsedMillis(startedAt);
+            _logger.error("执行升级SQL失败，文件：{}", header.getFileName(), e);
+            if (extendedLogSupported) {
+                try {
+                    saveOrUpdateLog(
+                            no,
+                            name,
+                            header,
+                            STATUS_FAILED,
+                            durationMs,
+                            ExceptionUtil.stacktraceToString(e),
+                            true
+                    );
+                } catch (Exception logException) {
+                    e.addSuppressed(logException);
+                    _logger.error("记录升级SQL失败状态时发生异常，文件：{}", header.getFileName(), logException);
+                }
+            }
+            throw new IllegalStateException(
+                    "执行升级SQL失败，模块：" + no + "，文件：" + header.getFileName() + "，版本：" + header.getVerNo(),
+                    e
+            );
+        }
+    }
+
+    private void saveOrUpdateLog(
+            String no,
+            String name,
+            FaSqlHeader header,
+            int status,
+            long durationMs,
+            String errorMsg,
+            boolean extendedLogSupported
+    ) {
+        SystemUpdateLog updateLog = new SystemUpdateLog();
+        SystemUpdateLog existingLog = baseMapper.selectOne(
+                new QueryWrapper<SystemUpdateLog>()
+                        .select("id")
+                        .eq("no", no)
+                        .eq("ver", header.getVer())
+                        .last("limit 1")
+        );
+        if (existingLog != null) {
+            updateLog.setId(existingLog.getId());
+        }
+
+        updateLog.setNo(no);
+        updateLog.setName(name);
+        updateLog.setVer(header.getVer());
+        updateLog.setVerNo(header.getVerNo());
+        updateLog.setRemark(header.getInfo());
+        updateLog.setLog(header.getSql());
+        updateLog.setCrtTime(new Date());
+        if (extendedLogSupported) {
+            updateLog.setStatus(status);
+            updateLog.setFileName(header.getFileName());
+            updateLog.setChecksum(header.getChecksum());
+            updateLog.setDurationMs(durationMs);
+            updateLog.setErrorMsg(errorMsg);
+        }
+
+        if (updateLog.getId() == null) {
+            super.save(updateLog);
+        } else {
+            super.updateById(updateLog);
+        }
+    }
+
+    private void backfillLogMetadata(String no, List<FaSqlHeader> sqlHeaders) {
+        List<SystemUpdateLog> missingLogs = baseMapper.selectList(
+                new QueryWrapper<SystemUpdateLog>()
+                        .select("ver")
+                        .eq("no", no)
+                        .and(wrapper -> wrapper.isNull("file_name").or().isNull("checksum"))
+        );
+        if (missingLogs.isEmpty()) {
+            return;
+        }
+        Map<Long, FaSqlHeader> headerByVer = new HashMap<>();
+        for (FaSqlHeader header : sqlHeaders) {
+            headerByVer.putIfAbsent(header.getVer(), header);
+        }
+        int backfilled = 0;
+        for (SystemUpdateLog missingLog : missingLogs) {
+            FaSqlHeader header = headerByVer.get(missingLog.getVer());
+            if (header == null) {
+                continue;
+            }
+            baseMapper.update(
+                    null,
+                    new UpdateWrapper<SystemUpdateLog>()
+                            .eq("no", no)
+                            .eq("ver", header.getVer())
+                            .and(wrapper -> wrapper.isNull("file_name").or().isNull("checksum"))
+                            .set("file_name", header.getFileName())
+                            .set("checksum", header.getChecksum())
+            );
+            backfilled++;
+        }
+        _logger.info("回填升级日志元数据: no: {} 数量: {}", no, backfilled);
+    }
+
+    private List<FaSqlHeader> loadAndValidateSqlHeaders(String no) throws IOException {
+        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        org.springframework.core.io.Resource[] resources =
+                resolver.getResources("classpath*:sql/" + no + "/*.sql");
+
+        List<FaSqlHeader> headers = new ArrayList<>(resources.length);
+        Map<Long, String> versionFiles = new HashMap<>();
+        for (org.springframework.core.io.Resource resource : resources) {
+            FaSqlHeader header = getSqlFileHeader(resource);
+            String previousFile = versionFiles.putIfAbsent(header.getVer(), header.getFileName());
+            if (previousFile != null) {
+                throw new IllegalStateException(
+                        "SQL初始化文件版本重复，模块：" + no + "，版本：" + header.getVerNo()
+                                + "，文件：" + previousFile + "、" + header.getFileName()
+                );
+            }
+            headers.add(header);
+        }
+        headers.sort(Comparator.comparing(FaSqlHeader::getVer));
+        return headers;
+    }
+
+    FaSqlHeader getSqlFileHeader(org.springframework.core.io.Resource resource) throws IOException {
+        String sqlStr = FaResourceUtils.getResourceString(resource);
+        String fileName = Objects.toString(resource.getFilename(), "<unknown>");
+        if (countOccurrences(sqlStr, SQL_SPLITTER) != 2) {
+            throw invalidHeader(fileName, "文件头分隔线必须且只能出现两次");
+        }
 
         FaSqlHeader header = new FaSqlHeader();
         header.setSql(sqlStr);
+        header.setFileName(fileName);
+        header.setChecksum(DigestUtil.sha256Hex(sqlStr));
 
-        for (String line : ss) {
-            String key = line.substring(0, line.indexOf(":")).substring(5);
-            String value = line.substring(line.indexOf(":") + 1).trim();
-//            log.debug(key + ":" + value);
-
-            switch (key) {
-                case "ver":
-                    header.setVer(Long.parseLong(value.replace("_", "").replace("L", "")));
-
-                    String[] verSs = value.replace("L", "").split("_");
-                    String verNo = "V" + Integer.parseInt(verSs[0]) + "." + Integer.parseInt(verSs[1]) + "." + Integer.parseInt(verSs[2]);
-                    header.setVerNo(verNo);
-                    break;
-                case "info":
-                    header.setInfo(value);
-                    break;
+        int firstSplitter = sqlStr.indexOf(SQL_SPLITTER);
+        int secondSplitter = sqlStr.indexOf(SQL_SPLITTER, firstSplitter + SQL_SPLITTER.length());
+        String info = sqlStr.substring(firstSplitter + SQL_SPLITTER.length(), secondSplitter);
+        Map<String, String> headerValues = new HashMap<>();
+        for (String rawLine : info.split("\\R")) {
+            String line = rawLine.trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+            Matcher lineMatcher = HEADER_LINE_PATTERN.matcher(line);
+            if (!lineMatcher.matches()) {
+                throw invalidHeader(fileName, "无法解析文件头行：" + line);
+            }
+            String previousValue = headerValues.putIfAbsent(lineMatcher.group(1), lineMatcher.group(2).trim());
+            if (previousValue != null) {
+                throw invalidHeader(fileName, "文件头字段重复：" + lineMatcher.group(1));
             }
         }
 
+        String versionText = headerValues.get("ver");
+        String headerInfo = headerValues.get("info");
+        if (versionText == null || headerInfo == null || headerInfo.isBlank()) {
+            throw invalidHeader(fileName, "文件头必须包含非空的@@ver和@@info");
+        }
+
+        Matcher versionMatcher = HEADER_VERSION_PATTERN.matcher(versionText);
+        if (!versionMatcher.matches()) {
+            throw invalidHeader(fileName, "@@ver格式必须为major_mmm_ppp，例如1_000_027");
+        }
+        int major = Integer.parseInt(versionMatcher.group(1));
+        int minor = Integer.parseInt(versionMatcher.group(2));
+        int patch = Integer.parseInt(versionMatcher.group(3));
+        long version = major * 1_000_000L + minor * 1_000L + patch;
+
+        Matcher fileVersionMatcher = SQL_FILE_VERSION_PATTERN.matcher(fileName);
+        if (!fileVersionMatcher.matches()
+                || major != Integer.parseInt(fileVersionMatcher.group(1))
+                || minor != Integer.parseInt(fileVersionMatcher.group(2))
+                || patch != Integer.parseInt(fileVersionMatcher.group(3))) {
+            throw invalidHeader(fileName, "文件名版本与@@ver不一致");
+        }
+
+        header.setVer(version);
+        header.setVerNo("V" + major + "." + minor + "." + patch);
+        header.setInfo(headerInfo);
         return header;
     }
 
-    /**
-     * 查询数据库当前记录最新的版本
-     *
-     * @param no
-     * @return
-     */
-    public SystemUpdateLog getLatestByNo(String no) {
-        try {
-            return lambdaQuery()
-                    .eq(SystemUpdateLog::getNo, no)
-                    .orderByDesc(SystemUpdateLog::getVer)
-                    .last("limit 1")
-                    .one();
-        } catch (Exception e) {
-            _logger.error(e.getMessage(), e);
+    private SystemUpdateLog getLatestByNo(String no, boolean extendedLogSupported) {
+        QueryWrapper<SystemUpdateLog> wrapper = new QueryWrapper<SystemUpdateLog>()
+                .select("id", "no", "ver", "ver_no")
+                .eq("no", no);
+        if (extendedLogSupported) {
+            wrapper.eq("status", STATUS_SUCCESS);
         }
-        return null;
+        wrapper.orderByDesc("ver").last("limit 1");
+        return baseMapper.selectOne(wrapper);
+    }
+
+    @Override
+    public TableRet<SystemUpdateLog> selectPageByQuery(QueryParams query) {
+        if (query.getPageSize() > 1000) {
+            throw new BuzzException("查询结果数量大于1000，请缩小查询范围");
+        }
+        QueryWrapper<SystemUpdateLog> wrapper = parseQuery(query);
+        wrapper.select(supportsExtendedLogColumns() ? PAGE_COLUMNS : LEGACY_PAGE_COLUMNS);
+        Page<SystemUpdateLog> result = super.page(
+                new Page<>(query.getCurrent(), query.getPageSize()),
+                wrapper
+        );
+        return new TableRet<>(result);
+    }
+
+    @Override
+    public SystemUpdateLog getDetailById(Serializable id) {
+        if (!supportsExtendedLogColumns()) {
+            return super.getDetailById(id);
+        }
+        return baseMapper.getDetailById(Integer.parseInt(id.toString()));
+    }
+
+    @Override
+    public void exportExcel(QueryParams query) throws IOException {
+        QueryWrapper<SystemUpdateLog> wrapper = parseQuery(query);
+        wrapper.select(supportsExtendedLogColumns() ? PAGE_COLUMNS : LEGACY_PAGE_COLUMNS);
+        List<SystemUpdateLog> list = super.list(wrapper);
+        FaExcelUtils.sendFileExcel(SystemUpdateLog.class, list);
+    }
+
+    private boolean supportsExtendedLogColumns() {
+        try (Connection conn = dataSource.getConnection()) {
+            return hasExtendedLogColumns(conn);
+        } catch (SQLException e) {
+            throw new IllegalStateException("检查系统版本日志表结构失败", e);
+        }
+    }
+
+    private boolean hasExtendedLogColumns(Connection conn) throws SQLException {
+        // 直接用扩展列做零行探测，列或表不存在时MySQL在解析阶段即报错，
+        // 避免查询information_schema.COLUMNS在冷缓存下的长耗时
+        String sql = "SELECT status, file_name, checksum, duration_ms, error_msg FROM base_system_update_log LIMIT 0";
+        try (PreparedStatement statement = conn.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            return true;
+        } catch (SQLException e) {
+            if (isMissingTableOrColumnError(e)) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    private boolean isMissingTableOrColumnError(SQLException e) {
+        // MySQL: 1054未知列(42S22)、1146表不存在(42S02)
+        return e.getErrorCode() == 1054 || e.getErrorCode() == 1146
+                || "42S22".equals(e.getSQLState()) || "42S02".equals(e.getSQLState());
+    }
+
+    private void acquireDbInitLock(Connection conn, String lockName) throws SQLException {
+        try (PreparedStatement statement = conn.prepareStatement("SELECT GET_LOCK(?, ?)")) {
+            statement.setString(1, lockName);
+            statement.setInt(2, DB_INIT_LOCK_TIMEOUT_SECONDS);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next() || resultSet.getInt(1) != 1) {
+                    throw new IllegalStateException("获取数据库初始化锁失败：" + lockName);
+                }
+            }
+        }
+    }
+
+    private void releaseDbInitLock(Connection conn, String lockName) {
+        try (PreparedStatement statement = conn.prepareStatement("SELECT RELEASE_LOCK(?)")) {
+            statement.setString(1, lockName);
+            statement.executeQuery();
+        } catch (SQLException e) {
+            _logger.warn("释放数据库初始化锁失败：{}", lockName, e);
+        }
+    }
+
+    private String buildLockName(Connection conn) throws SQLException {
+        String lockName = "fa-admin:db-init:" + Objects.toString(conn.getCatalog(), "default");
+        return lockName.length() <= 64 ? lockName : lockName.substring(0, 64);
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
+    }
+
+    private int countOccurrences(String text, String target) {
+        int count = 0;
+        int fromIndex = 0;
+        while ((fromIndex = text.indexOf(target, fromIndex)) >= 0) {
+            count++;
+            fromIndex += target.length();
+        }
+        return count;
+    }
+
+    private IllegalStateException invalidHeader(String fileName, String reason) {
+        return new IllegalStateException("SQL初始化文件头错误，文件：" + fileName + "，原因：" + reason);
     }
 
 }
