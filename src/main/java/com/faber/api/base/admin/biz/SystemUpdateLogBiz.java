@@ -38,6 +38,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -78,8 +79,10 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         BaseContextHandler.useAdmin();
         boolean lockAcquired = false;
         try (Connection lockConnection = dataSource.getConnection()) {
+            String databaseType = resolveDatabaseType(lockConnection.getMetaData().getDatabaseProductName());
             String lockName = buildLockName(lockConnection);
-            acquireDbInitLock(lockConnection, lockName);
+            _logger.info("数据库升级初始化使用数据库类型：{}", databaseType);
+            acquireDbInitLock(lockConnection, lockName, databaseType);
             lockAcquired = true;
             try {
                 List<DbInit> dbInitList = ClassUtil.scanPackageBySuper("com.faber", DbInit.class)
@@ -90,14 +93,14 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                 boolean extendedLogChecked = false;
                 boolean extendedLogSupported = false;
                 for (DbInit dbInit : dbInitList) {
-                    extendedLogSupported = initOneBuzz(dbInit, extendedLogChecked, extendedLogSupported);
+                    extendedLogSupported = initOneBuzz(dbInit, databaseType, extendedLogChecked, extendedLogSupported);
                     extendedLogChecked = true;
                 }
 
                 rbacRoleMenuBiz.initAdminRoleMenu();
             } finally {
                 if (lockAcquired) {
-                    releaseDbInitLock(lockConnection, lockName);
+                    releaseDbInitLock(lockConnection, lockName, databaseType);
                 }
             }
         } finally {
@@ -105,16 +108,26 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         }
     }
 
-    private boolean initOneBuzz(DbInit dbInit, boolean extendedLogChecked, boolean extendedLogSupported) throws IOException, SQLException {
+    private boolean initOneBuzz(
+            DbInit dbInit,
+            String databaseType,
+            boolean extendedLogChecked,
+            boolean extendedLogSupported
+    ) throws IOException, SQLException {
         String no = dbInit.getNo();
         String name = dbInit.getName();
-        List<FaSqlHeader> sqlHeaders = loadAndValidateSqlHeaders(no);
+        List<FaSqlHeader> sqlHeaders = loadAndValidateSqlHeaders(no, databaseType);
+        if (sqlHeaders.isEmpty()) {
+            _logger.warn("未找到数据库升级SQL，跳过模块：{}，数据库类型：{}", no, databaseType);
+            return extendedLogSupported;
+        }
 
         try (Connection conn = dataSource.getConnection()) {
+            boolean updateLogTableExists = hasSystemUpdateLogTable(conn);
             if (!extendedLogChecked) {
-                extendedLogSupported = hasExtendedLogColumns(conn);
+                extendedLogSupported = updateLogTableExists && hasExtendedLogColumns(conn);
             }
-            SystemUpdateLog latestLog = getLatestByNo(no, extendedLogSupported);
+            SystemUpdateLog latestLog = updateLogTableExists ? getLatestByNo(no, extendedLogSupported) : null;
 
             for (FaSqlHeader header : sqlHeaders) {
                 if (latestLog != null && header.getVer() <= latestLog.getVer()) {
@@ -252,10 +265,11 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         _logger.info("回填升级日志元数据: no: {} 数量: {}", no, backfilled);
     }
 
-    private List<FaSqlHeader> loadAndValidateSqlHeaders(String no) throws IOException {
+    List<FaSqlHeader> loadAndValidateSqlHeaders(String no, String databaseType) throws IOException {
         ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        String resourcePattern = "classpath*:sql/" + no + "/" + databaseType + "/*.sql";
         org.springframework.core.io.Resource[] resources =
-                resolver.getResources("classpath*:sql/" + no + "/*.sql");
+                resolver.getResources(resourcePattern);
 
         List<FaSqlHeader> headers = new ArrayList<>(resources.length);
         Map<Long, String> versionFiles = new HashMap<>();
@@ -398,13 +412,36 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         }
     }
 
-    private boolean isMissingTableOrColumnError(SQLException e) {
-        // MySQL: 1054未知列(42S22)、1146表不存在(42S02)
-        return e.getErrorCode() == 1054 || e.getErrorCode() == 1146
-                || "42S22".equals(e.getSQLState()) || "42S02".equals(e.getSQLState());
+    private boolean hasSystemUpdateLogTable(Connection conn) throws SQLException {
+        String sql = "SELECT 1 FROM base_system_update_log LIMIT 0";
+        try (PreparedStatement statement = conn.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            return true;
+        } catch (SQLException e) {
+            if (isMissingTableOrColumnError(e)) {
+                return false;
+            }
+            throw e;
+        }
     }
 
-    private void acquireDbInitLock(Connection conn, String lockName) throws SQLException {
+    private boolean isMissingTableOrColumnError(SQLException e) {
+        // MySQL: 1054未知列(42S22)、1146表不存在(42S02)
+        // PostgreSQL: 42703列不存在、42P01表不存在
+        return e.getErrorCode() == 1054 || e.getErrorCode() == 1146
+                || "42S22".equals(e.getSQLState()) || "42S02".equals(e.getSQLState())
+                || "42703".equals(e.getSQLState()) || "42P01".equals(e.getSQLState());
+    }
+
+    private void acquireDbInitLock(Connection conn, String lockName, String databaseType) throws SQLException {
+        if ("mysql".equals(databaseType)) {
+            acquireMysqlDbInitLock(conn, lockName);
+            return;
+        }
+        acquirePostgreDbInitLock(conn, lockName);
+    }
+
+    private void acquireMysqlDbInitLock(Connection conn, String lockName) throws SQLException {
         try (PreparedStatement statement = conn.prepareStatement("SELECT GET_LOCK(?, ?)")) {
             statement.setString(1, lockName);
             statement.setInt(2, DB_INIT_LOCK_TIMEOUT_SECONDS);
@@ -416,9 +453,34 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         }
     }
 
-    private void releaseDbInitLock(Connection conn, String lockName) {
+    private void acquirePostgreDbInitLock(Connection conn, String lockName) throws SQLException {
+        try (PreparedStatement statement = conn.prepareStatement("SELECT pg_advisory_lock(?)")) {
+            statement.setQueryTimeout(DB_INIT_LOCK_TIMEOUT_SECONDS);
+            statement.setLong(1, toPostgreLockId(lockName));
+            statement.executeQuery();
+        }
+    }
+
+    private void releaseDbInitLock(Connection conn, String lockName, String databaseType) {
+        if ("mysql".equals(databaseType)) {
+            releaseMysqlDbInitLock(conn, lockName);
+            return;
+        }
+        releasePostgreDbInitLock(conn, lockName);
+    }
+
+    private void releaseMysqlDbInitLock(Connection conn, String lockName) {
         try (PreparedStatement statement = conn.prepareStatement("SELECT RELEASE_LOCK(?)")) {
             statement.setString(1, lockName);
+            statement.executeQuery();
+        } catch (SQLException e) {
+            _logger.warn("释放数据库初始化锁失败：{}", lockName, e);
+        }
+    }
+
+    private void releasePostgreDbInitLock(Connection conn, String lockName) {
+        try (PreparedStatement statement = conn.prepareStatement("SELECT pg_advisory_unlock(?)")) {
+            statement.setLong(1, toPostgreLockId(lockName));
             statement.executeQuery();
         } catch (SQLException e) {
             _logger.warn("释放数据库初始化锁失败：{}", lockName, e);
@@ -428,6 +490,22 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     private String buildLockName(Connection conn) throws SQLException {
         String lockName = "fa-admin:db-init:" + Objects.toString(conn.getCatalog(), "default");
         return lockName.length() <= 64 ? lockName : lockName.substring(0, 64);
+    }
+
+    static String resolveDatabaseType(String databaseProductName) {
+        String normalizedName = Objects.toString(databaseProductName, "").toLowerCase(Locale.ROOT);
+        if (normalizedName.contains("mysql")) {
+            return "mysql";
+        }
+        if (normalizedName.contains("postgresql")) {
+            return "postgre";
+        }
+        throw new IllegalStateException("不支持的数据库类型：" + Objects.toString(databaseProductName, "<unknown>")
+                + "，仅支持 MySQL、PostgreSQL");
+    }
+
+    private long toPostgreLockId(String lockName) {
+        return Long.parseUnsignedLong(DigestUtil.sha256Hex(lockName).substring(0, 16), 16);
     }
 
     private long elapsedMillis(long startedAt) {

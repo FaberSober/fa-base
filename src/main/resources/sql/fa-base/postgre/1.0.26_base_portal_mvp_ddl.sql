@@ -2,7 +2,7 @@
 -- @@ver: 1_000_026
 -- @@info: Portal MVP 用户准入与咨询记录
 -- ------------------------- info -------------------------
-ALTER TABLE "base_user" ADD COLUMN "admin_enabled" boolean NOT NULL DEFAULT false;
+ALTER TABLE "base_user" ADD COLUMN IF NOT EXISTS "admin_enabled" boolean NOT NULL DEFAULT false;
 COMMENT ON COLUMN "base_user"."admin_enabled" IS '是否允许访问后台管理端';
 
 -- 升级前的存量用户均视为既有后台用户，避免升级后失去 Admin 访问能力。
