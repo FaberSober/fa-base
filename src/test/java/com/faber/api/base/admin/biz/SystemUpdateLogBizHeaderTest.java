@@ -9,6 +9,7 @@ import org.springframework.core.io.Resource;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -115,13 +116,27 @@ class SystemUpdateLogBizHeaderTest {
     void shouldResolveSupportedDatabaseTypes() {
         assertEquals("mysql", SystemUpdateLogBiz.resolveDatabaseType("MySQL"));
         assertEquals("postgre", SystemUpdateLogBiz.resolveDatabaseType("PostgreSQL"));
+        assertEquals("oracle", SystemUpdateLogBiz.resolveDatabaseType("Oracle"));
+    }
+
+    @Test
+    void shouldUseOracleColumnDefinitionOrder() throws Exception {
+        Resource resource = new ClassPathResource("sql/fa-base/oracle/1.0.0_base_ddl.sql");
+        String sql;
+        try (var inputStream = resource.getInputStream()) {
+            sql = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        assertTrue(sql.contains("\"LEVEL\" NUMBER(5) NOT NULL"));
+        assertFalse(sql.contains("NOT NULL DEFAULT"));
+        assertFalse(sql.contains("END; NOT NULL"));
     }
 
     @Test
     void shouldRejectUnsupportedDatabaseType() {
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> SystemUpdateLogBiz.resolveDatabaseType("Oracle")
+                () -> SystemUpdateLogBiz.resolveDatabaseType("SQLite")
         );
 
         assertTrue(exception.getMessage().contains("不支持的数据库类型"));
@@ -131,6 +146,7 @@ class SystemUpdateLogBizHeaderTest {
     void shouldLoadSqlFromDatabaseTypeDirectory() throws Exception {
         assertEquals(29, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "mysql").size());
         assertEquals(29, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "postgre").size());
+        assertEquals(29, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "oracle").size());
     }
 
     @Test

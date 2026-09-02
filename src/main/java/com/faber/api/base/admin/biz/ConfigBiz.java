@@ -2,6 +2,7 @@ package com.faber.api.base.admin.biz;
 
 import com.faber.api.base.admin.entity.Config;
 import com.faber.api.base.admin.mapper.ConfigMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.faber.core.bean.BaseCrtEntity;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
@@ -19,8 +20,7 @@ public class ConfigBiz extends BaseBiz<ConfigMapper, Config> {
                 .eq(Config::getType, type)
                 .eq(BaseCrtEntity::getCrtUser, getCurrentUserId())
                 .orderByDesc(Config::getId)
-                .last("limit 1")
-                .one();
+                .page(new Page<>(1, 1)).getRecords().stream().findFirst().orElse(null);
     }
 
     public Config getOneGlobal(String biz, String type) {
@@ -28,8 +28,7 @@ public class ConfigBiz extends BaseBiz<ConfigMapper, Config> {
                 .eq(Config::getBiz, biz + GLOBAL_SUFFIX) // 全局默认追加_GLOBAL后缀
                 .eq(Config::getType, type)
                 .orderByDesc(Config::getId)
-                .last("limit 1")
-                .one();
+                .page(new Page<>(1, 1)).getRecords().stream().findFirst().orElse(null);
     }
 
     public void saveGlobal(Config entity) {

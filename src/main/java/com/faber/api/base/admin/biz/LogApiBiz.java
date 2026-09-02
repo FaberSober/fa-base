@@ -2,6 +2,7 @@ package com.faber.api.base.admin.biz;
 
 import com.faber.api.base.admin.entity.LogApi;
 import com.faber.api.base.admin.mapper.LogApiMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.vo.tree.TreeNode;
 import com.faber.core.web.biz.BaseBiz;
@@ -31,8 +32,7 @@ public class LogApiBiz extends BaseBiz<LogApiMapper, LogApi> {
     public void deleteAll() {
         LogApi logApi = lambdaQuery()
                 .orderByDesc(LogApi::getId)
-                .last("LIMIT 1")
-                .one();
+                .page(new Page<>(1, 1)).getRecords().stream().findFirst().orElse(null);
         if (logApi == null) {
             return;
         }
@@ -46,8 +46,7 @@ public class LogApiBiz extends BaseBiz<LogApiMapper, LogApi> {
 
         LogApi logApi = lambdaQuery()
                 .orderByDesc(LogApi::getId)
-                .last("LIMIT " + logSaveMaxNum + ", 1")
-                .one();
+                .page(new Page<>(logSaveMaxNum + 1L, 1)).getRecords().stream().findFirst().orElse(null);
         if (logApi == null) {
             return;
         }

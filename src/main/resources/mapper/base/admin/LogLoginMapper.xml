@@ -3,6 +3,16 @@
 
 <mapper namespace="com.faber.api.base.admin.mapper.LogLoginMapper">
 
+    <select id="countByDay" databaseId="oracle" parameterType="map" resultType="com.faber.core.vo.chart.ChartSeriesVo">
+        SELECT CAST(crt_time AS DATE) AS name, count(*) AS value
+         FROM base_log_login
+        WHERE deleted = 0
+          AND crt_time &gt;= #{startDate}
+          AND crt_time &lt;= #{endDate}
+        group by name
+        ORDER BY name ASC
+    </select>
+
     <select id="countByDay" parameterType="map" resultType="com.faber.core.vo.chart.ChartSeriesVo">
         SELECT CAST(crt_time AS DATE) AS name, count(*) AS value
          FROM base_log_login
@@ -11,6 +21,18 @@
           AND crt_time &lt;= #{endDate}
         group by name
         ORDER BY name ASC
+    </select>
+
+    <select id="countByPro" databaseId="oracle" parameterType="map" resultType="com.faber.core.vo.chart.ChartSeriesVo">
+        SELECT pro AS name, count(*) AS value
+         FROM base_log_login
+        WHERE deleted = 0
+          AND pro IS NOT NULL
+          AND pro &lt;&gt; ''
+          AND pro &lt;&gt; '本地'
+        GROUP BY pro
+        ORDER BY value DESC
+        LIMIT 10
     </select>
 
     <select id="countByPro" parameterType="map" resultType="com.faber.core.vo.chart.ChartSeriesVo">
