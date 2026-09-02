@@ -81,7 +81,7 @@ public class FileSave extends BaseDelEntity {
     private String outUrl;
 
     public String getFileNameWithoutExtension() {
-        if (StrUtil.isEmpty(filename)) {
+        if (StrUtil.isEmpty(filename) || !filename.contains(".")) {
             return filename;
         }
         return filename.substring(0, filename.lastIndexOf("."));
