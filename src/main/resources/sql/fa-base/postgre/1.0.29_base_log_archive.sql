@@ -1,6 +1,6 @@
 -- ------------------------- info -------------------------
 -- @@ver: 1_000_029
--- @@info: 增加日志归档元数据表
+-- @@info: 增加日志归档元数据表、请求日志索引和月度归档定时任务
 -- ------------------------- info -------------------------
 
 CREATE TABLE IF NOT EXISTS "base_log_archive" (
@@ -48,3 +48,20 @@ COMMENT ON COLUMN "base_log_archive"."upd_name" IS '更新用户';
 COMMENT ON COLUMN "base_log_archive"."upd_host" IS '更新IP';
 DROP TRIGGER IF EXISTS "base_log_archive__upd_time" ON "base_log_archive";
 CREATE TRIGGER "base_log_archive__upd_time" BEFORE UPDATE ON "base_log_archive" FOR EACH ROW EXECUTE FUNCTION fa_base_set_upd_time();
+
+CREATE INDEX IF NOT EXISTS "base_log_api__idx_crt_time" ON "base_log_api" ("crt_time");
+CREATE INDEX IF NOT EXISTS "base_log_api__idx_user_crt_time" ON "base_log_api" ("crt_user", "crt_time");
+
+INSERT INTO "base_job" (
+  "job_name", "cron", "status", "clazz_path", "job_desc",
+  "crt_time", "crt_user", "crt_name", "crt_host", "deleted"
+)
+SELECT
+  '按月归档请求日志', '0 0 0 1 * ?', true,
+  'com.faber.api.base.admin.jobs.JobLogArchive',
+  '每月归档上一个自然月的请求日志',
+  CURRENT_TIMESTAMP, '1', 'admin', '127.0.0.1', false
+WHERE NOT EXISTS (
+  SELECT 1 FROM "base_job"
+  WHERE "clazz_path" = 'com.faber.api.base.admin.jobs.JobLogArchive'
+);
