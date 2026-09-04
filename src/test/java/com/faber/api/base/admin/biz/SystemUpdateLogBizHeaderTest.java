@@ -129,8 +129,8 @@ class SystemUpdateLogBizHeaderTest {
 
     @Test
     void shouldLoadSqlFromDatabaseTypeDirectory() throws Exception {
-        assertEquals(33, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "mysql").size());
-        assertEquals(33, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "postgre").size());
+        assertEquals(34, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "mysql").size());
+        assertEquals(34, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "postgre").size());
     }
 
     @Test

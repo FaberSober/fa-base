@@ -1,6 +1,6 @@
 # PLAN：轻量级 Telemetry 监控与业务统计模块
 
-> 状态：Phase 1 已完成，Phase 2 未开始
+> 状态：Phase 2 已完成，Phase 3 未开始
 > 范围：fa-admin / fa-portal / fa-pixel-editor
 > 目标：建设一套自托管、轻量、统一的客户端异常监控与业务数据统计能力，不依赖 Sentry、Umami 等外部平台。
 
@@ -74,26 +74,26 @@ fa-pixel-editor → DESKTOP
 | Telemetry 基础  | Collector API          | 建立统一 `/open/telemetry/*` 数据采集入口        | 当前开发 | ✅已完成  |
 | Telemetry 基础  | AppKey 校验              | 校验应用是否合法及是否允许上报                        | 当前开发 | ✅已完成  |
 | Telemetry 基础  | 上报参数校验                 | 限制 Message、Stack、Context、Properties 大小 | 当前开发 | ✅已完成  |
-| Telemetry 基础  | 异步写入                   | Telemetry 数据异步处理，不阻塞业务请求               | 当前开发 | ❌未完成  |
+| Telemetry 基础  | 异步写入                   | Telemetry 数据异步处理，不阻塞业务请求               | 当前开发 | ✅已完成  |
 | Telemetry SDK | SDK 初始化                | 提供统一 `telemetry.init()` 初始化入口          | 当前开发 | ✅已完成  |
 | Telemetry SDK | 用户识别                   | 提供 `identify()` 和 `clearUser()`        | 当前开发 | ❌未完成  |
 | Telemetry SDK | 页面上报                   | 提供 `telemetry.page()`                  | 当前开发 | ❌未完成  |
 | Telemetry SDK | 业务事件上报                 | 提供 `telemetry.track()`                 | 当前开发 | ❌未完成  |
 | Telemetry SDK | 异常上报                   | 提供 `telemetry.captureException()`      | 当前开发 | ❌未完成  |
 | Telemetry SDK | 统一客户端上下文               | SDK 自动携带应用、版本、用户、Session 等信息           | 当前开发 | ❌未完成  |
-| 异常监控          | Error Event            | 保存每一次客户端异常实例                           | 当前开发 | ❌未完成  |
-| 异常监控          | Issue                  | 将同类异常聚合为 Issue                         | 当前开发 | ❌未完成  |
-| 异常监控          | Fingerprint            | 根据异常特征计算 Fingerprint                   | 当前开发 | ❌未完成  |
-| 异常监控          | Issue 状态               | 支持 OPEN、RESOLVED、IGNORED               | 当前开发 | ❌未完成  |
-| 异常监控          | window.error           | 自动捕获 Web 运行时异常                         | 当前开发 | ❌未完成  |
-| 异常监控          | Promise 异常             | 捕获 `unhandledrejection`                | 当前开发 | ❌未完成  |
-| 异常监控          | React ErrorBoundary    | 捕获 React 组件树异常                         | 当前开发 | ❌未完成  |
-| 异常监控          | 手动异常上报                 | 支持业务代码主动上报异常                           | 当前开发 | ❌未完成  |
-| 异常监控          | Breadcrumb             | 保存异常发生前的关键用户行为                         | 当前开发 | ❌未完成  |
-| 异常监控          | Web Context            | 记录 Route、Browser、OS、Viewport 等信息       | 当前开发 | ❌未完成  |
-| 异常监控          | Issue 列表               | 查询及筛选聚合后的异常问题                          | 当前开发 | ❌未完成  |
-| 异常监控          | Issue 详情               | 查看 Stack、Context、Breadcrumb 等详情        | 当前开发 | ❌未完成  |
-| 异常监控          | Error Event 明细         | 查看单次异常实例                               | 当前开发 | ❌未完成  |
+| 异常监控          | Error Event            | 保存每一次客户端异常实例                           | 当前开发 | ✅已完成  |
+| 异常监控          | Issue                  | 将同类异常聚合为 Issue                         | 当前开发 | ✅已完成  |
+| 异常监控          | Fingerprint            | 根据异常特征计算 Fingerprint                   | 当前开发 | ✅已完成  |
+| 异常监控          | Issue 状态               | 支持 OPEN、RESOLVED、IGNORED               | 当前开发 | ✅已完成  |
+| 异常监控          | window.error           | 自动捕获 Web 运行时异常                         | 当前开发 | ✅已完成  |
+| 异常监控          | Promise 异常             | 捕获 `unhandledrejection`                | 当前开发 | ✅已完成  |
+| 异常监控          | React ErrorBoundary    | 捕获 React 组件树异常                         | 当前开发 | ✅已完成  |
+| 异常监控          | 手动异常上报                 | 支持业务代码主动上报异常                           | 当前开发 | ✅已完成  |
+| 异常监控          | Breadcrumb             | 保存异常发生前的关键用户行为                         | 当前开发 | ✅已完成  |
+| 异常监控          | Web Context            | 记录 Route、Browser、OS、Viewport 等信息       | 当前开发 | ✅已完成  |
+| 异常监控          | Issue 列表               | 查询及筛选聚合后的异常问题                          | 当前开发 | ✅已完成  |
+| 异常监控          | Issue 详情               | 查看 Stack、Context、Breadcrumb 等详情        | 当前开发 | ✅已完成  |
+| 异常监控          | Error Event 明细         | 查看单次异常实例                               | 当前开发 | ✅已完成  |
 | 异常监控          | Resource Error         | 捕获资源加载异常                               | 未来规划 | 🕒待处理 |
 | 异常监控          | Fetch/Axios Error      | 捕获部分有价值的网络请求异常                         | 未来规划 | 🕒待处理 |
 | 异常监控          | Source Map             | 根据 Source Map 还原生产环境 Stack             | 未来规划 | 🕒待处理 |
@@ -1729,19 +1729,19 @@ Sprite Export 使用数
 
 ## Phase 2：客户端异常监控
 
-* [ ] 创建 `base_client_error_issue`
-* [ ] 创建 `base_client_error_event`
-* [ ] 实现 Fingerprint
-* [ ] 实现 Issue 聚合
-* [ ] 实现 `window.error`
-* [ ] 实现 `unhandledrejection`
-* [ ] 实现 React ErrorBoundary
-* [ ] 实现 `captureException`
-* [ ] 实现 Breadcrumb Buffer
-* [ ] 实现异常 Collector
-* [ ] 实现 Issue 列表
-* [ ] 实现 Issue 详情
-* [ ] 实现异常 Event 查询
+* [x] 创建 `base_client_error_issue`
+* [x] 创建 `base_client_error_event`
+* [x] 实现 Fingerprint
+* [x] 实现 Issue 聚合
+* [x] 实现 `window.error`
+* [x] 实现 `unhandledrejection`
+* [x] 实现 React ErrorBoundary
+* [x] 实现 `captureException`
+* [x] 实现 Breadcrumb Buffer
+* [x] 实现异常 Collector
+* [x] 实现 Issue 列表
+* [x] 实现 Issue 详情
+* [x] 实现异常 Event 查询
 
 ---
 

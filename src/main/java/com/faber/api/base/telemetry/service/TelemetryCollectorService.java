@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.faber.api.base.telemetry.biz.TelemetryAppBiz;
 import com.faber.api.base.telemetry.entity.TelemetryApp;
+import com.faber.api.base.telemetry.event.TelemetryErrorReceivedEvent;
 import com.faber.api.base.telemetry.vo.TelemetryBaseReq;
 import com.faber.api.base.telemetry.vo.TelemetryErrorReq;
 import com.faber.api.base.telemetry.vo.TelemetryEventReq;
 import com.faber.core.exception.BuzzException;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Date;
 
@@ -23,15 +25,22 @@ public class TelemetryCollectorService {
 
     private final TelemetryAppBiz telemetryAppBiz;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public TelemetryCollectorService(TelemetryAppBiz telemetryAppBiz, ObjectMapper objectMapper) {
+    public TelemetryCollectorService(
+            TelemetryAppBiz telemetryAppBiz,
+            ObjectMapper objectMapper,
+            ApplicationEventPublisher eventPublisher
+    ) {
         this.telemetryAppBiz = telemetryAppBiz;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     public void acceptError(TelemetryErrorReq request) {
-        validateBase(request);
+        TelemetryApp app = validateBase(request);
         validateJsonSize(request.getBreadcrumbs(), MAX_BREADCRUMBS_BYTES, "Breadcrumb");
+        eventPublisher.publishEvent(new TelemetryErrorReceivedEvent(app, request));
     }
 
     public void acceptEvent(TelemetryEventReq request) {
@@ -39,7 +48,7 @@ public class TelemetryCollectorService {
         validateJsonSize(request.getProperties(), MAX_PROPERTIES_BYTES, "Properties");
     }
 
-    private void validateBase(TelemetryBaseReq request) {
+    private TelemetryApp validateBase(TelemetryBaseReq request) {
         TelemetryApp app = telemetryAppBiz.findEnabledByAppKey(request.getAppKey());
         if (app == null) {
             throw new BuzzException("Telemetry AppKey 无效或应用已停用");
@@ -53,6 +62,7 @@ public class TelemetryCollectorService {
         if (request.getOccurTime() == null) {
             request.setOccurTime(receiveTime);
         }
+        return app;
     }
 
     private void validateJsonSize(JsonNode value, int maxBytes, String fieldName) {
