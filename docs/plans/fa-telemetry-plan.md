@@ -1,6 +1,6 @@
 # PLAN：轻量级 Telemetry 监控与业务统计模块
 
-> 状态：规划中
+> 状态：Phase 1 已完成，Phase 2 未开始
 > 范围：fa-admin / fa-portal / fa-pixel-editor
 > 目标：建设一套自托管、轻量、统一的客户端异常监控与业务数据统计能力，不依赖 Sentry、Umami 等外部平台。
 
@@ -62,20 +62,20 @@ fa-pixel-editor → DESKTOP
 
 | 模块            | 功能                     | 功能详情                                   | 当前规划 | 进度    |
 | ------------- | ---------------------- | -------------------------------------- | ---- | ----- |
-| Telemetry 基础  | Telemetry 模块结构         | 建立统一 Telemetry 后端及前端基础目录               | 当前开发 | ❌未完成  |
-| Telemetry 基础  | 应用管理                   | 管理接入 Telemetry 的 Web、Desktop 等应用       | 当前开发 | ❌未完成  |
-| Telemetry 基础  | AppKey                 | 为不同应用提供独立上报标识                          | 当前开发 | ❌未完成  |
-| Telemetry 基础  | Client Type            | 支持 WEB、DESKTOP、MOBILE、OTHER            | 当前开发 | ❌未完成  |
-| Telemetry 基础  | Environment            | 区分 development、test、staging、production | 当前开发 | ❌未完成  |
-| Telemetry 基础  | Release                | 记录客户端版本，用于版本维度分析                       | 当前开发 | ❌未完成  |
-| Telemetry 基础  | Session                | 为客户端会话生成统一 Session ID                  | 当前开发 | ❌未完成  |
-| Telemetry 基础  | User Context           | 统一记录 userId、tenantId 等用户上下文            | 当前开发 | ❌未完成  |
-| Telemetry 基础  | Context                | 使用 JSON 保存客户端运行环境信息                    | 当前开发 | ❌未完成  |
-| Telemetry 基础  | Collector API          | 建立统一 `/open/telemetry/*` 数据采集入口        | 当前开发 | ❌未完成  |
-| Telemetry 基础  | AppKey 校验              | 校验应用是否合法及是否允许上报                        | 当前开发 | ❌未完成  |
-| Telemetry 基础  | 上报参数校验                 | 限制 Message、Stack、Context、Properties 大小 | 当前开发 | ❌未完成  |
+| Telemetry 基础  | Telemetry 模块结构         | 建立统一 Telemetry 后端及前端基础目录               | 当前开发 | ✅已完成  |
+| Telemetry 基础  | 应用管理                   | 管理接入 Telemetry 的 Web、Desktop 等应用       | 当前开发 | ✅已完成  |
+| Telemetry 基础  | AppKey                 | 为不同应用提供独立上报标识                          | 当前开发 | ✅已完成  |
+| Telemetry 基础  | Client Type            | 支持 WEB、DESKTOP、MOBILE、OTHER            | 当前开发 | ✅已完成  |
+| Telemetry 基础  | Environment            | 区分 development、test、staging、production | 当前开发 | ✅已完成  |
+| Telemetry 基础  | Release                | 记录客户端版本，用于版本维度分析                       | 当前开发 | ✅已完成  |
+| Telemetry 基础  | Session                | 为客户端会话生成统一 Session ID                  | 当前开发 | ✅已完成  |
+| Telemetry 基础  | User Context           | 统一记录 userId、tenantId 等用户上下文            | 当前开发 | ✅已完成  |
+| Telemetry 基础  | Context                | 使用 JSON 保存客户端运行环境信息                    | 当前开发 | ✅已完成  |
+| Telemetry 基础  | Collector API          | 建立统一 `/open/telemetry/*` 数据采集入口        | 当前开发 | ✅已完成  |
+| Telemetry 基础  | AppKey 校验              | 校验应用是否合法及是否允许上报                        | 当前开发 | ✅已完成  |
+| Telemetry 基础  | 上报参数校验                 | 限制 Message、Stack、Context、Properties 大小 | 当前开发 | ✅已完成  |
 | Telemetry 基础  | 异步写入                   | Telemetry 数据异步处理，不阻塞业务请求               | 当前开发 | ❌未完成  |
-| Telemetry SDK | SDK 初始化                | 提供统一 `telemetry.init()` 初始化入口          | 当前开发 | ❌未完成  |
+| Telemetry SDK | SDK 初始化                | 提供统一 `telemetry.init()` 初始化入口          | 当前开发 | ✅已完成  |
 | Telemetry SDK | 用户识别                   | 提供 `identify()` 和 `clearUser()`        | 当前开发 | ❌未完成  |
 | Telemetry SDK | 页面上报                   | 提供 `telemetry.page()`                  | 当前开发 | ❌未完成  |
 | Telemetry SDK | 业务事件上报                 | 提供 `telemetry.track()`                 | 当前开发 | ❌未完成  |
@@ -141,7 +141,7 @@ fa-pixel-editor → DESKTOP
 | 数据生命周期        | Stat Daily 长期保留        | 每日聚合统计长期保存                             | 当前开发 | ❌未完成  |
 | 数据生命周期        | Retention 配置           | 支持配置 Error/Stat Event 保留天数             | 当前开发 | ❌未完成  |
 | 数据生命周期        | 定时清理                   | 自动清除过期 Telemetry 明细数据                  | 当前开发 | ❌未完成  |
-| Desktop       | DESKTOP Client Type    | 数据模型支持桌面客户端                            | 当前开发 | ❌未完成  |
+| Desktop       | DESKTOP Client Type    | 数据模型支持桌面客户端                            | 当前开发 | ✅已完成  |
 | Desktop       | Desktop Context        | 预留 OS、Arch、AppVersion 等环境信息            | 当前开发 | ❌未完成  |
 | Desktop       | WebView SDK 兼容         | fa-pixel-editor React 层复用 JS SDK       | 当前开发 | ❌未完成  |
 | Desktop       | Rust Error 协议          | 预留 Rust/Tauri 异常上报协议                   | 当前开发 | ❌未完成  |
@@ -1713,17 +1713,17 @@ Sprite Export 使用数
 
 ## Phase 1：Telemetry 基础设施
 
-* [ ] 建立 `telemetry` 后端目录
-* [ ] 创建 `base_telemetry_app`
-* [ ] 定义 Client Type
-* [ ] 定义 Environment
-* [ ] 定义 Release
-* [ ] 定义 Session
-* [ ] 定义 User Context
-* [ ] 定义 Context JSON
-* [ ] 实现 AppKey 校验
-* [ ] 建立 `/open/telemetry/*`
-* [ ] 创建前端 Telemetry SDK 基础结构
+* [x] 建立 `telemetry` 后端目录
+* [x] 创建 `base_telemetry_app`
+* [x] 定义 Client Type
+* [x] 定义 Environment
+* [x] 定义 Release
+* [x] 定义 Session
+* [x] 定义 User Context
+* [x] 定义 Context JSON
+* [x] 实现 AppKey 校验
+* [x] 建立 `/open/telemetry/*`
+* [x] 创建前端 Telemetry SDK 基础结构
 
 ---
 
