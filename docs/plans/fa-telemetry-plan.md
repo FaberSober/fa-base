@@ -1,6 +1,6 @@
 # PLAN：轻量级 Telemetry 监控与业务统计模块
 
-> 状态：Phase 4 已完成，Phase 5 未开始
+> 状态：Phase 5 已完成
 > 范围：fa-admin / fa-portal / fa-pixel-editor
 > 目标：建设一套自托管、轻量、统一的客户端异常监控与业务数据统计能力，不依赖 Sentry、Umami 等外部平台。
 
@@ -142,10 +142,10 @@ fa-pixel-editor → DESKTOP
 | 数据生命周期        | Retention 配置           | 支持配置 Error/Stat Event 保留天数             | 当前开发 | ✅已完成  |
 | 数据生命周期        | 定时清理                   | 自动清除过期 Telemetry 明细数据                  | 当前开发 | ✅已完成  |
 | Desktop       | DESKTOP Client Type    | 数据模型支持桌面客户端                            | 当前开发 | ✅已完成  |
-| Desktop       | Desktop Context        | 预留 OS、Arch、AppVersion 等环境信息            | 当前开发 | ❌未完成  |
-| Desktop       | WebView SDK 兼容         | fa-pixel-editor React 层复用 JS SDK       | 当前开发 | ❌未完成  |
-| Desktop       | Rust Error 协议          | 预留 Rust/Tauri 异常上报协议                   | 当前开发 | ❌未完成  |
-| Desktop       | Rust Business Event 协议 | 预留 Rust 业务事件上报协议                       | 当前开发 | ❌未完成  |
+| Desktop       | Desktop Context        | 预留 OS、Arch、AppVersion 等环境信息            | 当前开发 | ✅已完成  |
+| Desktop       | WebView SDK 兼容         | fa-pixel-editor React 层复用 JS SDK       | 当前开发 | ✅已完成  |
+| Desktop       | Rust Error 协议          | 预留 Rust/Tauri 异常上报协议                   | 当前开发 | ✅已完成  |
+| Desktop       | Rust Business Event 协议 | 预留 Rust 业务事件上报协议                       | 当前开发 | ✅已完成  |
 | Desktop       | Rust SDK               | 封装完整 Rust Telemetry SDK                | 未来规划 | 🕒待处理 |
 | Desktop       | Rust panic 捕获          | 自动捕获 Rust panic 并上报                    | 未来规划 | 🕒待处理 |
 | Desktop       | Desktop Breadcrumb     | 桌面端完整 Breadcrumb 能力                    | 未来规划 | 🕒待处理 |
@@ -1781,12 +1781,12 @@ Sprite Export 使用数
 
 ## Phase 5：Desktop 接入预留
 
-* [ ] Application 支持 `DESKTOP`
-* [ ] Desktop Context
-* [ ] Collector 支持 Desktop
-* [ ] fa-pixel-editor React SDK 兼容
-* [ ] Rust Error 协议定义
-* [ ] Rust Business Event 协议定义
+* [x] Application 支持 `DESKTOP`
+* [x] Desktop Context
+* [x] Collector 支持 Desktop
+* [x] fa-pixel-editor React SDK 兼容
+* [x] Rust Error 协议定义
+* [x] Rust Business Event 协议定义
 
 当前阶段不要求：
 
