@@ -7,6 +7,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.entity.FileSave;
+import com.faber.api.base.telemetry.annotation.StatEvent;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.annotation.LogNoRet;
@@ -34,6 +35,7 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
     @Resource ConfigSysService configSysService;
 
     @FaLogOpr(value = "上传文件", crud = LogCrudEnum.C)
+    @StatEvent(value = "file.upload", module = "file", bizType = "file")
     @PostMapping("/upload")
     @ResponseBody
     public Ret<FileSave> upload(@RequestParam("file") MultipartFile file) throws IOException {
@@ -42,6 +44,7 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
     }
 
     @FaLogOpr(value = "URL上传文件", crud = LogCrudEnum.C)
+    @StatEvent(value = "file.upload", module = "file", bizType = "file")
     @PostMapping("/uploadFromUrl")
     @ResponseBody
     public Ret<FileSave> uploadFromUrl(@RequestBody Map<String, Object> params) {

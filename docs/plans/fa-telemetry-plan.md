@@ -98,14 +98,14 @@ fa-pixel-editor → DESKTOP
 | 异常监控          | Fetch/Axios Error      | 捕获部分有价值的网络请求异常                         | 未来规划 | 🕒待处理 |
 | 异常监控          | Source Map             | 根据 Source Map 还原生产环境 Stack             | 未来规划 | 🕒待处理 |
 | 业务统计          | Stat Event             | 保存用户行为及业务事件明细                          | 当前开发 | ✅已完成  |
-| 业务统计          | Login Event            | 统计登录成功、失败及退出行为                         | 当前开发 | ❌未完成  |
+| 业务统计          | Login Event            | 统计登录成功、失败及退出行为                         | 当前开发 | ✅已完成  |
 | 业务统计          | Page View              | 统计页面 PV、UV 和模块访问情况                     | 当前开发 | ✅已完成  |
 | 业务统计          | Action Event           | 记录有统计价值的功能操作                           | 当前开发 | ✅已完成  |
-| 业务统计          | Business Event         | 记录实际产生业务结果的关键操作                        | 当前开发 | ❌未完成  |
+| 业务统计          | Business Event         | 记录实际产生业务结果的关键操作                        | 当前开发 | ✅已完成  |
 | 业务统计          | Event Code 规范          | 使用 `domain.resource.action` 统一命名       | 当前开发 | ✅已完成  |
 | 业务统计          | Properties             | 使用 JSON 保存业务事件扩展属性                     | 当前开发 | ✅已完成  |
-| 业务统计          | Java Track API         | 后端支持主动产生统计事件                           | 当前开发 | ❌未完成  |
-| 业务统计          | @StatEvent             | 通过注解低侵入记录业务事件                          | 当前开发 | ❌未完成  |
+| 业务统计          | Java Track API         | 后端支持主动产生统计事件                           | 当前开发 | ✅已完成  |
+| 业务统计          | @StatEvent             | 通过注解低侵入记录业务事件                          | 当前开发 | ✅已完成  |
 | 业务统计          | 后端事件异步写入               | 通过 ApplicationEvent + Async 保存统计数据     | 当前开发 | ✅已完成  |
 | 业务统计          | Stat Daily             | 保存每日聚合后的统计指标                           | 当前开发 | ✅已完成  |
 | 业务统计          | 每日聚合任务                 | 每日汇总上一日业务统计数据                          | 当前开发 | ✅已完成  |
@@ -132,8 +132,8 @@ fa-pixel-editor → DESKTOP
 | Dashboard     | 模块使用排行                 | 展示高频使用模块                               | 当前开发 | ❌未完成  |
 | Dashboard     | 功能使用排行                 | 展示高频业务事件                               | 当前开发 | ❌未完成  |
 | 数据安全          | 隐私采集规则                 | 禁止采集密码、Token、Cookie 等敏感数据              | 当前开发 | ❌未完成  |
-| 数据安全          | Context 控制             | 限制客户端扩展 Context 内容和大小                  | 当前开发 | ❌未完成  |
-| 数据安全          | Properties 控制          | 限制业务扩展属性内容和大小                          | 当前开发 | ❌未完成  |
+| 数据安全          | Context 控制             | 限制客户端扩展 Context 内容和大小                  | 当前开发 | ✅已完成  |
+| 数据安全          | Properties 控制          | 限制业务扩展属性内容和大小                          | 当前开发 | ✅已完成  |
 | 数据安全          | Telemetry Sanitizer    | 对敏感信息进行统一清洗                            | 未来规划 | 🕒待处理 |
 | 数据生命周期        | Error Event 保留策略       | 异常明细默认保留 90～180 天                      | 当前开发 | ❌未完成  |
 | 数据生命周期        | Stat Event 保留策略        | 业务事件明细默认保留 90～180 天                    | 当前开发 | ❌未完成  |
@@ -1752,12 +1752,12 @@ Sprite Export 使用数
 * [x] 实现 `telemetry.page`
 * [x] 实现 `telemetry.track`
 * [x] 实现 `telemetry.identify`
-* [ ] 实现 Login Event
+* [x] 实现 Login Event
 * [x] 实现 Page View
 * [x] 实现 Action Event
-* [ ] 实现 Business Event
-* [ ] 实现 Java `track()`
-* [ ] 实现 `@StatEvent`
+* [x] 实现 Business Event
+* [x] 实现 Java `track()`
+* [x] 实现 `@StatEvent`
 * [x] 实现异步事件写入
 * [x] 实现每日聚合
 * [ ] 实现数据概览
