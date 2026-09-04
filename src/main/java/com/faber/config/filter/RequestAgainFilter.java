@@ -230,7 +230,12 @@ public class RequestAgainFilter implements Filter {
             // 取备注
             logApi.setRemark(BaseContextHandler.getLogRemark());
 
-            logApiBiz.save(logApi);
+            try {
+                logApiBiz.save(logApi);
+            } catch (Exception e) {
+                // 日志基础设施故障不得影响已完成的业务请求。
+                log.error("保存请求日志失败", e);
+            }
         } finally {
             BaseContextHandler.remove(); // 销毁上下文中记录的登录用户信息
         }
