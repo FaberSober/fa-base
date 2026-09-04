@@ -101,6 +101,10 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
         // 用户登录状态设置
         User user = userBiz.getById(userId);
+        // token 解析成功但账户已不存在或被冻结，本质仍是登录态失效，统一抛 UserTokenException(401) 触发前端跳转登录页
+        if (user == null || !Boolean.TRUE.equals(user.getStatus())) {
+            throw new UserTokenException("账户不存在或被冻结，请重新登录");
+        }
         userBiz.setUserLogin(user);
         requireApplicationAccess(request.getRequestURI(), user);
         this.resolveUserTenant(request, userId);
