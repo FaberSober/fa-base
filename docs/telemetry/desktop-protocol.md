@@ -39,6 +39,8 @@
 
 `context` 的字段对应 `TelemetryDesktopContext`，允许额外非敏感字段。不得上报密码、Token、Cookie、Authorization、文件内容、完整 AI Prompt 或用户敏感输入。
 
+Web SDK 默认只记录 URL 的 origin 与 pathname，不记录 query string；Desktop 接入也应遵循相同规则。
+
 ## Rust/Tauri 异常上报
 
 `POST /open/telemetry/error`
