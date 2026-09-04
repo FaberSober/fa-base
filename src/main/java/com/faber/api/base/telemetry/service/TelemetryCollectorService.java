@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.faber.api.base.telemetry.biz.TelemetryAppBiz;
 import com.faber.api.base.telemetry.entity.TelemetryApp;
 import com.faber.api.base.telemetry.event.TelemetryErrorReceivedEvent;
+import com.faber.api.base.telemetry.event.TelemetryStatReceivedEvent;
 import com.faber.api.base.telemetry.vo.TelemetryBaseReq;
 import com.faber.api.base.telemetry.vo.TelemetryErrorReq;
 import com.faber.api.base.telemetry.vo.TelemetryEventReq;
@@ -44,8 +45,9 @@ public class TelemetryCollectorService {
     }
 
     public void acceptEvent(TelemetryEventReq request) {
-        validateBase(request);
+        TelemetryApp app = validateBase(request);
         validateJsonSize(request.getProperties(), MAX_PROPERTIES_BYTES, "Properties");
+        eventPublisher.publishEvent(new TelemetryStatReceivedEvent(app, request));
     }
 
     private TelemetryApp validateBase(TelemetryBaseReq request) {

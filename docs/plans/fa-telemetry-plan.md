@@ -1,6 +1,6 @@
 # PLAN：轻量级 Telemetry 监控与业务统计模块
 
-> 状态：Phase 2 已完成，Phase 3 未开始
+> 状态：Phase 3 进行中
 > 范围：fa-admin / fa-portal / fa-pixel-editor
 > 目标：建设一套自托管、轻量、统一的客户端异常监控与业务数据统计能力，不依赖 Sentry、Umami 等外部平台。
 
@@ -76,11 +76,11 @@ fa-pixel-editor → DESKTOP
 | Telemetry 基础  | 上报参数校验                 | 限制 Message、Stack、Context、Properties 大小 | 当前开发 | ✅已完成  |
 | Telemetry 基础  | 异步写入                   | Telemetry 数据异步处理，不阻塞业务请求               | 当前开发 | ✅已完成  |
 | Telemetry SDK | SDK 初始化                | 提供统一 `telemetry.init()` 初始化入口          | 当前开发 | ✅已完成  |
-| Telemetry SDK | 用户识别                   | 提供 `identify()` 和 `clearUser()`        | 当前开发 | ❌未完成  |
-| Telemetry SDK | 页面上报                   | 提供 `telemetry.page()`                  | 当前开发 | ❌未完成  |
-| Telemetry SDK | 业务事件上报                 | 提供 `telemetry.track()`                 | 当前开发 | ❌未完成  |
-| Telemetry SDK | 异常上报                   | 提供 `telemetry.captureException()`      | 当前开发 | ❌未完成  |
-| Telemetry SDK | 统一客户端上下文               | SDK 自动携带应用、版本、用户、Session 等信息           | 当前开发 | ❌未完成  |
+| Telemetry SDK | 用户识别                   | 提供 `identify()` 和 `clearUser()`        | 当前开发 | ✅已完成  |
+| Telemetry SDK | 页面上报                   | 提供 `telemetry.page()`                  | 当前开发 | ✅已完成  |
+| Telemetry SDK | 业务事件上报                 | 提供 `telemetry.track()`                 | 当前开发 | ✅已完成  |
+| Telemetry SDK | 异常上报                   | 提供 `telemetry.captureException()`      | 当前开发 | ✅已完成  |
+| Telemetry SDK | 统一客户端上下文               | SDK 自动携带应用、版本、用户、Session 等信息           | 当前开发 | ✅已完成  |
 | 异常监控          | Error Event            | 保存每一次客户端异常实例                           | 当前开发 | ✅已完成  |
 | 异常监控          | Issue                  | 将同类异常聚合为 Issue                         | 当前开发 | ✅已完成  |
 | 异常监控          | Fingerprint            | 根据异常特征计算 Fingerprint                   | 当前开发 | ✅已完成  |
@@ -97,18 +97,18 @@ fa-pixel-editor → DESKTOP
 | 异常监控          | Resource Error         | 捕获资源加载异常                               | 未来规划 | 🕒待处理 |
 | 异常监控          | Fetch/Axios Error      | 捕获部分有价值的网络请求异常                         | 未来规划 | 🕒待处理 |
 | 异常监控          | Source Map             | 根据 Source Map 还原生产环境 Stack             | 未来规划 | 🕒待处理 |
-| 业务统计          | Stat Event             | 保存用户行为及业务事件明细                          | 当前开发 | ❌未完成  |
+| 业务统计          | Stat Event             | 保存用户行为及业务事件明细                          | 当前开发 | ✅已完成  |
 | 业务统计          | Login Event            | 统计登录成功、失败及退出行为                         | 当前开发 | ❌未完成  |
-| 业务统计          | Page View              | 统计页面 PV、UV 和模块访问情况                     | 当前开发 | ❌未完成  |
-| 业务统计          | Action Event           | 记录有统计价值的功能操作                           | 当前开发 | ❌未完成  |
+| 业务统计          | Page View              | 统计页面 PV、UV 和模块访问情况                     | 当前开发 | ✅已完成  |
+| 业务统计          | Action Event           | 记录有统计价值的功能操作                           | 当前开发 | ✅已完成  |
 | 业务统计          | Business Event         | 记录实际产生业务结果的关键操作                        | 当前开发 | ❌未完成  |
-| 业务统计          | Event Code 规范          | 使用 `domain.resource.action` 统一命名       | 当前开发 | ❌未完成  |
-| 业务统计          | Properties             | 使用 JSON 保存业务事件扩展属性                     | 当前开发 | ❌未完成  |
+| 业务统计          | Event Code 规范          | 使用 `domain.resource.action` 统一命名       | 当前开发 | ✅已完成  |
+| 业务统计          | Properties             | 使用 JSON 保存业务事件扩展属性                     | 当前开发 | ✅已完成  |
 | 业务统计          | Java Track API         | 后端支持主动产生统计事件                           | 当前开发 | ❌未完成  |
 | 业务统计          | @StatEvent             | 通过注解低侵入记录业务事件                          | 当前开发 | ❌未完成  |
-| 业务统计          | 后端事件异步写入               | 通过 ApplicationEvent + Async 保存统计数据     | 当前开发 | ❌未完成  |
-| 业务统计          | Stat Daily             | 保存每日聚合后的统计指标                           | 当前开发 | ❌未完成  |
-| 业务统计          | 每日聚合任务                 | 每日汇总上一日业务统计数据                          | 当前开发 | ❌未完成  |
+| 业务统计          | 后端事件异步写入               | 通过 ApplicationEvent + Async 保存统计数据     | 当前开发 | ✅已完成  |
+| 业务统计          | Stat Daily             | 保存每日聚合后的统计指标                           | 当前开发 | ✅已完成  |
+| 业务统计          | 每日聚合任务                 | 每日汇总上一日业务统计数据                          | 当前开发 | ✅已完成  |
 | 业务统计          | 今日实时统计                 | 当日数据直接基于 Stat Event 查询                 | 当前开发 | ❌未完成  |
 | 业务统计          | DAU                    | 统计每日活跃用户数                              | 当前开发 | ❌未完成  |
 | 业务统计          | 登录用户                   | 统计每日登录用户及登录次数                          | 当前开发 | ❌未完成  |
@@ -1747,19 +1747,19 @@ Sprite Export 使用数
 
 ## Phase 3：业务统计
 
-* [ ] 创建 `base_stat_event`
-* [ ] 创建 `base_stat_daily`
-* [ ] 实现 `telemetry.page`
-* [ ] 实现 `telemetry.track`
-* [ ] 实现 `telemetry.identify`
+* [x] 创建 `base_stat_event`
+* [x] 创建 `base_stat_daily`
+* [x] 实现 `telemetry.page`
+* [x] 实现 `telemetry.track`
+* [x] 实现 `telemetry.identify`
 * [ ] 实现 Login Event
-* [ ] 实现 Page View
-* [ ] 实现 Action Event
+* [x] 实现 Page View
+* [x] 实现 Action Event
 * [ ] 实现 Business Event
 * [ ] 实现 Java `track()`
 * [ ] 实现 `@StatEvent`
-* [ ] 实现异步事件写入
-* [ ] 实现每日聚合
+* [x] 实现异步事件写入
+* [x] 实现每日聚合
 * [ ] 实现数据概览
 * [ ] 实现 7/30 天趋势
 * [ ] 实现模块排行
