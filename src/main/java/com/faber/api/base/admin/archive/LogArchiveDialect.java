@@ -20,7 +20,17 @@ public interface LogArchiveDialect {
 
     int copyMissingRows(Connection connection, String sourceTable, String archiveTable, Timestamp startTime, Timestamp endTime) throws SQLException;
 
-    List<Long> findIds(Connection connection, String tableName, Timestamp startTime, Timestamp endTime, int batchSize) throws SQLException;
+    boolean tableExists(Connection connection, String tableName) throws SQLException;
+
+    /** 仅返回已确认存在于归档表中的源表记录，避免删除未完成复制的数据。 */
+    List<Long> findCopiedSourceIds(
+            Connection connection,
+            String sourceTable,
+            String archiveTable,
+            Timestamp startTime,
+            Timestamp endTime,
+            int batchSize
+    ) throws SQLException;
 
     int deleteByIds(Connection connection, String tableName, List<Long> ids) throws SQLException;
 

@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
@@ -27,9 +28,36 @@ public class PostgreSqlLogArchiveDialect extends AbstractLogArchiveDialect {
     }
 
     @Override
-    public List<Long> findIds(Connection connection, String tableName, Timestamp startTime, Timestamp endTime, int batchSize) throws SQLException {
-        String sql = "SELECT id FROM " + requireTableName(tableName)
-                + " WHERE crt_time >= ? AND crt_time < ? ORDER BY id LIMIT ?";
+    public boolean tableExists(Connection connection, String tableName) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT to_regclass(?) IS NOT NULL")) {
+            statement.setString(1, requireTableName(tableName));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getBoolean(1);
+            }
+        }
+    }
+
+    @Override
+    public List<Long> findCopiedSourceIds(
+            Connection connection,
+            String sourceTable,
+            String archiveTable,
+            Timestamp startTime,
+            Timestamp endTime,
+            int batchSize
+    ) throws SQLException {
+        String sql = "SELECT s.id FROM " + requireTableName(sourceTable) + " s "
+                + "WHERE s.crt_time >= ? AND s.crt_time < ? "
+                + "AND EXISTS (SELECT 1 FROM " + requireTableName(archiveTable) + " a WHERE a.id = s.id) "
+                + "ORDER BY s.id LIMIT ?";
         return findIdsWithLimit(connection, sql, startTime, endTime, batchSize);
+    }
+
+    @Override
+    public void dropTable(Connection connection, String tableName) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("DROP TABLE IF EXISTS " + requireTableName(tableName))) {
+            statement.execute();
+        }
     }
 }

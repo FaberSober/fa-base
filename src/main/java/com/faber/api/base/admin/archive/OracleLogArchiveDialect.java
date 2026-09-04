@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
@@ -56,10 +57,41 @@ public class OracleLogArchiveDialect extends AbstractLogArchiveDialect {
     }
 
     @Override
-    public List<Long> findIds(Connection connection, String tableName, Timestamp startTime, Timestamp endTime, int batchSize) throws SQLException {
-        String sql = "SELECT id FROM " + requireTableName(tableName)
-                + " WHERE crt_time >= ? AND crt_time < ? AND ROWNUM <= ?";
+    public boolean tableExists(Connection connection, String tableName) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT 1 FROM user_tables WHERE table_name = ?")) {
+            statement.setString(1, requireTableName(tableName).toUpperCase(java.util.Locale.ROOT));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
+            }
+        }
+    }
+
+    @Override
+    public List<Long> findCopiedSourceIds(
+            Connection connection,
+            String sourceTable,
+            String archiveTable,
+            Timestamp startTime,
+            Timestamp endTime,
+            int batchSize
+    ) throws SQLException {
+        String sql = "SELECT id FROM (SELECT s.id FROM " + requireTableName(sourceTable) + " s "
+                + "WHERE s.crt_time >= ? AND s.crt_time < ? "
+                + "AND EXISTS (SELECT 1 FROM " + requireTableName(archiveTable) + " a WHERE a.id = s.id) "
+                + "ORDER BY s.id) WHERE ROWNUM <= ?";
         return findIdsWithLimit(connection, sql, startTime, endTime, batchSize);
+    }
+
+    @Override
+    public void dropTable(Connection connection, String tableName) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("DROP TABLE " + requireTableName(tableName))) {
+            statement.execute();
+        } catch (SQLException e) {
+            // ORA-00942：前一次清理已成功删除表，但元数据状态尚未更新。
+            if (e.getErrorCode() != 942) {
+                throw e;
+            }
+        }
     }
 
     private void createIndexIfMissing(Connection connection, String indexName, String tableName, String columns) throws SQLException {

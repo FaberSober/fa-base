@@ -90,17 +90,12 @@ public class LogArchiveBiz {
             updateStatus(archive, LogArchiveStatusEnum.ARCHIVING, null);
             dialect.createArchiveTable(connection, target.sourceTable(), archiveTable);
 
-            long sourceCount = dialect.countRows(connection, target.sourceTable(), startTime, endTime);
-            dialect.copyMissingRows(connection, target.sourceTable(), archiveTable, startTime, endTime);
-            long archiveCount = dialect.countRows(connection, archiveTable, startTime, endTime);
-            if (archiveCount < sourceCount) {
-                throw new IllegalStateException("归档校验失败：源表数据量=" + sourceCount + "，归档表数据量=" + archiveCount);
-            }
-            deleteSourceRows(connection, dialect, target.sourceTable(), startTime, endTime);
+            long archiveCount = archiveAndDeleteSourceRows(
+                    connection, dialect, target.sourceTable(), archiveTable, startTime, endTime);
 
             archive.setDataStartTime(new Date(startTime.getTime()));
             archive.setDataEndTime(new Date(endTime.getTime()));
-            archive.setRowCount(sourceCount);
+            archive.setRowCount(archiveCount);
             archive.setArchiveTime(new Date());
             updateStatus(archive, LogArchiveStatusEnum.SUCCESS, null);
         } catch (Exception e) {
@@ -145,7 +140,9 @@ public class LogArchiveBiz {
         for (LogArchive archive : archives) {
             try (Connection connection = dataSource.getConnection()) {
                 LogArchiveDialect dialect = dialectResolver.resolve(connection.getMetaData().getDatabaseProductName());
-                dialect.dropTable(connection, archive.getArchiveTable());
+                if (dialect.tableExists(connection, archive.getArchiveTable())) {
+                    dialect.dropTable(connection, archive.getArchiveTable());
+                }
                 updateStatus(archive, LogArchiveStatusEnum.CLEANED, null);
             } catch (Exception e) {
                 log.error("清理归档日志失败，归档表：{}", archive.getArchiveTable(), e);
@@ -191,17 +188,28 @@ public class LogArchiveBiz {
         return archive;
     }
 
-    private void deleteSourceRows(
+    private long archiveAndDeleteSourceRows(
             Connection connection,
             LogArchiveDialect dialect,
             String sourceTable,
+            String archiveTable,
             Timestamp startTime,
             Timestamp endTime
     ) throws Exception {
         while (true) {
-            List<Long> ids = dialect.findIds(connection, sourceTable, startTime, endTime, DELETE_BATCH_SIZE);
+            dialect.copyMissingRows(connection, sourceTable, archiveTable, startTime, endTime);
+            long sourceCount = dialect.countRows(connection, sourceTable, startTime, endTime);
+            long archiveCount = dialect.countRows(connection, archiveTable, startTime, endTime);
+            if (archiveCount < sourceCount) {
+                throw new IllegalStateException("归档校验失败：源表数据量=" + sourceCount + "，归档表数据量=" + archiveCount);
+            }
+            List<Long> ids = dialect.findCopiedSourceIds(
+                    connection, sourceTable, archiveTable, startTime, endTime, DELETE_BATCH_SIZE);
             if (ids.isEmpty()) {
-                return;
+                if (sourceCount == 0) {
+                    return archiveCount;
+                }
+                throw new IllegalStateException("归档校验失败：存在未复制的源表日志");
             }
             int deletedRows = dialect.deleteByIds(connection, sourceTable, ids);
             if (deletedRows != ids.size()) {
