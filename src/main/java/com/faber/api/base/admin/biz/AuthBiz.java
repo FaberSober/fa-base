@@ -12,6 +12,7 @@ import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
 import com.faber.config.utils.user.LoginReqVo;
+import com.faber.config.auth.OnlineUserTracker;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.service.LogoutService;
@@ -30,6 +31,7 @@ public class AuthBiz implements LogoutService {
     @Resource UserBiz userBiz;
     @Resource UserTokenBiz userTokenBiz;
     @Resource LogLoginBiz logLoginBiz;
+    @Resource OnlineUserTracker onlineUserTracker;
 
 //    @Autowired
 //    private CacheManager cacheManager;
@@ -114,6 +116,7 @@ public class AuthBiz implements LogoutService {
         // 使用sa-token登录框架
         StpUtil.login(user.getId(), source);
         SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
+        if ("web".equals(source)) onlineUserTracker.touch(tokenInfo.getTokenValue(), user, true);
         return tokenInfo;
     }
 
@@ -125,7 +128,9 @@ public class AuthBiz implements LogoutService {
 
     @Override
     public String logout() {
+        String token = StpUtil.getTokenValue();
         StpUtil.logout();
+        onlineUserTracker.remove(token);
         return LogoutService.super.logout();
     }
 

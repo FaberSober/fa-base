@@ -7,6 +7,7 @@ import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
+import com.faber.config.auth.OnlineUserTracker;
 import com.faber.api.base.tn.biz.TenantUserBiz;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
@@ -45,6 +46,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
     @Resource
     private FaSetting faSetting;
 
+    @Resource
+    private OnlineUserTracker onlineUserTracker;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 配置该注解，说明在上下文中注入当前操作用户为admin
@@ -81,6 +85,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         try {
             userId = StpUtil.getLoginIdAsString();
         } catch (Exception e) {
+            if (e instanceof NotLoginException notLogin && NotLoginException.KICK_OUT.equals(notLogin.getType())) {
+                throw new UserTokenException("您已被管理员强制下线，请重新登录！");
+            }
             // 这里不处理异常，是为了简化可以同时兼容api token调用的形式，简化了操作，但是有安全性的问题。如果项目安全要求较高，可以自行修改抛出异常
             if (e instanceof UserTokenException || e instanceof NotLoginException) {
                 log.warn(e.getMessage());
@@ -108,6 +115,8 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         userBiz.setUserLogin(user);
         requireApplicationAccess(request.getRequestURI(), user);
         this.resolveUserTenant(request, userId);
+
+        onlineUserTracker.touch(token, user, false);
 
         return super.preHandle(request, response, handler);
     }
