@@ -10,7 +10,7 @@
 - `clientType`：`DESKTOP`。
 - `appCode`：例如 `fa-pixel-editor`。
 
-所有请求发送至 `/open/telemetry`，无需用户 Token。服务端校验 `appKey`、应用启用状态与 `clientType` 是否一致。
+所有请求发送至 `/api/base/telemetry/open`，无需用户 Token。服务端校验 `appKey`、应用启用状态与 `clientType` 是否一致。
 
 ## 公共上下文
 
@@ -43,7 +43,7 @@ Web SDK 默认只记录 URL 的 origin 与 pathname，不记录 query string；D
 
 ## Rust/Tauri 异常上报
 
-`POST /open/telemetry/error`
+`POST /api/base/telemetry/open/error`
 
 在公共上下文后追加：
 
@@ -60,7 +60,7 @@ Web SDK 默认只记录 URL 的 origin 与 pathname，不记录 query string；D
 
 ## Rust/Tauri 业务事件上报
 
-`POST /open/telemetry/event`
+`POST /api/base/telemetry/open/event`
 
 在公共上下文后追加：
 

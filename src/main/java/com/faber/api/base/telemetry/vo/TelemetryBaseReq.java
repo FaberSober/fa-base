@@ -1,5 +1,6 @@
 package com.faber.api.base.telemetry.vo;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.faber.api.base.telemetry.enums.TelemetryClientTypeEnum;
@@ -40,6 +41,8 @@ public class TelemetryBaseReq {
     @Size(max = 64)
     private String tenantId;
 
+    /** 客户端使用 ISO 8601 时间，独立于应用全局日期格式。 */
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", timezone = "UTC")
     private Date occurTime;
 
     private JsonNode context;

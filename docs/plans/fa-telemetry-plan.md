@@ -71,7 +71,7 @@ fa-pixel-editor → DESKTOP
 | Telemetry 基础  | Session                | 为客户端会话生成统一 Session ID                  | 当前开发 | ✅已完成  |
 | Telemetry 基础  | User Context           | 统一记录 userId、tenantId 等用户上下文            | 当前开发 | ✅已完成  |
 | Telemetry 基础  | Context                | 使用 JSON 保存客户端运行环境信息                    | 当前开发 | ✅已完成  |
-| Telemetry 基础  | Collector API          | 建立统一 `/open/telemetry/*` 数据采集入口        | 当前开发 | ✅已完成  |
+| Telemetry 基础  | Collector API          | 建立统一 `/api/base/telemetry/open/*` 数据采集入口        | 当前开发 | ✅已完成  |
 | Telemetry 基础  | AppKey 校验              | 校验应用是否合法及是否允许上报                        | 当前开发 | ✅已完成  |
 | Telemetry 基础  | 上报参数校验                 | 限制 Message、Stack、Context、Properties 大小 | 当前开发 | ✅已完成  |
 | Telemetry 基础  | 异步写入                   | Telemetry 数据异步处理，不阻塞业务请求               | 当前开发 | ✅已完成  |
@@ -596,25 +596,25 @@ Context 统一以可扩展 JSON 保存，避免数据库频繁增加环境字段
 统一使用：
 
 ```text
-/open/telemetry
+/api/base/telemetry/open
 ```
 
 ## 12.1 异常事件
 
 ```text
-POST /open/telemetry/error
+POST /api/base/telemetry/open/error
 ```
 
 ## 12.2 业务事件
 
 ```text
-POST /open/telemetry/event
+POST /api/base/telemetry/open/event
 ```
 
 后续可扩展：
 
 ```text
-POST /open/telemetry/events
+POST /api/base/telemetry/open/events
 ```
 
 用于批量上报。
@@ -1628,8 +1628,8 @@ Breadcrumb
 Rust 后续直接调用：
 
 ```text
-POST /open/telemetry/error
-POST /open/telemetry/event
+POST /api/base/telemetry/open/error
+POST /api/base/telemetry/open/event
 ```
 
 预留：
@@ -1722,7 +1722,7 @@ Sprite Export 使用数
 * [x] 定义 User Context
 * [x] 定义 Context JSON
 * [x] 实现 AppKey 校验
-* [x] 建立 `/open/telemetry/*`
+* [x] 建立 `/api/base/telemetry/open/*`
 * [x] 创建前端 Telemetry SDK 基础结构
 
 ---
@@ -1848,7 +1848,7 @@ src/
 业务层只依赖：
 
 ```ts
-import { telemetry } from "@/telemetry"
+import { telemetry } from "@features/fa-admin-pages/telemetry"
 ```
 
 禁止业务模块直接调用 Telemetry HTTP API。

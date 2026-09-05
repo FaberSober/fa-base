@@ -126,3 +126,27 @@ CREATE TABLE IF NOT EXISTS "base_stat_daily" (
 CREATE INDEX IF NOT EXISTS "stat_daily__idx_date_filter" ON "base_stat_daily" ("stat_date", "app_id", "client_type", "environment");
 CREATE INDEX IF NOT EXISTS "stat_daily__idx_code" ON "base_stat_daily" ("event_code", "stat_date");
 COMMENT ON TABLE "base_stat_daily" IS 'Telemetry每日聚合统计';
+
+-- Telemetry 应用管理菜单
+INSERT INTO base_rbac_menu (
+  id, parent_id, name, sort, level, icon, status, link_type, link_url,
+  crt_time, crt_user, crt_name, crt_host, upd_time, upd_user, upd_name, upd_host, deleted
+)
+SELECT 10030000, 12000000, 'Telemetry', 5, 1, 'mdi:chart-line', TRUE, 1, '/admin/system/telemetry',
+  CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM base_rbac_menu WHERE id = 10030000 OR link_url = '/admin/system/telemetry'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Telemetry 应用管理菜单
+INSERT INTO base_rbac_menu (
+  id, parent_id, name, sort, level, icon, status, link_type, link_url,
+  crt_time, crt_user, crt_name, crt_host, upd_time, upd_user, upd_name, upd_host, deleted
+)
+SELECT 10030005, 10030000, '应用管理', 4, 1, NULL, TRUE, 1, '/admin/system/telemetry/app',
+  CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM base_rbac_menu WHERE id = 10030005 OR link_url = '/admin/system/telemetry/app'
+)
+ON CONFLICT (id) DO NOTHING;

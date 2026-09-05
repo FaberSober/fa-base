@@ -14,8 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** 不依赖登录态的 Telemetry Collector 入口。 */
 @RestController
-@RequestMapping("/open/telemetry")
-@IgnoreUserToken
+@RequestMapping("/api/base/telemetry/open")
 public class TelemetryCollectorController extends BaseResHandler {
 
     private final TelemetryCollectorService collectorService;
@@ -24,12 +23,14 @@ public class TelemetryCollectorController extends BaseResHandler {
         this.collectorService = collectorService;
     }
 
+    @IgnoreUserToken
     @PostMapping("/error")
     public Ret<Void> collectError(@Valid @RequestBody TelemetryErrorReq request) {
         collectorService.acceptError(request);
         return ok();
     }
 
+    @IgnoreUserToken
     @PostMapping("/event")
     public Ret<Void> collectEvent(@Valid @RequestBody TelemetryEventReq request) {
         collectorService.acceptEvent(request);
