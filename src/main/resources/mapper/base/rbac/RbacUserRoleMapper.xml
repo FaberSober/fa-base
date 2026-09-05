@@ -31,4 +31,19 @@
         ) AND link_url = #{linkUrl}
     </select>
 
+    <!-- 在线用户属于平台能力，租户角色即使关联相同菜单也不能授予此权限。 -->
+    <select id="countPlatformPermission" resultType="int">
+        SELECT count(0)
+          FROM base_rbac_user_role ur
+          JOIN base_rbac_role r ON r.id = ur.role_id
+          JOIN base_rbac_role_menu rm ON rm.role_id = r.id
+          JOIN base_rbac_menu m ON m.id = rm.menu_id
+         WHERE ur.user_id = #{userId}
+           AND ur.deleted = false AND r.deleted = false
+           AND rm.deleted = false AND m.deleted = false
+           AND r.status = true AND m.status = true
+           AND r.type IN (1, 2) AND (r.tenant_id IS NULL OR r.tenant_id = '')
+           AND rm.half_checked = false AND m.scope = 1
+           AND m.link_url = #{linkUrl}
+    </select>
 </mapper>
