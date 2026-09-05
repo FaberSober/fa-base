@@ -10,6 +10,7 @@ import com.faber.config.auth.OnlineUserTracker;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.auth.UserNoPermissionException;
+import com.faber.core.exception.auth.UserTokenException;
 import com.faber.core.vo.query.BasePageQuery;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -168,5 +169,13 @@ class OnlineUserBizTest {
         when(store.revision()).thenReturn(0L, 1L);
         assertEquals(1, biz.stats().getSessionCount());
         assertEquals(0, biz.stats().getSessionCount());
+    }
+
+    @Test
+    void missingLegacyDeviceRequiresReloginInsteadOfReportingMissingPermission() {
+        stp.when(() -> StpUtil.getLoginDeviceByToken("current-secret")).thenReturn(null);
+        UserTokenException error = assertThrows(UserTokenException.class, biz::stats);
+        assertTrue(error.getMessage().contains("重新登录"));
+        verifyNoInteractions(store, roles);
     }
 }

@@ -14,6 +14,7 @@ import com.faber.core.constant.CommonConstants;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.auth.UserNoPermissionException;
+import com.faber.core.exception.auth.UserTokenException;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.BasePageQuery;
 import jakarta.annotation.Resource;
@@ -120,8 +121,15 @@ public class OnlineUserBiz {
         String userId = BaseContextHandler.getUserId();
         // API Token 和 portal 会话均不能调用平台在线会话管理接口。
         String token = StpUtil.getTokenValue();
-        if (StrUtil.isBlank(userId) || !userId.equals(StpUtil.getLoginIdByToken(token))
-                || !"web".equals(StpUtil.getLoginDeviceByToken(token))
+        if (StrUtil.isBlank(userId) || !userId.equals(StpUtil.getLoginIdByToken(token))) {
+            throw new UserNoPermissionException("无在线用户平台管理权限");
+        }
+        String device = StpUtil.getLoginDeviceByToken(token);
+        if (StrUtil.isBlank(device)) {
+            // 历史 Redis 适配器可能未持久化设备索引，不能把未知来源当作后台会话放行。
+            throw new UserTokenException("登录会话信息不完整，请重新登录");
+        }
+        if (!"web".equals(device)
                 || (!CommonConstants.SUPER_ADMIN_ID.equals(userId)
                     && roleMapper.countPlatformPermission(userId, permission) == 0)) {
             throw new UserNoPermissionException("无在线用户平台管理权限");
