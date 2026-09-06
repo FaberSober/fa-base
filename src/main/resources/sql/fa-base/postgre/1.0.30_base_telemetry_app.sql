@@ -127,7 +127,7 @@ CREATE INDEX IF NOT EXISTS "stat_daily__idx_date_filter" ON "base_stat_daily" ("
 CREATE INDEX IF NOT EXISTS "stat_daily__idx_code" ON "base_stat_daily" ("event_code", "stat_date");
 COMMENT ON TABLE "base_stat_daily" IS 'Telemetry每日聚合统计';
 
--- Telemetry 应用管理菜单
+-- Telemetry 菜单：系统设置 / Telemetry / 统计看板、异常 Issue、异常事件、业务事件
 INSERT INTO base_rbac_menu (
   id, parent_id, name, sort, level, icon, status, link_type, link_url,
   crt_time, crt_user, crt_name, crt_host, upd_time, upd_user, upd_name, upd_host, deleted
@@ -136,6 +136,51 @@ SELECT 10030000, 12000000, 'Telemetry', 5, 1, 'mdi:chart-line', TRUE, 1, '/admin
   CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, FALSE
 WHERE NOT EXISTS (
   SELECT 1 FROM base_rbac_menu WHERE id = 10030000 OR link_url = '/admin/system/telemetry'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Telemetry 子菜单：统计看板、异常 Issue、异常事件、业务事件
+INSERT INTO base_rbac_menu (
+  id, parent_id, name, sort, level, icon, status, link_type, link_url,
+  crt_time, crt_user, crt_name, crt_host, upd_time, upd_user, upd_name, upd_host, deleted
+)
+SELECT 10030001, 10030000, '统计看板', 0, 1, NULL, TRUE, 1, '/admin/system/telemetry/dashboard',
+  CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM base_rbac_menu WHERE id = 10030001 OR link_url = '/admin/system/telemetry/dashboard'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO base_rbac_menu (
+  id, parent_id, name, sort, level, icon, status, link_type, link_url,
+  crt_time, crt_user, crt_name, crt_host, upd_time, upd_user, upd_name, upd_host, deleted
+)
+SELECT 10030002, 10030000, '异常 Issue', 1, 1, NULL, TRUE, 1, '/admin/system/telemetry/issue',
+  CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM base_rbac_menu WHERE id = 10030002 OR link_url = '/admin/system/telemetry/issue'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO base_rbac_menu (
+  id, parent_id, name, sort, level, icon, status, link_type, link_url,
+  crt_time, crt_user, crt_name, crt_host, upd_time, upd_user, upd_name, upd_host, deleted
+)
+SELECT 10030003, 10030000, '异常事件', 2, 1, NULL, TRUE, 1, '/admin/system/telemetry/event',
+  CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM base_rbac_menu WHERE id = 10030003 OR link_url = '/admin/system/telemetry/event'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO base_rbac_menu (
+  id, parent_id, name, sort, level, icon, status, link_type, link_url,
+  crt_time, crt_user, crt_name, crt_host, upd_time, upd_user, upd_name, upd_host, deleted
+)
+SELECT 10030004, 10030000, '业务事件', 3, 1, NULL, TRUE, 1, '/admin/system/telemetry/stat-event',
+  CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM base_rbac_menu WHERE id = 10030004 OR link_url = '/admin/system/telemetry/stat-event'
 )
 ON CONFLICT (id) DO NOTHING;
 
