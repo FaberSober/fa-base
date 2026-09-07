@@ -198,13 +198,13 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
             boolean extendedLogSupported
     ) {
         SystemUpdateLog updateLog = new SystemUpdateLog();
-        SystemUpdateLog existingLog = baseMapper.selectOne(
+        SystemUpdateLog existingLog = baseMapper.selectPage(
+                new Page<>(1, 1),
                 new QueryWrapper<SystemUpdateLog>()
                         .select("id")
                         .eq("no", no)
                         .eq("ver", header.getVer())
-                        .last("limit 1")
-        );
+        ).getRecords().stream().findFirst().orElse(null);
         if (existingLog != null) {
             updateLog.setId(existingLog.getId());
         }
@@ -355,8 +355,11 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         if (extendedLogSupported) {
             wrapper.eq("status", STATUS_SUCCESS);
         }
-        wrapper.orderByDesc("ver").last("limit 1");
-        return baseMapper.selectOne(wrapper);
+        return baseMapper.selectPage(new Page<>(1, 1), wrapper.orderByDesc("ver"))
+                .getRecords()
+                .stream()
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
@@ -398,9 +401,8 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     }
 
     private boolean hasExtendedLogColumns(Connection conn) throws SQLException {
-        // 直接用扩展列做零行探测，列或表不存在时MySQL在解析阶段即报错，
-        // 避免查询information_schema.COLUMNS在冷缓存下的长耗时
-        String sql = "SELECT status, file_name, checksum, duration_ms, error_msg FROM base_system_update_log LIMIT 0";
+        // 用扩展列做零行探测，避免查询系统目录。
+        String sql = "SELECT status, file_name, checksum, duration_ms, error_msg FROM base_system_update_log WHERE 1 = 0";
         try (PreparedStatement statement = conn.prepareStatement(sql);
              ResultSet resultSet = statement.executeQuery()) {
             return true;
@@ -413,7 +415,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     }
 
     private boolean hasSystemUpdateLogTable(Connection conn) throws SQLException {
-        String sql = "SELECT 1 FROM base_system_update_log LIMIT 0";
+        String sql = "SELECT 1 FROM base_system_update_log WHERE 1 = 0";
         try (PreparedStatement statement = conn.prepareStatement(sql);
              ResultSet resultSet = statement.executeQuery()) {
             return true;
@@ -427,8 +429,9 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
 
     private boolean isMissingTableOrColumnError(SQLException e) {
         // MySQL: 1054未知列(42S22)、1146表不存在(42S02)
-        // PostgreSQL: 42703列不存在、42P01表不存在
+        // PostgreSQL: 42703列不存在、42P01表不存在；Oracle: ORA-00904、ORA-00942
         return e.getErrorCode() == 1054 || e.getErrorCode() == 1146
+                || e.getErrorCode() == 904 || e.getErrorCode() == 942
                 || "42S22".equals(e.getSQLState()) || "42S02".equals(e.getSQLState())
                 || "42703".equals(e.getSQLState()) || "42P01".equals(e.getSQLState());
     }
@@ -438,7 +441,11 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
             acquireMysqlDbInitLock(conn, lockName);
             return;
         }
-        acquirePostgreDbInitLock(conn, lockName);
+        if ("postgre".equals(databaseType)) {
+            acquirePostgreDbInitLock(conn, lockName);
+            return;
+        }
+        acquireOracleDbInitLock(conn, lockName);
     }
 
     private void acquireMysqlDbInitLock(Connection conn, String lockName) throws SQLException {
@@ -461,12 +468,28 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         }
     }
 
+    private void acquireOracleDbInitLock(Connection conn, String lockName) throws SQLException {
+        try (PreparedStatement statement = conn.prepareStatement("SELECT DBMS_LOCK.REQUEST(?, 6, ?) FROM DUAL")) {
+            statement.setInt(1, toOracleLockId(lockName));
+            statement.setInt(2, DB_INIT_LOCK_TIMEOUT_SECONDS);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next() || resultSet.getInt(1) != 0) {
+                    throw new IllegalStateException("获取 Oracle 数据库初始化锁失败：" + lockName);
+                }
+            }
+        }
+    }
+
     private void releaseDbInitLock(Connection conn, String lockName, String databaseType) {
         if ("mysql".equals(databaseType)) {
             releaseMysqlDbInitLock(conn, lockName);
             return;
         }
-        releasePostgreDbInitLock(conn, lockName);
+        if ("postgre".equals(databaseType)) {
+            releasePostgreDbInitLock(conn, lockName);
+            return;
+        }
+        releaseOracleDbInitLock(conn, lockName);
     }
 
     private void releaseMysqlDbInitLock(Connection conn, String lockName) {
@@ -487,6 +510,15 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         }
     }
 
+    private void releaseOracleDbInitLock(Connection conn, String lockName) {
+        try (PreparedStatement statement = conn.prepareStatement("SELECT DBMS_LOCK.RELEASE(?) FROM DUAL")) {
+            statement.setInt(1, toOracleLockId(lockName));
+            statement.executeQuery();
+        } catch (SQLException e) {
+            _logger.warn("释放 Oracle 数据库初始化锁失败：{}", lockName, e);
+        }
+    }
+
     private String buildLockName(Connection conn) throws SQLException {
         String lockName = "fa-admin:db-init:" + Objects.toString(conn.getCatalog(), "default");
         return lockName.length() <= 64 ? lockName : lockName.substring(0, 64);
@@ -500,12 +532,19 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         if (normalizedName.contains("postgresql")) {
             return "postgre";
         }
+        if (normalizedName.contains("oracle")) {
+            return "oracle";
+        }
         throw new IllegalStateException("不支持的数据库类型：" + Objects.toString(databaseProductName, "<unknown>")
-                + "，仅支持 MySQL、PostgreSQL");
+                + "，仅支持 MySQL、PostgreSQL、Oracle");
     }
 
     private long toPostgreLockId(String lockName) {
         return Long.parseUnsignedLong(DigestUtil.sha256Hex(lockName).substring(0, 16), 16);
+    }
+
+    private int toOracleLockId(String lockName) {
+        return (int) (Math.floorMod(toPostgreLockId(lockName), 1_073_741_823L) + 1);
     }
 
     private long elapsedMillis(long startedAt) {
