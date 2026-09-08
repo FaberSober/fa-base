@@ -6,14 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.Ordered;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 
@@ -50,32 +45,6 @@ public abstract class BaseWebConfiguration extends WebMvcConfigurationSupport {
         registry.addResourceHandler("/**").addResourceLocations("classpath:/static/");
         //调用基类的方法
         super.addResourceHandlers(registry);
-    }
-
-    /**
-     * CORS 配置：允许 fa-pixel-editor（Tauri Desktop）前端直连 API。
-     * 使用 CorsFilter（Servlet Filter，最高优先级）在拦截器之前处理 CORS 预检，
-     * 避免 OPTIONS 预检请求被 UserAuthRestInterceptor / SaInterceptor 等拦截器
-     * 因无法解析 @IgnoreUserToken 而拦截。
-     * dev origin: http://localhost:1420（Tauri devUrl / Vite dev server）
-     * prod origin: http://tauri.localhost（Tauri 2 默认）
-     */
-    @Bean
-    public FilterRegistrationBean<CorsFilter> corsFilterRegistration() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:1420", "http://tauri.localhost"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id", "Accept"));
-        config.setAllowCredentials(false);
-        config.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", config);
-        source.registerCorsConfiguration("/outapi/**", config);
-
-        FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>(new CorsFilter(source));
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
-        return registration;
     }
 
     /**
