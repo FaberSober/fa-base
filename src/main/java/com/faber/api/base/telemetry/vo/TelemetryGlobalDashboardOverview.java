@@ -2,14 +2,12 @@ package com.faber.api.base.telemetry.vo;
 
 import lombok.Data;
 
-import java.util.Date;
-
-/** Telemetry 按日趋势指标。 */
+/** Telemetry 全局当日概览指标。 */
 @Data
-public class TelemetryDashboardTrend {
-    private Date statDate;
+public class TelemetryGlobalDashboardOverview {
+    private Long appCount;
+    private Long enabledAppCount;
     private Long activeUserCount;
-    private Long loginCount;
     private Long pageViewCount;
     private Long businessEventCount;
     private Long errorCount;

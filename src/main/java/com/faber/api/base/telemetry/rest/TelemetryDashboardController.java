@@ -4,6 +4,8 @@ import com.faber.api.base.telemetry.biz.TelemetryDashboardBiz;
 import com.faber.api.base.telemetry.vo.TelemetryDashboardOverview;
 import com.faber.api.base.telemetry.vo.TelemetryDashboardRank;
 import com.faber.api.base.telemetry.vo.TelemetryDashboardTrend;
+import com.faber.api.base.telemetry.vo.TelemetryGlobalDashboardAppRank;
+import com.faber.api.base.telemetry.vo.TelemetryGlobalDashboardOverview;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
@@ -27,22 +29,37 @@ public class TelemetryDashboardController extends BaseResHandler {
     }
 
     @GetMapping("/overview")
-    public Ret<TelemetryDashboardOverview> overview() {
-        return ok(telemetryDashboardBiz.overview());
+    public Ret<TelemetryDashboardOverview> overview(@RequestParam Long appId) {
+        return ok(telemetryDashboardBiz.overview(appId));
     }
 
     @GetMapping("/trend")
-    public Ret<List<TelemetryDashboardTrend>> trend(@RequestParam(defaultValue = "7") int days) {
-        return ok(telemetryDashboardBiz.trend(days));
+    public Ret<List<TelemetryDashboardTrend>> trend(@RequestParam Long appId, @RequestParam(defaultValue = "7") int days) {
+        return ok(telemetryDashboardBiz.trend(appId, days));
     }
 
     @GetMapping("/moduleRank")
-    public Ret<List<TelemetryDashboardRank>> moduleRank() {
-        return ok(telemetryDashboardBiz.moduleRank());
+    public Ret<List<TelemetryDashboardRank>> moduleRank(@RequestParam Long appId) {
+        return ok(telemetryDashboardBiz.moduleRank(appId));
     }
 
     @GetMapping("/eventRank")
-    public Ret<List<TelemetryDashboardRank>> eventRank() {
-        return ok(telemetryDashboardBiz.eventRank());
+    public Ret<List<TelemetryDashboardRank>> eventRank(@RequestParam Long appId) {
+        return ok(telemetryDashboardBiz.eventRank(appId));
+    }
+
+    @GetMapping("/globalOverview")
+    public Ret<TelemetryGlobalDashboardOverview> globalOverview() {
+        return ok(telemetryDashboardBiz.globalOverview());
+    }
+
+    @GetMapping("/globalTrend")
+    public Ret<List<TelemetryDashboardTrend>> globalTrend(@RequestParam(defaultValue = "7") int days) {
+        return ok(telemetryDashboardBiz.globalTrend(days));
+    }
+
+    @GetMapping("/globalAppRank")
+    public Ret<List<TelemetryGlobalDashboardAppRank>> globalAppRank(@RequestParam(defaultValue = "7") int days) {
+        return ok(telemetryDashboardBiz.globalAppRank(days));
     }
 }

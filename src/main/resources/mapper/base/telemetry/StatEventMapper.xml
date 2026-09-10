@@ -9,17 +9,18 @@
                      THEN COALESCE(NULLIF(user_id, ''), session_id) END) AS login_user_count,
                COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
                COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count
-          FROM base_stat_event
-         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         FROM base_stat_event
+         WHERE app_id = #{appId} AND occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
     </select>
 
     <select id="selectDashboardTrend" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
         SELECT DATE(occur_time) AS stat_date,
                COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
                COALESCE(SUM(CASE WHEN event_type = 'LOGIN' AND event_code = 'auth.login.success' THEN 1 ELSE 0 END), 0) AS login_count,
+               COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
                COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count
-          FROM base_stat_event
-         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         FROM base_stat_event
+         WHERE app_id = #{appId} AND occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
          GROUP BY DATE(occur_time)
          ORDER BY DATE(occur_time)
     </select>
@@ -28,9 +29,10 @@
         SELECT TRUNC(occur_time) AS stat_date,
                COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
                COALESCE(SUM(CASE WHEN event_type = 'LOGIN' AND event_code = 'auth.login.success' THEN 1 ELSE 0 END), 0) AS login_count,
+               COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
                COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count
-          FROM base_stat_event
-         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         FROM base_stat_event
+         WHERE app_id = #{appId} AND occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
          GROUP BY TRUNC(occur_time)
          ORDER BY TRUNC(occur_time)
     </select>
@@ -39,8 +41,8 @@
         SELECT COALESCE(NULLIF(module, ''), '其他') AS name,
                COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS primary_count,
                COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS secondary_count
-          FROM base_stat_event
-         WHERE occur_time &gt;= #{startTime}
+             FROM base_stat_event
+             WHERE app_id = #{appId} AND occur_time &gt;= #{startTime}
          GROUP BY COALESCE(NULLIF(module, ''), '其他')
          ORDER BY primary_count DESC, secondary_count DESC
          LIMIT #{limit}
@@ -52,7 +54,7 @@
                    COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS primary_count,
                    COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS secondary_count
               FROM base_stat_event
-             WHERE occur_time &gt;= #{startTime}
+             WHERE app_id = #{appId} AND occur_time &gt;= #{startTime}
              GROUP BY COALESCE(NULLIF(module, ''), '其他')
              ORDER BY primary_count DESC, secondary_count DESC
         ) WHERE ROWNUM &lt;= #{limit}
@@ -60,8 +62,8 @@
 
     <select id="selectEventRank" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardRank">
         SELECT event_code AS name, COUNT(*) AS primary_count, COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS secondary_count
-          FROM base_stat_event
-         WHERE occur_time &gt;= #{startTime} AND event_type IN ('ACTION', 'BUSINESS')
+         FROM base_stat_event
+         WHERE app_id = #{appId} AND occur_time &gt;= #{startTime} AND event_type IN ('ACTION', 'BUSINESS')
          GROUP BY event_code
          ORDER BY primary_count DESC
          LIMIT #{limit}
@@ -71,9 +73,50 @@
         SELECT * FROM (
             SELECT event_code AS name, COUNT(*) AS primary_count, COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS secondary_count
               FROM base_stat_event
-             WHERE occur_time &gt;= #{startTime} AND event_type IN ('ACTION', 'BUSINESS')
+             WHERE app_id = #{appId} AND occur_time &gt;= #{startTime} AND event_type IN ('ACTION', 'BUSINESS')
              GROUP BY event_code
              ORDER BY primary_count DESC
         ) WHERE ROWNUM &lt;= #{limit}
+    </select>
+
+    <select id="selectGlobalDashboardOverview" resultType="com.faber.api.base.telemetry.vo.TelemetryGlobalDashboardOverview">
+        SELECT COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
+               COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
+               COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count
+          FROM base_stat_event
+         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+    </select>
+
+    <select id="selectGlobalDashboardTrend" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
+        SELECT DATE(occur_time) AS stat_date,
+               COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
+               COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
+               COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count
+          FROM base_stat_event
+         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         GROUP BY DATE(occur_time)
+         ORDER BY DATE(occur_time)
+    </select>
+
+    <select id="selectGlobalDashboardTrend" databaseId="oracle" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
+        SELECT TRUNC(occur_time) AS stat_date,
+               COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
+               COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
+               COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count
+          FROM base_stat_event
+         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         GROUP BY TRUNC(occur_time)
+         ORDER BY TRUNC(occur_time)
+    </select>
+
+    <select id="selectGlobalAppStatRank" resultType="com.faber.api.base.telemetry.vo.TelemetryGlobalDashboardAppRank">
+        SELECT app_id,
+               COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
+               COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
+               COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count,
+               MAX(occur_time) AS last_report_time
+          FROM base_stat_event
+         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         GROUP BY app_id
     </select>
 </mapper>
