@@ -23,7 +23,7 @@ ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "base_rbac_role_menu"
     ("role_id", "menu_id", "half_checked", "crt_time", "crt_user", "crt_name", "crt_host", "deleted")
-SELECT 1, 10030006, 0, CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', FALSE
+SELECT 1, 10030006, FALSE, CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', FALSE
 WHERE EXISTS (
     SELECT 1 FROM "base_rbac_role_menu" WHERE "role_id" = 1 AND "deleted" = FALSE
   )
