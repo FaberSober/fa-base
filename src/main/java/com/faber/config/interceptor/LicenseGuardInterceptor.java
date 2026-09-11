@@ -23,7 +23,8 @@ public class LicenseGuardInterceptor extends AbstractInterceptor {
             "/api/portal/auth/register",
             "/api/base/admin/license/info",
             "/api/base/admin/license/import",
-            "/api/base/admin/license/refresh"
+            "/api/base/admin/license/refresh",
+            "/api/v1/license/validate"
     );
 
     private final LicenseManager licenseManager;
@@ -41,7 +42,8 @@ public class LicenseGuardInterceptor extends AbstractInterceptor {
         String uri = normalizeUri(request.getRequestURI(), request.getContextPath());
         if (!isApi(uri)
                 || "OPTIONS".equalsIgnoreCase(request.getMethod())
-                || WHITELIST.contains(uri)) {
+                || WHITELIST.contains(uri)
+                || uri.startsWith("/api/base/license/")) {
             return true;
         }
 
