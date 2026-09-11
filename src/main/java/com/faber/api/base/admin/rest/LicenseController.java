@@ -11,6 +11,7 @@ import com.faber.core.license.LicenseManager;
 import com.faber.core.license.LicenseProperties;
 import com.faber.core.license.MachineIdProvider;
 import com.faber.core.license.OfflineLicenseService;
+import com.faber.core.constant.CommonConstants;
 import com.faber.core.vo.msg.Ret;
 import com.faber.core.utils.BaseResHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -77,20 +78,26 @@ public class LicenseController extends BaseResHandler {
     private LicenseStatusVo statusVo() {
         LicenseInfo info = licenseManager.getLicenseInfo();
         LicenseStatusVo result = new LicenseStatusVo();
+        boolean canViewDiagnostics = CommonConstants.SUPER_ADMIN_ID.equals(getLoginUserId());
         result.setEnabled(properties.isEnabled());
         result.setMode(properties.getMode());
         result.setStatus(licenseManager.getState());
-        try {
-            result.setMachineId(machineIdProvider.getMachineId());
-        } catch (Exception ignored) {
-            // 授权状态接口不能因机器信息读取失败而不可访问。
+        result.setCanViewDiagnostics(canViewDiagnostics);
+        if (canViewDiagnostics) {
+            try {
+                result.setMachineId(machineIdProvider.getMachineId());
+            } catch (Exception ignored) {
+                // 授权状态接口不能因机器信息读取失败而不可访问。
+            }
         }
         if (info != null) {
-            result.setLicenseId(info.getLicenseId());
             result.setProduct(info.getProduct());
-            result.setCustomer(info.getCustomer());
-            result.setIssuedAt(info.getIssuedAt());
             result.setExpireAt(info.getExpireAt());
+            if (canViewDiagnostics) {
+                result.setLicenseId(info.getLicenseId());
+                result.setCustomer(info.getCustomer());
+                result.setIssuedAt(info.getIssuedAt());
+            }
         }
         return result;
     }

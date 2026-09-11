@@ -12,6 +12,7 @@ public class LicenseStatusVo {
     private boolean enabled;
     private LicenseMode mode;
     private LicenseState status;
+    private boolean canViewDiagnostics;
     private String machineId;
     private String licenseId;
     private String product;
