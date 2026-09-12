@@ -1,19 +1,24 @@
 package com.faber.api.base.admin.rest;
 
+import cn.hutool.core.util.StrUtil;
+import com.faber.api.base.admin.vo.ret.LicenseRecoveryStatusVo;
 import com.faber.api.base.admin.vo.ret.LicenseStatusVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
+import com.faber.core.config.annotation.IgnoreUserToken;
+import com.faber.core.constant.CommonConstants;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.license.LicenseFileCodec;
 import com.faber.core.license.LicenseFileException;
 import com.faber.core.license.LicenseInfo;
 import com.faber.core.license.LicenseManager;
+import com.faber.core.license.LicenseMode;
 import com.faber.core.license.LicenseProperties;
+import com.faber.core.license.LicenseState;
 import com.faber.core.license.MachineIdProvider;
 import com.faber.core.license.OfflineLicenseService;
-import com.faber.core.constant.CommonConstants;
-import com.faber.core.vo.msg.Ret;
 import com.faber.core.utils.BaseResHandler;
+import com.faber.core.vo.msg.Ret;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,9 +54,41 @@ public class LicenseController extends BaseResHandler {
         return ok(statusVo());
     }
 
+    @IgnoreUserToken
+    @FaLogOpr("查询授权恢复信息")
+    @GetMapping("/recovery-info")
+    public Ret<LicenseRecoveryStatusVo> recoveryInfo(
+            @RequestParam(value = "machineId", required = false) String machineId) {
+        return ok(recoveryStatus(machineId));
+    }
+
     @FaLogOpr("导入离线授权")
     @PostMapping("/import")
     public Ret<LicenseStatusVo> importLicense(@RequestParam("file") MultipartFile file) {
+        importFile(file);
+        return ok(statusVo());
+    }
+
+    @IgnoreUserToken
+    @FaLogOpr("应急恢复离线授权")
+    @PostMapping("/recovery-import")
+    public Ret<LicenseRecoveryStatusVo> recoveryImport(
+            @RequestParam("machineId") String machineId,
+            @RequestParam("file") MultipartFile file) {
+        if (!matchesMachineId(machineId)) {
+            throw new BuzzException("授权恢复链接与当前服务器不匹配");
+        }
+        if (properties.getMode() != LicenseMode.OFFLINE) {
+            throw new BuzzException("当前授权模式为在线模式，不能上传离线 License，请配置 License Key");
+        }
+        if (licenseManager.isValid()) {
+            throw new BuzzException("当前授权有效，无需执行恢复操作");
+        }
+        importFile(file);
+        return ok(recoveryStatus(machineId));
+    }
+
+    private void importFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BuzzException("License 文件不能为空");
         }
@@ -60,7 +97,6 @@ public class LicenseController extends BaseResHandler {
         }
         try {
             offlineLicenseService.importLicense(file.getOriginalFilename(), file.getBytes());
-            return ok(statusVo());
         } catch (LicenseFileException e) {
             throw new BuzzException(e.getMessage());
         } catch (IOException e) {
@@ -100,5 +136,33 @@ public class LicenseController extends BaseResHandler {
             }
         }
         return result;
+    }
+
+    private LicenseRecoveryStatusVo recoveryStatus(String requestedMachineId) {
+        LicenseRecoveryStatusVo result = new LicenseRecoveryStatusVo();
+        if (!matchesMachineId(requestedMachineId)) {
+            return result;
+        }
+
+        LicenseState state = licenseManager.getState();
+        result.setMatched(true);
+        result.setMode(properties.getMode());
+        result.setStatus(state);
+        result.setUploadAllowed(properties.isEnabled()
+                && properties.getMode() == LicenseMode.OFFLINE
+                && !licenseManager.isValid());
+        return result;
+    }
+
+    private boolean matchesMachineId(String requestedMachineId) {
+        if (StrUtil.isBlank(requestedMachineId)) {
+            return false;
+        }
+        try {
+            String actualMachineId = machineIdProvider.getMachineId();
+            return actualMachineId != null && actualMachineId.equalsIgnoreCase(requestedMachineId.trim());
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }

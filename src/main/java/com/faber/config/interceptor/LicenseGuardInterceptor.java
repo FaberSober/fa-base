@@ -24,6 +24,8 @@ public class LicenseGuardInterceptor extends AbstractInterceptor {
             "/api/base/admin/license/info",
             "/api/base/admin/license/import",
             "/api/base/admin/license/refresh",
+            "/api/base/admin/license/recovery-info",
+            "/api/base/admin/license/recovery-import",
             "/api/v1/license/validate"
     );
 

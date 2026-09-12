@@ -1,7 +1,9 @@
 package com.faber.api.base.admin;
 
 import com.faber.api.base.admin.rest.LicenseController;
+import com.faber.api.base.admin.vo.ret.LicenseRecoveryStatusVo;
 import com.faber.api.base.admin.vo.ret.LicenseStatusVo;
+import com.faber.core.exception.BuzzException;
 import com.faber.core.license.LicenseManager;
 import com.faber.core.license.LicenseMode;
 import com.faber.core.license.LicenseProperties;
@@ -18,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -81,5 +84,117 @@ class LicenseControllerTest {
         controller.importLicense(file);
 
         verify(service).importLicense("license.lic", "{}".getBytes());
+    }
+
+    @Test
+    void matchingMachineEnablesOfflineRecoveryWithoutLogin() {
+        LicenseProperties properties = new LicenseProperties();
+        properties.setMode(LicenseMode.OFFLINE);
+        LicenseManager manager = mock(LicenseManager.class);
+        OfflineLicenseService service = mock(OfflineLicenseService.class);
+        when(manager.getState()).thenReturn(LicenseState.UNCONFIGURED);
+        when(manager.isValid()).thenReturn(false);
+
+        LicenseRecoveryStatusVo result = new LicenseController(properties, manager, () -> "machine-1", service)
+                .recoveryInfo(" MACHINE-1 ").getData();
+
+        assertNotNull(result);
+        assertTrue(result.isMatched());
+        assertTrue(result.isUploadAllowed());
+        assertEquals(LicenseMode.OFFLINE, result.getMode());
+        assertEquals(LicenseState.UNCONFIGURED, result.getStatus());
+    }
+
+    @Test
+    void mismatchedMachineCannotUseRecovery() {
+        LicenseProperties properties = new LicenseProperties();
+        properties.setMode(LicenseMode.OFFLINE);
+        LicenseManager manager = mock(LicenseManager.class);
+        OfflineLicenseService service = mock(OfflineLicenseService.class);
+
+        LicenseRecoveryStatusVo result = new LicenseController(properties, manager, () -> "machine-1", service)
+                .recoveryInfo("machine-2").getData();
+
+        assertNotNull(result);
+        assertFalse(result.isMatched());
+        assertFalse(result.isUploadAllowed());
+        assertNull(result.getMode());
+        assertNull(result.getStatus());
+    }
+
+    @Test
+    void onlineModeDoesNotExposeFileRecovery() {
+        LicenseProperties properties = new LicenseProperties();
+        properties.setMode(LicenseMode.ONLINE);
+        LicenseManager manager = mock(LicenseManager.class);
+        OfflineLicenseService service = mock(OfflineLicenseService.class);
+        when(manager.getState()).thenReturn(LicenseState.UNCONFIGURED);
+        when(manager.isValid()).thenReturn(false);
+
+        LicenseRecoveryStatusVo result = new LicenseController(properties, manager, () -> "machine-1", service)
+                .recoveryInfo("machine-1").getData();
+
+        assertNotNull(result);
+        assertTrue(result.isMatched());
+        assertFalse(result.isUploadAllowed());
+        assertEquals(LicenseMode.ONLINE, result.getMode());
+    }
+
+    @Test
+    void recoveryImportRequiresMatchingMachineAndInvalidLicense() {
+        LicenseProperties properties = new LicenseProperties();
+        properties.setMode(LicenseMode.OFFLINE);
+        LicenseManager manager = mock(LicenseManager.class);
+        OfflineLicenseService service = mock(OfflineLicenseService.class);
+        when(manager.isValid()).thenReturn(false);
+        when(manager.getState()).thenReturn(LicenseState.ACTIVE);
+
+        LicenseController controller = new LicenseController(properties, manager, () -> "machine-1", service);
+        MockMultipartFile file = new MockMultipartFile("file", "license.lic", "application/json", "{}".getBytes());
+
+        controller.recoveryImport("machine-1", file);
+
+        verify(service).importLicense("license.lic", "{}".getBytes());
+    }
+
+    @Test
+    void recoveryImportRejectsMismatchedMachine() {
+        LicenseProperties properties = new LicenseProperties();
+        properties.setMode(LicenseMode.OFFLINE);
+        LicenseManager manager = mock(LicenseManager.class);
+        OfflineLicenseService service = mock(OfflineLicenseService.class);
+        LicenseController controller = new LicenseController(properties, manager, () -> "machine-1", service);
+        MockMultipartFile file = new MockMultipartFile("file", "license.lic", "application/json", "{}".getBytes());
+
+        assertThrows(BuzzException.class, () -> controller.recoveryImport("machine-2", file));
+        verify(service, org.mockito.Mockito.never()).importLicense(org.mockito.Mockito.any(), org.mockito.Mockito.any());
+    }
+
+    @Test
+    void recoveryImportRejectsActiveLicense() {
+        LicenseProperties properties = new LicenseProperties();
+        properties.setMode(LicenseMode.OFFLINE);
+        LicenseManager manager = mock(LicenseManager.class);
+        OfflineLicenseService service = mock(OfflineLicenseService.class);
+        when(manager.isValid()).thenReturn(true);
+        LicenseController controller = new LicenseController(properties, manager, () -> "machine-1", service);
+        MockMultipartFile file = new MockMultipartFile("file", "license.lic", "application/json", "{}".getBytes());
+
+        assertThrows(BuzzException.class, () -> controller.recoveryImport("machine-1", file));
+        verify(service, org.mockito.Mockito.never()).importLicense(org.mockito.Mockito.any(), org.mockito.Mockito.any());
+    }
+
+    @Test
+    void recoveryImportRejectsOnlineMode() {
+        LicenseProperties properties = new LicenseProperties();
+        properties.setMode(LicenseMode.ONLINE);
+        LicenseManager manager = mock(LicenseManager.class);
+        OfflineLicenseService service = mock(OfflineLicenseService.class);
+        when(manager.isValid()).thenReturn(false);
+        LicenseController controller = new LicenseController(properties, manager, () -> "machine-1", service);
+        MockMultipartFile file = new MockMultipartFile("file", "license.lic", "application/json", "{}".getBytes());
+
+        assertThrows(BuzzException.class, () -> controller.recoveryImport("machine-1", file));
+        verify(service, org.mockito.Mockito.never()).importLicense(org.mockito.Mockito.any(), org.mockito.Mockito.any());
     }
 }
