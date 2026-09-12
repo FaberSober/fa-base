@@ -1,6 +1,7 @@
 package com.faber.config.interceptor;
 
 import com.faber.core.exception.license.LicenseInvalidException;
+import com.faber.core.config.annotation.IgnoreLicense;
 import com.faber.core.license.LicenseManager;
 import com.faber.core.license.LicenseState;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +20,7 @@ public class LicenseGuardInterceptor extends AbstractInterceptor {
     private static final Set<String> WHITELIST = Set.of(
             "/api/base/admin/auth/login",
             "/api/base/admin/auth/loginByToken",
+            "/api/base/admin/configSys/getSystemConfig",
             "/api/portal/auth/login",
             "/api/portal/auth/register",
             "/api/base/admin/license/info",
@@ -38,6 +40,10 @@ public class LicenseGuardInterceptor extends AbstractInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (!(handler instanceof HandlerMethod)) {
+            return true;
+        }
+
+        if (getMethodAnno(handler, IgnoreLicense.class) != null) {
             return true;
         }
 

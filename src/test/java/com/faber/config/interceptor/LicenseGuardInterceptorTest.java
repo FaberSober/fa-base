@@ -1,6 +1,7 @@
 package com.faber.config.interceptor;
 
 import com.faber.core.exception.license.LicenseInvalidException;
+import com.faber.core.config.annotation.IgnoreLicense;
 import com.faber.core.license.LicenseManager;
 import com.faber.core.license.LicenseState;
 import org.junit.jupiter.api.Test;
@@ -51,11 +52,21 @@ class LicenseGuardInterceptorTest {
     }
 
     @Test
+    void skipsAnnotatedHandler() throws Exception {
+        when(licenseManager.getState()).thenReturn(LicenseState.EXPIRED);
+
+        assertTrue(interceptor.preHandle(request("GET", "/api/base/admin/user/page"),
+                new MockHttpServletResponse(), ignoredHandler()));
+        verify(licenseManager, never()).getState();
+    }
+
+    @Test
     void skipsWhitelistedAndNonApiRequests() throws Exception {
         HandlerMethod handler = handler();
         for (String uri : List.of(
                 "/api/base/admin/auth/login",
                 "/api/base/admin/auth/loginByToken",
+                "/api/base/admin/configSys/getSystemConfig",
                 "/api/portal/auth/login",
                 "/api/portal/auth/register",
                 "/api/base/admin/license/info",
@@ -99,8 +110,17 @@ class LicenseGuardInterceptorTest {
         return new HandlerMethod(controller, TestController.class.getMethod("handle"));
     }
 
+    private static HandlerMethod ignoredHandler() throws NoSuchMethodException {
+        TestController controller = new TestController();
+        return new HandlerMethod(controller, TestController.class.getMethod("ignoredHandle"));
+    }
+
     private static class TestController {
         public void handle() {
+        }
+
+        @IgnoreLicense
+        public void ignoredHandle() {
         }
     }
 }
