@@ -1,9 +1,13 @@
 package com.faber.api.base.calendar.rest;
 
 import com.faber.api.base.calendar.biz.BaseCalendarDayBiz;
+import com.faber.api.base.calendar.importer.CalendarExternalImportService;
 import com.faber.api.base.calendar.entity.BaseCalendarDay;
 import com.faber.api.base.calendar.vo.CalendarDayImportPreviewVo;
 import com.faber.api.base.calendar.vo.CalendarDayImportReq;
+import com.faber.api.base.calendar.vo.CalendarExternalImportPreviewVo;
+import com.faber.api.base.calendar.vo.CalendarExternalImportPublishReq;
+import com.faber.api.base.calendar.vo.CalendarExternalImportYearReq;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.Permission;
@@ -27,9 +31,12 @@ import java.util.List;
 public class BaseCalendarDayController extends BaseController<BaseCalendarDayBiz, BaseCalendarDay, Long> {
 
     private final BaseCalendarDayBiz calendarDayBiz;
+    private final CalendarExternalImportService externalImportService;
 
-    public BaseCalendarDayController(BaseCalendarDayBiz calendarDayBiz) {
+    public BaseCalendarDayController(BaseCalendarDayBiz calendarDayBiz,
+                                     CalendarExternalImportService externalImportService) {
         this.calendarDayBiz = calendarDayBiz;
+        this.externalImportService = externalImportService;
     }
 
     @FaLogOpr("按年查询日历")
@@ -55,5 +62,19 @@ public class BaseCalendarDayController extends BaseController<BaseCalendarDayBiz
     @PostMapping("/upsertBatch")
     public Ret<List<BaseCalendarDay>> upsertBatch(@Valid @RequestBody CalendarDayImportReq request) {
         return ok(calendarDayBiz.upsertBatch(request));
+    }
+
+    @FaLogOpr("预览外部年度日历")
+    @PostMapping("/external/preview")
+    public Ret<CalendarExternalImportPreviewVo> previewExternal(
+            @Valid @RequestBody CalendarExternalImportYearReq request) {
+        return ok(externalImportService.preview(request));
+    }
+
+    @FaLogOpr("发布外部年度日历")
+    @PostMapping("/external/publish")
+    public Ret<CalendarExternalImportPreviewVo> publishExternal(
+            @Valid @RequestBody CalendarExternalImportPublishReq request) {
+        return ok(externalImportService.publish(request));
     }
 }

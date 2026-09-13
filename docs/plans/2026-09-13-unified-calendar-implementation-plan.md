@@ -56,6 +56,18 @@
 4. 在 `frontend/apps/admin/features/fa-admin-pages` 增加日历定义/日期维护页面、年份筛选、差异预览、发布确认和“影响每日概览需重建”提示。
 5. 增加菜单 SQL、权限标识和前端 services/types；MySQL/PostgreSQL 菜单脚本保持等价。
 
+### Sprint 2 增量：外部年度日历一键同步（本轮执行）
+
+为降低手工录入成本，在现有预览/发布链路上增加固定数据源适配器：
+
+1. `CN_OA` 使用 `holiday-cn` 年度 JSON，仅生成法定节假日和调休工作日；普通工作日、普通周末由日历服务默认规则推导。
+2. `CN_A_SHARE` 使用 AKTools 暴露的 AKShare `tool_trade_date_hist_sina` 接口；A 股交易日集合独立于 OA 调休数据，仅生成周末特殊开市日和工作日交易所休市日。
+3. 后端只允许服务端访问固定/配置的数据源，设置请求超时、禁止自动重定向、限制响应大小并校验年份、日期范围和 JSON 结构；不让浏览器直接访问外部源。
+4. 增加 `/api/base/calendar/day/external/preview` 和 `/api/base/calendar/day/external/publish`，预览响应携带两套日历的差异和待发布请求，发布继续使用日历日期幂等 upsert。
+5. 管理页增加“同步今年日历”按钮，展示 CN_OA 与 CN_A_SHARE 的新增/修改/未变化数量，确认后一次发布两套日历；失败时不自动写入半套数据。
+
+运行前需要配置 `fa.calendar.import.ak-tools-url` 指向 AKTools 服务；未配置或交易日数据不包含目标年份时，接口明确失败，不使用 OA 或周一至周五规则冒充 A 股交易日。
+
 验收：
 
 - 管理员可按年份查看 `CN_OA`、`CN_A_SHARE`、`HK_STOCK`；
@@ -64,6 +76,7 @@
 - 发布前能看到新增、修改、冲突和被忽略项；
 - 每次修改能看到来源版本和审计信息；
 - 前端无数据时、差异为空时、校验失败时都有明确状态。
+- “同步今年日历”可以完成 CN_OA 与 CN_A_SHARE 的服务端预览和确认发布；未配置 AKTools 时给出可操作的配置提示。
 
 提交边界：
 
