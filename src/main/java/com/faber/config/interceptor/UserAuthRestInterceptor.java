@@ -3,6 +3,7 @@ package com.faber.config.interceptor;
 import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
@@ -17,6 +18,7 @@ import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.auth.UserTokenException;
 import com.faber.core.exception.auth.UserNoPermissionException;
+import com.faber.core.vo.msg.BaseRet;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -51,6 +53,19 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        try {
+            return doPreHandle(request, response, handler);
+        } catch (UserTokenException e) {
+            log.warn("用户认证失败：{}", e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(JSONUtil.toJsonStr(new BaseRet(e.getStatus(), e.getMessage())));
+            return false;
+        }
+    }
+
+    private boolean doPreHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 配置该注解，说明在上下文中注入当前操作用户为admin
         AdminOpr adminOpr = getMethodAnno(handler, AdminOpr.class);
         if (adminOpr != null) {
@@ -88,11 +103,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
             if (e instanceof NotLoginException notLogin && NotLoginException.KICK_OUT.equals(notLogin.getType())) {
                 throw new UserTokenException("您已被管理员强制下线，请重新登录！");
             }
-            // 这里不处理异常，是为了简化可以同时兼容api token调用的形式，简化了操作，但是有安全性的问题。如果项目安全要求较高，可以自行修改抛出异常
-            if (e instanceof UserTokenException || e instanceof NotLoginException) {
+            // 这里先尝试使用API Token，最终是否认证失败由后续的userId判断统一记录。
+            if (!(e instanceof UserTokenException || e instanceof NotLoginException)) {
                 log.warn(e.getMessage());
-            } else {
-                log.error(e.getMessage(), e);
             }
 
             // 尝试ApiToken登录

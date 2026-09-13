@@ -1,10 +1,17 @@
 package com.faber.config.interceptor;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.faber.api.base.admin.entity.User;
 import com.faber.core.exception.auth.UserNoPermissionException;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import static org.mockito.Mockito.mockStatic;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,5 +42,22 @@ class UserAuthRestInterceptorTest {
         assertDoesNotThrow(() ->
                 UserAuthRestInterceptor.requireApplicationAccess("/api/portal/account/me", user)
         );
+    }
+
+    @Test
+    void invalidTokenReturnsUnauthorizedResponseWithoutThrowing() throws Exception {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        boolean proceed;
+        try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
+            stpUtil.when(StpUtil::getTokenValue).thenReturn("");
+            proceed = new UserAuthRestInterceptor().preHandle(
+                    new MockHttpServletRequest(), response, new Object()
+            );
+        }
+
+        assertFalse(proceed);
+        assertEquals(401, response.getStatus());
+        assertTrue(response.getContentAsString().contains("\"code\":40101"));
     }
 }
