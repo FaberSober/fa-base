@@ -11,7 +11,7 @@ SET @ddl = IF(
    WHERE TABLE_SCHEMA = DATABASE()
      AND TABLE_NAME = 'base_user'
      AND COLUMN_NAME = 'admin_enabled') = 0,
-  'ALTER TABLE `base_user` ADD COLUMN `admin_enabled` tinyint(1) NOT NULL DEFAULT `0` COMMENT `是否允许访问后台管理端` AFTER `status`',
+  'ALTER TABLE `base_user` ADD COLUMN `admin_enabled` tinyint(1) NOT NULL DEFAULT 0 COMMENT "是否允许访问后台管理端" AFTER `status`',
   'SELECT 1'
 );
 PREPARE stmt FROM @ddl;
