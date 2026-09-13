@@ -1,6 +1,6 @@
 # ADR-001：统一工作日与交易日历基础能力
 
-- 状态：Proposed
+- 状态：Accepted
 - 日期：2026-09-13
 - 范围：`fa-base` 日历基础能力、OA 工作日判断、`fa-quant` 交易日判断及每日概览
 - 关联功能：`fa-quant` 每日概览
@@ -194,13 +194,13 @@ TradingSession 的本地时间段判断
 
 ## 9. 实施顺序
 
-1. 在 `fa-base` 新增 `base_calendar`、`base_calendar_day` 的 MySQL/PostgreSQL DDL；
-2. 新增实体、Mapper、Service 和基础查询接口；
-3. 增加按年份导入、预览、发布和后台维护页面；
-4. 将 `TradingSession` 的日期判断接入 `TradingCalendarService`；
-5. 将 `fa-quant` 每日概览当前日期、历史过滤、明细和重建逻辑切换到日历服务；
-6. 增加 OA 工作日使用示例和交易日单元测试；
-7. 对周末、春节、国庆、调休周六、港股独立休市日进行回归验证。
+实施拆分和每个 Sprint 的验收口径见：
+[`docs/plans/2026-09-13-unified-calendar-implementation-plan.md`](../plans/2026-09-13-unified-calendar-implementation-plan.md)。
+
+1. Sprint 1：在 `fa-base` 新增 `base_calendar`、`base_calendar_day` 的 MySQL/PostgreSQL DDL，完成日历定义、日期查询和交易市场映射基础能力；
+2. Sprint 2：增加按年份导入、差异预览、发布、后台维护页面和权限菜单；
+3. Sprint 3：将 `TradingSession` 与 `fa-quant` 每日概览的日期、历史过滤、明细和重建逻辑切换到交易日历服务；
+4. Sprint 4：接入 OA 工作日消费者，补充缓存、审计、运维校验、历史重建和 H5 JSON 契约回归。
 
 ## 10. 验收标准
 
