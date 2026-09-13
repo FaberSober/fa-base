@@ -168,6 +168,16 @@ public class BaseCalendarDayBiz extends BaseBiz<BaseCalendarDayMapper, BaseCalen
         if (request.getCalendarCode() == null || request.getCalendarCode().isBlank()) {
             throw new BuzzException("日历编码不能为空");
         }
+        for (int i = 0; i < request.getDays().size(); i++) {
+            CalendarDayImportItem item = request.getDays().get(i);
+            if (item == null || item.getCalendarDate() == null) {
+                throw new BuzzException("第 " + (i + 1) + " 条日期不能为空");
+            }
+            if (item.getDayType() == null || item.getIsOpen() == null) {
+                throw new BuzzException("第 " + (i + 1) + " 条日期类型和开放状态不能为空");
+            }
+            validateDayType(item.getDayType(), item.getIsOpen());
+        }
     }
 
     private void normalizeAndValidate(BaseCalendarDay entity) {
