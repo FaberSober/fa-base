@@ -21,15 +21,15 @@
 FilePreview / FilePreviewModal / FilePreviewPage
     ↓
 FilePreviewResolver
-    ├── NativeViewer       图片、媒体、PDF、文本/代码
-    ├── FileViewerAdapter   flyfish-dev/file-viewer Office 只读查看
+    ├── NativeViewer       图片、媒体、文本/代码
+    ├── FileViewerAdapter   flyfish-dev/file-viewer 文档只读首选
     ├── OfficeViewerAdapter ONLYOFFICE 编辑
     └── FallbackViewer      kkFileView 或下载提示
 ```
 
 - 业务侧只传 `fileId`，不直接使用文件 URL、iframe、PDF.js、FileViewer 或 ONLYOFFICE。
 - `mode` 统一使用 `'view' | 'edit'`，默认 `'view'`。
-- `FileViewer` 固定使用 [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer) 的官方 React 适配包，只作为已验证格式的只读查看器；Office 编辑统一使用 ONLYOFFICE。
+- `FileViewer` 固定使用 [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer) 的官方 React 适配包，作为 DOCX、XLSX、PPTX、OFD、PDF 的首选只读查看器；Office 编辑统一使用 ONLYOFFICE。
 - 首版 OFD 复用 FileViewer Office preset；CAD、ZIP 通过 kkFileView 或下载降级，暂不承诺专用支持。
 - 首版组件放在 `fa-admin-pages/components/file`，因为其依赖 `fileSaveApi`、用户上下文、系统配置和 ONLYOFFICE；稳定后再考虑抽取无业务依赖的 NativeViewer 到 `@fa/ui`。
 
@@ -43,7 +43,7 @@ FilePreviewResolver
 | 文件预览基础 | 文件资源解析 | 统一获取文件名、扩展名、MIME、大小和受控访问地址 | 执行开发 | ✅已完成 |
 | 原生查看 | 图片查看 | 缩放、预览原图，沿用平台文件地址 | 执行开发 | ✅已完成 |
 | 原生查看 | 音视频查看 | 使用浏览器原生媒体能力，处理加载失败 | 执行开发 | ✅已完成 |
-| 原生查看 | PDF 查看 | 封装现有 PDF.js 能力，支持分页和基础工具栏 | 执行开发 | ✅已完成 |
+| FileViewer 查看 | PDF 查看 | FileViewer 优先，PDF.js 作为降级，支持分页和基础工具栏 | 执行开发 | 🔍验证中 |
 | 原生查看 | 文本/代码查看 | 查看 TXT、JSON、XML、Markdown 和常见代码文件 | 执行开发 | ✅已完成 |
 | 降级处理 | 通用文件回退 | FileViewer 或专用查看器失败时回退 kkFileView 或下载提示 | 执行开发 | ✅已完成 |
 | Office 查看 | [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer) 适配 | 使用官方 React 包对验证通过的 DOCX、XLSX、PPTX 提供只读查看 | 执行开发 | 🔍验证中 |
@@ -85,16 +85,16 @@ FilePreviewResolver
 
 - 图片沿用 Ant Design 图片预览能力，支持缩放，必要时提供下载。
 - 音频和视频使用现有媒体组件或浏览器原生标签，不为简单媒体格式引入重量级查看器。
-- PDF 封装现有 `ReactPdfView`，复用 PDF.js worker 和基础工具栏。
+- PDF 优先使用 FileViewer；FileViewer 加载失败时降级到现有 `ReactPdfView`（PDF.js），再进入通用回退。
 - 文本/代码使用只读文本容器，限制超大文件读取大小；JSON 等格式可以提供基础格式化，但不做在线编辑。
 - 各查看器通过统一下载入口调用受控文件地址，`download={false}` 时隐藏下载操作。
 
 ### 4.4 FileViewer 适配
 
 - FileViewer 实现固定来源于 [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer)。
-- 当前项目使用 React 18，已接入 `@file-viewer/react@3.1.1`、`@file-viewer/preset-office@3.1.1` 和 `@file-viewer/vite-plugin@3.1.1`，仅启用 Office 预览能力。
+- 当前项目使用 React 18，已接入 `@file-viewer/react@3.1.1`、`@file-viewer/preset-office@3.1.1` 和 `@file-viewer/vite-plugin@3.1.1`，启用 Office、OFD 和 PDF 预览能力。
 - `FileViewerDocument` 作为内部适配器传入原文件地址、文件名、扩展名和大小，业务页面不依赖 FileViewer API。
-- `FilePreview` 对 DOCX、XLSX、PPTX、OFD 分流到 FileViewer，PDF 继续使用现有 PDF.js；OFD 仅支持只读查看。
+- `FilePreview` 对 DOCX、XLSX、PPTX、OFD、PDF 优先分流到 FileViewer，PDF.js 仅作为 PDF 降级查看器；OFD 仅支持只读查看。
 - Vite 插件负责复制 Office 渲染所需的 worker、WASM、字体和 vendor 资源，构建配置不得遗漏。
 - 至少验证 DOCX、XLSX、PPTX、中文字体、复杂表格、较大文件和鉴权 URL。
 - FileViewer 仅作为只读适配器，不让业务模块依赖其组件 API。
@@ -123,7 +123,7 @@ FilePreviewResolver
 - 水印通过统一组件参数传递：原生查看器使用统一覆盖层，FileViewer 和 kkFileView 使用各自适配器处理；业务页面不直接拼接查看器参数。
 - `download` 只控制前端操作入口，不代表授权；文件服务仍需校验当前用户的查看和下载权限。
 - 文件元数据、文本内容或编辑配置接口返回 401/403 时，统一显示“无权查看该文件”或对应的权限提示。
-- 预览失败时按以下顺序处理：专用查看器 → kkFileView → 下载/不支持提示。
+- 预览失败时按以下顺序处理：FileViewer → 原生查看器/PDF.js → kkFileView → 下载/不支持提示。
 - 不允许把编辑请求静默降级为只读；可以提供“查看文件”或“下载文件”操作。
 - 首版不接受业务侧任意远程 URL，避免跨域、数据泄露和恶意地址问题。
 
@@ -152,7 +152,7 @@ FilePreviewResolver
 
 - 业务页面只依赖 `FilePreview`、`FilePreviewModal` 或 `FilePreviewPage`，不直接依赖具体查看器。
 - 图片、音视频、PDF、文本/代码能够按文件类型正确打开。
-- Office 查看优先使用已验证的 FileViewer，失败可以回退 kkFileView。
+- DOCX、XLSX、PPTX、OFD、PDF 查看优先使用 FileViewer；PDF 失败后使用 PDF.js，再失败才回退 kkFileView。
 - Office 编辑只能通过 ONLYOFFICE，保存状态和失败状态可被感知。
 - 未知格式、不支持格式、文件不存在和无权限场景都有明确反馈。
 - 下载、水印和权限行为与现有平台策略一致。
@@ -164,7 +164,7 @@ FilePreviewResolver
 
 1. 新增文件资源解析和 `FilePreview` 门面，先接入原生图片、媒体、PDF、文本及现有 kkFileView 回退。
 2. 新增 `FilePreviewModal` 和 `FilePreviewPage`，逐步替换 `FaFileViewModal` 等重复入口。
-3. 完成 FileViewer 选型验证，接入 Office 只读查看。
+3. 完成 FileViewer 首选分流，接入 DOCX、XLSX、PPTX、OFD、PDF 只读查看；PDF.js 作为降级查看器。
 4. 将现有 ONLYOFFICE 组件包装为编辑适配器，接入 `mode="edit"` 和现有 Office 路由。
 5. 补齐权限、水印、错误状态、懒加载、资源释放和针对性验证。
 6. CAD、ZIP 及 `@fa/ui` 抽取根据实际需求另行立项，OFD 先完成真实文件验收。
