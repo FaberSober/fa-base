@@ -47,7 +47,7 @@ FilePreviewResolver
 | 原生查看 | 文本/代码查看 | 查看 TXT、JSON、XML、Markdown 和常见代码文件 | 执行开发 | ✅已完成 |
 | 降级处理 | 通用文件回退 | FileViewer 或专用查看器失败时回退 kkFileView 或下载提示 | 执行开发 | ✅已完成 |
 | Office 查看 | [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer) 适配 | 使用官方 React 包对验证通过的 DOCX、XLSX、PPTX 提供只读查看 | 执行开发 | 🔍验证中 |
-| 展示容器 | 弹窗预览 | 提供 `FilePreviewModal`，封装触发器、拖拽、全屏和关闭 | 执行开发 | ✅已完成 |
+| 展示容器 | 弹窗预览 | 提供 `FilePreviewModal`，并将 `FileSaveIcon` 迁移到统一入口 | 执行开发 | ✅已完成 |
 | 展示容器 | 独立页面/Tab 预览 | 提供 `FilePreviewPage`，适配复杂文件和大尺寸查看器 | 执行开发 | ✅已完成 |
 | Office 编辑 | ONLYOFFICE 适配 | `mode="edit"` 时打开 Office 编辑器，沿用现有后端接口 | 执行开发 | 🔍验证中 |
 | 权限与体验 | 下载、水印和查看权限 | 统一处理水印、下载按钮、错误提示和权限降级 | 执行开发 | 🔍验证中 |
@@ -115,6 +115,7 @@ FilePreviewResolver
 - `FilePreview` 只负责内容区域，不负责路由和弹窗生命周期。
 - `FilePreviewModal` 负责 `DragModal`、触发器、高度和全屏展示。
 - `FilePreviewPage` 负责完整页面布局，适合 PDF、Office 和大型文件。
+- `FileSaveIcon` 的非图片、非视频入口统一使用 `FilePreviewModal`；旧组件暂保留导出以兼容外部调用。
 - 现有 `/admin/common/doc/view/:id` 和 `/admin/common/doc/edit/:id` 路由可以先保留，由页面内部改为调用统一入口。
 
 ### 4.7 权限、水印和降级
@@ -163,7 +164,7 @@ FilePreviewResolver
 ## 7. 实施顺序
 
 1. 新增文件资源解析和 `FilePreview` 门面，先接入原生图片、媒体、PDF、文本及现有 kkFileView 回退。
-2. 新增 `FilePreviewModal` 和 `FilePreviewPage`，逐步替换 `FaFileViewModal` 等重复入口。
+2. 新增 `FilePreviewModal` 和 `FilePreviewPage`，并将项目内 `FileSaveIcon` 入口迁移到统一组件。
 3. 完成 FileViewer 首选分流，接入 DOCX、XLSX、PPTX、OFD、PDF 只读查看；PDF.js 作为降级查看器。
 4. 将现有 ONLYOFFICE 组件包装为编辑适配器，接入 `mode="edit"` 和现有 Office 路由。
 5. 补齐权限、水印、错误状态、懒加载、资源释放和针对性验证。
