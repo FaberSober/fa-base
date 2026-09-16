@@ -49,7 +49,7 @@ FilePreviewResolver
 | Office 查看 | [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer) 适配 | 使用官方 React 包对验证通过的 DOCX、XLSX、PPTX 提供只读查看 | 执行开发 | 🔍验证中 |
 | 展示容器 | 弹窗预览 | 提供 `FilePreviewModal`，封装触发器、拖拽、全屏和关闭 | 执行开发 | ✅已完成 |
 | 展示容器 | 独立页面/Tab 预览 | 提供 `FilePreviewPage`，适配复杂文件和大尺寸查看器 | 执行开发 | ✅已完成 |
-| Office 编辑 | ONLYOFFICE 适配 | `mode="edit"` 时打开 Office 编辑器，沿用现有后端接口 | 执行开发 | ❌未完成 |
+| Office 编辑 | ONLYOFFICE 适配 | `mode="edit"` 时打开 Office 编辑器，沿用现有后端接口 | 执行开发 | 🔍验证中 |
 | 权限与体验 | 下载、水印和查看权限 | 统一处理水印、下载按钮、错误提示和权限降级 | 执行开发 | ❌未完成 |
 | 工程质量 | 懒加载与资源释放 | 懒加载 PDF.js、FileViewer、ONLYOFFICE，切换文件时清理实例和请求 | 执行开发 | ❌未完成 |
 | 复杂格式 | OFD、CAD、ZIP 专用支持 | 单独评估专用查看器、后端转换或文件列表能力 | 留作未来版本规划 | 🕒待处理 |
@@ -101,8 +101,9 @@ FilePreviewResolver
 
 ### 4.5 ONLYOFFICE 编辑适配
 
-- 将现有 `OnlyofficeEditor` 包装为 `OfficeViewerAdapter`。
-- `mode="edit"` 且文件格式支持编辑时调用现有 `onlyofficeApi.openFile(fileId, mode)`。
+- `mode="edit"` 且文件格式为已识别的 Office 类型时，`FilePreview` 懒加载现有 `OnlyofficeEditor`。
+- `OnlyofficeEditor` 调用现有 `onlyofficeApi.openFile(fileId, mode)`，不让业务页面直接处理 ONLYOFFICE 配置。
+- 已补充文件切换清理、接口失败、组件加载失败和文档加载失败提示。
 - 编辑保存由 ONLYOFFICE 回调后端完成，前端不自行读取 Blob 再上传。
 - 统一处理编辑器加载完成、保存完成、权限不足和服务不可用状态。
 - Office 编辑优先使用独立页面或 inner Tab，不强制放入小尺寸普通弹窗。
@@ -171,5 +172,7 @@ FilePreviewResolver
 - `frontend/apps/admin/features/fa-admin-pages/components/file/FileSaveIcon.tsx`
 - `frontend/apps/admin/features/fa-admin-pages/components/pdf/ReactPdfView.tsx`
 - `frontend/apps/admin/features/fa-admin-pages/components/helper/OnlyofficeEditor.tsx`
+- `frontend/apps/admin/features/fa-admin-pages/pages/admin/common/doc/view/[id].tsx`
+- `frontend/apps/admin/features/fa-admin-pages/pages/admin/common/doc/edit/[id].tsx`
 - `frontend/apps/admin/features/fa-admin-pages/services/base/admin/fileSave.ts`
 - `frontend/apps/admin/features/fa-admin-pages/services/base/doc/onlyoffice.ts`
