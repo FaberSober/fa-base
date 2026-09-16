@@ -42,7 +42,7 @@ public class PortalAuthController extends BaseResHandler {
     public Ret<PortalSessionRetVo> login(@Valid @RequestBody PortalLoginReqVo reqVo) {
         LoginReqVo loginReq = new LoginReqVo(reqVo.getUsername(), reqVo.getPassword());
         SaTokenInfo tokenInfo = authBiz.portalLogin(loginReq);
-        User user = userBiz.getLoginUser();
+        User user = userBiz.getById(getCurrentUserId());
         return ok(PortalSessionRetVo.of(tokenInfo, PortalUserRetVo.from(user)));
     }
 
@@ -61,7 +61,7 @@ public class PortalAuthController extends BaseResHandler {
         userBiz.registry(registryVo);
 
         SaTokenInfo tokenInfo = authBiz.portalLogin(new LoginReqVo(reqVo.getUsername(), reqVo.getPassword()));
-        User user = userBiz.getLoginUser();
+        User user = userBiz.getById(getCurrentUserId());
         return ok(PortalSessionRetVo.of(tokenInfo, PortalUserRetVo.from(user)));
     }
 

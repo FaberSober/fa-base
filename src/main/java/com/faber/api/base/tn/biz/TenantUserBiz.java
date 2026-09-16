@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,19 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
 
     @Override
     protected void saveBefore(TenantUser entity) {
+        normalizeAndValidate(entity);
+
+        long count = lambdaQuery()
+                .eq(TenantUser::getTenantId, entity.getTenantId())
+                .eq(TenantUser::getUserId, entity.getUserId())
+                .ne(StrUtil.isNotBlank(entity.getId()), TenantUser::getId, entity.getId())
+                .count();
+        if (count > 0) {
+            throw new BuzzException("该用户已关联到当前租户");
+        }
+    }
+
+    private void normalizeAndValidate(TenantUser entity) {
         entity.setTenantId(StrUtil.trim(entity.getTenantId()));
         entity.setUserId(StrUtil.trim(entity.getUserId()));
         entity.setDescription(StrUtil.trim(entity.getDescription()));
@@ -50,15 +64,79 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         if (user == null) {
             throw new BuzzException("用户不存在");
         }
+    }
 
-        long count = lambdaQuery()
-                .eq(TenantUser::getTenantId, entity.getTenantId())
-                .eq(TenantUser::getUserId, entity.getUserId())
-                .ne(StrUtil.isNotBlank(entity.getId()), TenantUser::getId, entity.getId())
-                .count();
-        if (count > 0) {
-            throw new BuzzException("该用户已关联到当前租户");
+    /**
+     * 新增关联时优先恢复同一租户和用户的逻辑删除记录，避免唯一索引与逻辑删除冲突。
+     */
+    @Override
+    public boolean save(TenantUser entity) {
+        return restoreOrCreate(entity, false);
+    }
+
+    @Override
+    public boolean saveBatch(Collection<TenantUser> entityList) {
+        if (CollUtil.isEmpty(entityList)) {
+            return true;
         }
+        for (TenantUser entity : entityList) {
+            if (!save(entity)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean restoreOrCreate(TenantUser entity, boolean tolerateActive) {
+        normalizeAndValidate(entity);
+
+        TenantUser existing = baseMapper.selectByTenantIdAndUserIdIgnoreLogic(
+                entity.getTenantId(), entity.getUserId()
+        );
+        if (existing == null) {
+            return super.save(entity);
+        }
+
+        if (Boolean.TRUE.equals(existing.getDeleted())) {
+            return restore(existing, entity);
+        }
+
+        if (tolerateActive) {
+            if (!Boolean.TRUE.equals(existing.getStatus())) {
+                existing.setStatus(true);
+                updateIgnoreLogic(existing);
+            }
+            return true;
+        }
+
+        throw new BuzzException("该用户已关联到当前租户");
+    }
+
+    private boolean restore(TenantUser existing, TenantUser source) {
+        existing.setIsAdmin(source.getIsAdmin() == null ? false : source.getIsAdmin());
+        existing.setStatus(source.getStatus() == null ? true : source.getStatus());
+        existing.setSort(source.getSort() == null ? 0 : source.getSort());
+        existing.setDescription(source.getDescription());
+        existing.setDeleted(false);
+
+        boolean updated = updateIgnoreLogic(existing);
+        if (updated) {
+            source.setId(existing.getId());
+            source.setIsAdmin(existing.getIsAdmin());
+            source.setStatus(existing.getStatus());
+            source.setSort(existing.getSort());
+            source.setDeleted(false);
+        }
+        return updated;
+    }
+
+    private boolean updateIgnoreLogic(TenantUser entity) {
+        boolean updated = baseMapper.updateByIdIgnoreLogic(entity) > 0;
+        if (updated) {
+            afterUpdate(entity);
+            afterChange(entity);
+        }
+        return updated;
     }
 
     @Override
@@ -177,27 +255,13 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
             return;
         }
 
-        TenantUser exist = getTop(lambdaQuery()
-                .eq(TenantUser::getTenantId, tenantId)
-                .eq(TenantUser::getUserId, userId)
-                .orderByAsc(TenantUser::getId));
-        if (exist != null) {
-            if (!Boolean.TRUE.equals(exist.getStatus())) {
-                lambdaUpdate()
-                        .eq(TenantUser::getId, exist.getId())
-                        .set(TenantUser::getStatus, true)
-                        .update();
-            }
-            return;
-        }
-
         TenantUser entity = new TenantUser();
         entity.setTenantId(tenantId);
         entity.setUserId(userId);
         entity.setIsAdmin(false);
         entity.setStatus(true);
         entity.setSort(0);
-        save(entity);
+        restoreOrCreate(entity, true);
     }
 
     public List<String> getUserIdsByTenantId(String tenantId) {

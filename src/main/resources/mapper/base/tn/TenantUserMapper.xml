@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.faber.api.base.tn.mapper.TenantUserMapper">
+
+    <!-- 重新添加租户用户时需要识别已逻辑删除的历史关联记录。 -->
+    <select id="selectByTenantIdAndUserIdIgnoreLogic"
+            resultType="com.faber.api.base.tn.entity.TenantUser">
+        SELECT id,
+               tenant_id,
+               user_id,
+               is_admin,
+               status,
+               sort,
+               description,
+               crt_time,
+               crt_user,
+               crt_name,
+               crt_host,
+               upd_time,
+               upd_user,
+               upd_name,
+               upd_host,
+               deleted
+          FROM tn_tenant_user
+         WHERE tenant_id = #{tenantId}
+           AND user_id = #{userId}
+         ORDER BY id
+         LIMIT 1
+    </select>
+
+</mapper>
