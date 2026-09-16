@@ -6,7 +6,12 @@ import jakarta.annotation.Resource;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.faber.api.base.admin.biz.FileSaveBiz;
+import com.faber.api.base.admin.biz.FilePreviewTicketBiz;
 import com.faber.api.base.admin.entity.FileSave;
+import com.faber.api.base.admin.vo.req.FilePreviewExchangeReqVo;
+import com.faber.api.base.admin.vo.req.FilePreviewTicketReqVo;
+import com.faber.api.base.admin.vo.ret.FilePreviewResourceRetVo;
+import com.faber.api.base.admin.vo.ret.FilePreviewTicketRetVo;
 import com.faber.api.base.telemetry.annotation.StatEvent;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
@@ -27,12 +32,50 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 
+import jakarta.validation.Valid;
+
 @FaLogBiz("文件")
 @Controller
 @RequestMapping("/api/base/admin/fileSave")
 public class FileSaveController extends BaseController<FileSaveBiz, FileSave, String> {
 
     @Resource ConfigSysService configSysService;
+    @Resource FilePreviewTicketBiz filePreviewTicketBiz;
+
+    @FaLogOpr("创建文件预览凭证")
+    @PostMapping("/createPreviewTicket")
+    @ResponseBody
+    @LogNoRet
+    public Ret<FilePreviewTicketRetVo> createPreviewTicket(@Valid @RequestBody FilePreviewTicketReqVo reqVo) {
+        return ok(filePreviewTicketBiz.createTicket(reqVo.getFileId()));
+    }
+
+    @FaLogOpr("兑换文件预览会话")
+    @PostMapping("/exchangePreviewTicket")
+    @ResponseBody
+    @IgnoreUserToken
+    @LogNoRet
+    public Ret<FilePreviewResourceRetVo> exchangePreviewTicket(@Valid @RequestBody FilePreviewExchangeReqVo reqVo) {
+        return ok(filePreviewTicketBiz.exchangeTicket(reqVo.getTicket()));
+    }
+
+    @FaLogOpr("文件预览流")
+    @GetMapping("/getPreviewFile/{session}")
+    @ResponseBody
+    @IgnoreUserToken
+    @LogNoRet
+    public void getPreviewFile(@PathVariable("session") String session) throws IOException {
+        filePreviewTicketBiz.downloadBySession(session);
+    }
+
+    @FaLogOpr("文件预览下载")
+    @GetMapping("/getPreviewDownload/{session}")
+    @ResponseBody
+    @IgnoreUserToken
+    @LogNoRet
+    public void getPreviewDownload(@PathVariable("session") String session) throws IOException {
+        filePreviewTicketBiz.downloadFileBySession(session);
+    }
 
     @FaLogOpr(value = "上传文件", crud = LogCrudEnum.C)
     @StatEvent(value = "file.upload", module = "file", bizType = "file")
