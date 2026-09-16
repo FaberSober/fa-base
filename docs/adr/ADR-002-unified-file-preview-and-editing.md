@@ -30,7 +30,7 @@ FilePreviewResolver
 - 业务侧只传 `fileId`，不直接使用文件 URL、iframe、PDF.js、FileViewer 或 ONLYOFFICE。
 - `mode` 统一使用 `'view' | 'edit'`，默认 `'view'`。
 - `FileViewer` 固定使用 [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer) 的官方 React 适配包，只作为已验证格式的只读查看器；Office 编辑统一使用 ONLYOFFICE。
-- 首版复杂格式通过 kkFileView 或下载降级，不承诺 FileViewer 支持 OFD、CAD、ZIP。
+- 首版 OFD 复用 FileViewer Office preset；CAD、ZIP 通过 kkFileView 或下载降级，暂不承诺专用支持。
 - 首版组件放在 `fa-admin-pages/components/file`，因为其依赖 `fileSaveApi`、用户上下文、系统配置和 ONLYOFFICE；稳定后再考虑抽取无业务依赖的 NativeViewer 到 `@fa/ui`。
 
 ## 3. 功能清单
@@ -52,7 +52,8 @@ FilePreviewResolver
 | Office 编辑 | ONLYOFFICE 适配 | `mode="edit"` 时打开 Office 编辑器，沿用现有后端接口 | 执行开发 | 🔍验证中 |
 | 权限与体验 | 下载、水印和查看权限 | 统一处理水印、下载按钮、错误提示和权限降级 | 执行开发 | 🔍验证中 |
 | 工程质量 | 懒加载与资源释放 | 懒加载 PDF.js、FileViewer、ONLYOFFICE，切换文件时清理实例和请求 | 执行开发 | 🔍验证中 |
-| 复杂格式 | OFD、CAD、ZIP 专用支持 | 单独评估专用查看器、后端转换或文件列表能力 | 留作未来版本规划 | 🕒待处理 |
+| 复杂格式 | OFD 查看 | 复用已接入 FileViewer Office preset 提供只读查看 | 执行开发 | 🔍验证中 |
+| 复杂格式 | CAD、ZIP 专用支持 | 单独评估专用查看器、后端转换或文件列表能力 | 留作未来版本规划 | 🕒待处理 |
 | 通用抽取 | 抽取到 `@fa/ui` | 仅在 admin 实现稳定且其他应用确有复用需求后进行 | 留作未来版本规划 | 🕒待处理 |
 
 ## 4. 开发说明
@@ -93,7 +94,7 @@ FilePreviewResolver
 - FileViewer 实现固定来源于 [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer)。
 - 当前项目使用 React 18，已接入 `@file-viewer/react@3.1.1`、`@file-viewer/preset-office@3.1.1` 和 `@file-viewer/vite-plugin@3.1.1`，仅启用 Office 预览能力。
 - `FileViewerDocument` 作为内部适配器传入原文件地址、文件名、扩展名和大小，业务页面不依赖 FileViewer API。
-- `FilePreview` 仅对 DOCX、XLSX、PPTX 分流到 FileViewer，PDF 继续使用现有 PDF.js。
+- `FilePreview` 对 DOCX、XLSX、PPTX、OFD 分流到 FileViewer，PDF 继续使用现有 PDF.js；OFD 仅支持只读查看。
 - Vite 插件负责复制 Office 渲染所需的 worker、WASM、字体和 vendor 资源，构建配置不得遗漏。
 - 至少验证 DOCX、XLSX、PPTX、中文字体、复杂表格、较大文件和鉴权 URL。
 - FileViewer 仅作为只读适配器，不让业务模块依赖其组件 API。
@@ -135,7 +136,7 @@ FilePreviewResolver
 
 ### 4.9 后续格式和通用抽取
 
-- OFD、CAD、ZIP 先分别确认查看器、后端转换或文件列表方案，再增加适配器。
+- CAD、ZIP 先分别确认查看器、后端转换或文件列表方案，再增加适配器；OFD 需通过真实文件完成兼容性验收。
 - 复杂格式不能因为扩展名命中就宣称支持，必须通过真实文件验收。
 - 只有 NativeViewer 等部分具备跨应用复用价值时，才抽取到 `@fa/ui`；依赖 admin 配置和业务 API 的部分保留在 admin feature 中。
 
@@ -166,7 +167,7 @@ FilePreviewResolver
 3. 完成 FileViewer 选型验证，接入 Office 只读查看。
 4. 将现有 ONLYOFFICE 组件包装为编辑适配器，接入 `mode="edit"` 和现有 Office 路由。
 5. 补齐权限、水印、错误状态、懒加载、资源释放和针对性验证。
-6. OFD、CAD、ZIP 及 `@fa/ui` 抽取根据实际需求另行立项。
+6. CAD、ZIP 及 `@fa/ui` 抽取根据实际需求另行立项，OFD 先完成真实文件验收。
 
 ## 8. 相关文件
 
