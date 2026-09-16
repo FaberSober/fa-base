@@ -3,7 +3,7 @@
 - 状态：Proposed
 - 日期：2026-09-16
 - 范围：`frontend/apps/admin` 文件查看、文件预览和 Office 在线编辑
-- 关联能力：`fileSaveApi`、PDF.js、FileViewer、ONLYOFFICE、kkFileView
+- 关联能力：`fileSaveApi`、PDF.js、[File Viewer](https://github.com/flyfish-dev/file-viewer)、ONLYOFFICE、kkFileView
 
 ## 1. 背景
 
@@ -22,20 +22,20 @@ FilePreview / FilePreviewModal / FilePreviewPage
     ↓
 FilePreviewResolver
     ├── NativeViewer       图片、媒体、PDF、文本/代码
-    ├── FileViewerAdapter   Office 只读查看
+    ├── FileViewerAdapter   flyfish-dev/file-viewer Office 只读查看
     ├── OfficeViewerAdapter ONLYOFFICE 编辑
     └── FallbackViewer      kkFileView 或下载提示
 ```
 
 - 业务侧只传 `fileId`，不直接使用文件 URL、iframe、PDF.js、FileViewer 或 ONLYOFFICE。
 - `mode` 统一使用 `'view' | 'edit'`，默认 `'view'`。
-- `FileViewer` 只作为已验证格式的只读查看器；Office 编辑统一使用 ONLYOFFICE。
+- `FileViewer` 固定使用 [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer) 的官方 React 适配包，只作为已验证格式的只读查看器；Office 编辑统一使用 ONLYOFFICE。
 - 首版复杂格式通过 kkFileView 或下载降级，不承诺 FileViewer 支持 OFD、CAD、ZIP。
 - 首版组件放在 `fa-admin-pages/components/file`，因为其依赖 `fileSaveApi`、用户上下文、系统配置和 ONLYOFFICE；稳定后再考虑抽取无业务依赖的 NativeViewer 到 `@fa/ui`。
 
 ## 3. 功能清单
 
-表格按建议的开发实施顺序排列。当前新增功能均待开发，进度从 `❌未完成` 开始维护。
+表格按建议的开发实施顺序排列，进度随实现和验证结果维护。
 
 | 模块 | 功能 | 功能详情 | 当前规划 | 进度 |
 | --- | --- | --- | --- | --- |
@@ -46,7 +46,7 @@ FilePreviewResolver
 | 原生查看 | PDF 查看 | 封装现有 PDF.js 能力，支持分页和基础工具栏 | 执行开发 | ✅已完成 |
 | 原生查看 | 文本/代码查看 | 查看 TXT、JSON、XML、Markdown 和常见代码文件 | 执行开发 | ✅已完成 |
 | 降级处理 | 通用文件回退 | FileViewer 或专用查看器失败时回退 kkFileView 或下载提示 | 执行开发 | ✅已完成 |
-| Office 查看 | FileViewer 适配 | 对验证通过的 DOCX、XLSX、PPTX 提供只读查看 | 执行开发 | ❌未完成 |
+| Office 查看 | [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer) 适配 | 使用官方 React 包对验证通过的 DOCX、XLSX、PPTX 提供只读查看 | 执行开发 | 🔍验证中 |
 | 展示容器 | 弹窗预览 | 提供 `FilePreviewModal`，封装触发器、拖拽、全屏和关闭 | 执行开发 | ✅已完成 |
 | 展示容器 | 独立页面/Tab 预览 | 提供 `FilePreviewPage`，适配复杂文件和大尺寸查看器 | 执行开发 | ✅已完成 |
 | Office 编辑 | ONLYOFFICE 适配 | `mode="edit"` 时打开 Office 编辑器，沿用现有后端接口 | 执行开发 | ❌未完成 |
@@ -89,7 +89,11 @@ FilePreviewResolver
 
 ### 4.4 FileViewer 适配
 
-- 先完成独立 PoC，再确定具体 npm 包和版本。
+- FileViewer 实现固定来源于 [`flyfish-dev/file-viewer`](https://github.com/flyfish-dev/file-viewer)。
+- 当前项目使用 React 18，已接入 `@file-viewer/react@3.1.1`、`@file-viewer/preset-office@3.1.1` 和 `@file-viewer/vite-plugin@3.1.1`，仅启用 Office 预览能力。
+- `FileViewerDocument` 作为内部适配器传入原文件地址、文件名、扩展名和大小，业务页面不依赖 FileViewer API。
+- `FilePreview` 仅对 DOCX、XLSX、PPTX 分流到 FileViewer，PDF 继续使用现有 PDF.js。
+- Vite 插件负责复制 Office 渲染所需的 worker、WASM、字体和 vendor 资源，构建配置不得遗漏。
 - 至少验证 DOCX、XLSX、PPTX、中文字体、复杂表格、较大文件和鉴权 URL。
 - FileViewer 仅作为只读适配器，不让业务模块依赖其组件 API。
 - 需要跨域、Range 请求、worker 或 wasm 时，在文件服务和 Vite 静态资源配置中统一处理。
