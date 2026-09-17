@@ -30,7 +30,7 @@
 
 | 模块 | 功能 | 功能详情 | 当前规划 | 进度 |
 | --- | --- | --- | --- | --- |
-| `fa-core` | 删除遗留租户 Entity 层级 | 删除 `com.faber.core.tenant.bean.TnBase*Entity` 及其引用，统一 `com.faber.core.bean.BaseTn*Entity` | 执行开发 | ❌未完成 |
+| `fa-core` | 删除遗留租户 Entity 层级 | 删除 `com.faber.core.tenant.bean.TnBase*Entity` 及其引用，统一 `com.faber.core.bean.BaseTn*Entity` | 执行开发 | ✅已完成 |
 | `fa-core` | 统一租户 ID 类型 | 租户 Entity、上下文、自动填充和数据库字段统一为 `String` / `varchar(32)` | 执行开发 | ❌未完成 |
 | `fa-core` | 租户模式与上下文 | 封装单/多租户模式判断、当前租户读取、必需租户校验和上下文清理 | 执行开发 | ❌未完成 |
 | `fa-core` | 自动租户隔离 | 仅对 `BaseTn*Entity` 注册拦截器并自动追加 `tenant_id` 条件 | 执行开发 | ❌未完成 |
