@@ -11,6 +11,7 @@ import com.faber.api.base.telemetry.vo.TelemetryBaseReq;
 import com.faber.api.base.telemetry.vo.TelemetryErrorReq;
 import com.faber.api.base.telemetry.vo.TelemetryEventReq;
 import com.faber.core.exception.BuzzException;
+import com.faber.core.exception.BuzzWarnException;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -53,7 +54,7 @@ public class TelemetryCollectorService {
     private TelemetryApp validateBase(TelemetryBaseReq request) {
         TelemetryApp app = telemetryAppBiz.findEnabledByAppKey(request.getAppKey());
         if (app == null) {
-            throw new BuzzException("Telemetry AppKey 无效或应用已停用");
+            throw new BuzzWarnException("Telemetry AppKey 无效或应用已停用");
         }
         if (app.getClientType() != request.getClientType()) {
             throw new BuzzException("Telemetry Client Type 与应用配置不一致");
