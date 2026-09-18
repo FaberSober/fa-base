@@ -65,12 +65,37 @@ class TenantUserBizTest {
         verify(mapper, never()).insert(any(TenantUser.class));
     }
 
+    @Test
+    void rejectsInactiveTenantForMembershipLookup() {
+        TenantUserMapper mapper = mock(TenantUserMapper.class);
+        Tenant tenant = new Tenant();
+        tenant.setStatus(false);
+        TenantUserBiz biz = createBiz(mapper, tenant);
+
+        assertFalse(biz.hasUserTenant("user-1", "tenant-1"));
+    }
+
+    @Test
+    void rejectsExpiredTenantForMembershipLookup() {
+        TenantUserMapper mapper = mock(TenantUserMapper.class);
+        Tenant tenant = new Tenant();
+        tenant.setStatus(true);
+        tenant.setExpireTime(new java.util.Date(System.currentTimeMillis() - 1000));
+        TenantUserBiz biz = createBiz(mapper, tenant);
+
+        assertFalse(biz.hasUserTenant("user-1", "tenant-1"));
+    }
+
     private TenantUserBiz createBiz(TenantUserMapper mapper) {
+        return createBiz(mapper, new Tenant());
+    }
+
+    private TenantUserBiz createBiz(TenantUserMapper mapper, Tenant tenant) {
         TenantUserBiz biz = new TenantUserBiz();
         ReflectionTestUtils.setField(biz, "baseMapper", mapper);
 
         TenantBiz tenantBiz = mock(TenantBiz.class);
-        when(tenantBiz.getById("tenant-1")).thenReturn(new Tenant());
+        when(tenantBiz.getById("tenant-1")).thenReturn(tenant);
         ReflectionTestUtils.setField(biz, "tenantBiz", tenantBiz);
 
         UserBiz userBiz = mock(UserBiz.class);

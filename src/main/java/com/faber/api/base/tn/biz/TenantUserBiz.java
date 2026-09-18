@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.Resource;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -185,6 +186,7 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                     .orderByAsc(Tenant::getId)
                     .list()
                     .stream()
+                    .filter(this::isTenantAvailable)
                     .map(tenant -> {
                         TenantUser item = new TenantUser();
                         item.setId(tenant.getId());
@@ -206,6 +208,17 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                 .orderByAsc(TenantUser::getSort)
                 .orderByAsc(TenantUser::getId)
                 .list();
+        Map<String, Tenant> tenantMap = tenantBiz.getByIds(list.stream()
+                        .map(TenantUser::getTenantId)
+                        .filter(StrUtil::isNotBlank)
+                        .distinct()
+                        .collect(Collectors.toList()))
+                .stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(Tenant::getId, item -> item, (a, b) -> a));
+        list = list.stream()
+                .filter(item -> isTenantAvailable(tenantMap.get(item.getTenantId())))
+                .collect(Collectors.toList());
         decorateList(list);
         return list;
     }
@@ -222,11 +235,11 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         if (StrUtil.hasBlank(userId, tenantId)) {
             return false;
         }
+        if (!isTenantAvailable(tenantBiz.getById(tenantId))) {
+            return false;
+        }
         if (isSuperAdminUser(userId)) {
-            return tenantBiz.lambdaQuery()
-                    .eq(Tenant::getId, tenantId)
-                    .eq(Tenant::getStatus, true)
-                    .count() > 0;
+            return true;
         }
         return lambdaQuery()
                 .eq(TenantUser::getUserId, userId)
@@ -239,8 +252,11 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         if (StrUtil.hasBlank(userId, tenantId)) {
             return false;
         }
+        if (!hasUserTenant(userId, tenantId)) {
+            return false;
+        }
         if (isSuperAdminUser(userId)) {
-            return hasUserTenant(userId, tenantId);
+            return true;
         }
         return lambdaQuery()
                 .eq(TenantUser::getUserId, userId)
@@ -265,7 +281,7 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
     }
 
     public List<String> getUserIdsByTenantId(String tenantId) {
-        if (StrUtil.isBlank(tenantId)) {
+        if (StrUtil.isBlank(tenantId) || !isTenantAvailable(tenantBiz.getById(tenantId))) {
             return Collections.emptyList();
         }
         return lambdaQuery()
@@ -277,6 +293,12 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                 .filter(StrUtil::isNotBlank)
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    private boolean isTenantAvailable(Tenant tenant) {
+        return tenant != null
+                && Boolean.TRUE.equals(tenant.getStatus())
+                && (tenant.getExpireTime() == null || tenant.getExpireTime().after(new Date()));
     }
 
 }
