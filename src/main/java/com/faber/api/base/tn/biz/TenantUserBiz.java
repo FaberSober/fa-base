@@ -280,6 +280,39 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         restoreOrCreate(entity, true);
     }
 
+    /**
+     * 确保租户创建人是租户管理员。
+     */
+    public void ensureTenantAdmin(String tenantId, String userId) {
+        if (StrUtil.hasBlank(tenantId, userId)) {
+            return;
+        }
+
+        TenantUser entity = new TenantUser();
+        entity.setTenantId(tenantId);
+        entity.setUserId(userId);
+        entity.setIsAdmin(true);
+        entity.setStatus(true);
+        entity.setSort(0);
+        normalizeAndValidate(entity);
+
+        TenantUser existing = baseMapper.selectByTenantIdAndUserIdIgnoreLogic(tenantId, userId);
+        if (existing == null) {
+            super.save(entity);
+            return;
+        }
+        if (Boolean.TRUE.equals(existing.getDeleted())) {
+            restore(existing, entity);
+            return;
+        }
+
+        if (!Boolean.TRUE.equals(existing.getIsAdmin()) || !Boolean.TRUE.equals(existing.getStatus())) {
+            existing.setIsAdmin(true);
+            existing.setStatus(true);
+            updateIgnoreLogic(existing);
+        }
+    }
+
     public List<String> getUserIdsByTenantId(String tenantId) {
         if (StrUtil.isBlank(tenantId) || !isTenantAvailable(tenantBiz.getById(tenantId))) {
             return Collections.emptyList();

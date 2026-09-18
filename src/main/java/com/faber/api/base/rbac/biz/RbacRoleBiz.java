@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 @Service
 public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
 
+    private static final String TENANT_ADMIN_ROLE_NAME = "租户管理员";
+
     @Lazy
     @Resource
     private TenantUserBiz tenantUserBiz;
@@ -80,6 +82,32 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         if (count != 1) throw new BuzzException("请联系管理检查角色配置：" + name);
 
         return lambdaQuery().eq(RbacRole::getName, name).one();
+    }
+
+    /**
+     * 确保租户拥有默认的租户管理员角色。
+     */
+    public void ensureTenantAdminRole(String tenantId) {
+        if (StrUtil.isBlank(tenantId)) {
+            return;
+        }
+
+        QueryWrapper<RbacRole> wrapper = new QueryWrapper<>();
+        wrapper.eq("name", TENANT_ADMIN_ROLE_NAME)
+                .eq("type", RbacRoleTypeEnum.TENANT.getValue())
+                .eq("tenant_id", tenantId);
+        RbacRole role = baseMapper.selectOne(wrapper);
+        if (role != null) {
+            return;
+        }
+
+        role = new RbacRole();
+        role.setName(TENANT_ADMIN_ROLE_NAME);
+        role.setRemarks("租户默认管理员角色");
+        role.setStatus(true);
+        role.setType(RbacRoleTypeEnum.TENANT);
+        role.setTenantId(tenantId);
+        super.save(role);
     }
 
     public List<RbacRole> listVisibleRolesByIds(List<Long> roleIds) {

@@ -86,6 +86,23 @@ class TenantUserBizTest {
         assertFalse(biz.hasUserTenant("user-1", "tenant-1"));
     }
 
+    @Test
+    void promotesExistingAssociationToTenantAdmin() {
+        TenantUserMapper mapper = mock(TenantUserMapper.class);
+        TenantUserBiz biz = createBiz(mapper);
+        TenantUser association = association("association-1", false);
+
+        when(mapper.selectByTenantIdAndUserIdIgnoreLogic("tenant-1", "user-1"))
+                .thenReturn(association);
+        when(mapper.updateByIdIgnoreLogic(association)).thenReturn(1);
+
+        biz.ensureTenantAdmin("tenant-1", "user-1");
+
+        assertTrue(association.getIsAdmin());
+        assertTrue(association.getStatus());
+        verify(mapper).updateByIdIgnoreLogic(association);
+    }
+
     private TenantUserBiz createBiz(TenantUserMapper mapper) {
         return createBiz(mapper, new Tenant());
     }
