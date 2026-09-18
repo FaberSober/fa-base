@@ -1,13 +1,6 @@
--- ------------------------- info -------------------------
--- @@ver: 1_000_036
--- @@info: 统一 Telemetry 租户ID字段类型，增加租户权限范围
--- ------------------------- info -------------------------
-
-ALTER TABLE `base_client_error_event`
-    MODIFY COLUMN `tenant_id` varchar(32) DEFAULT NULL COMMENT '租户ID';
-
-ALTER TABLE `base_stat_event`
-    MODIFY COLUMN `tenant_id` varchar(32) DEFAULT NULL COMMENT '租户ID';
+-- 开发阶段手动更新 SQL（MySQL）
+-- 适用：已执行 1.0.36，但数据库中还没有 tn_tenant_permission 的开发环境。
+-- 手动执行一次即可；新建数据库直接执行合并后的 1.0.36 脚本即可。
 
 CREATE TABLE IF NOT EXISTS `tn_tenant_permission` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',

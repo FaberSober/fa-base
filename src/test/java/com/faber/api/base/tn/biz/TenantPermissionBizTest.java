@@ -1,0 +1,120 @@
+package com.faber.api.base.tn.biz;
+
+import com.faber.api.base.rbac.biz.RbacMenuBiz;
+import com.faber.api.base.rbac.entity.RbacMenu;
+import com.faber.api.base.tn.entity.Tenant;
+import com.faber.api.base.tn.entity.TenantPermission;
+import com.faber.api.base.tn.mapper.TenantPermissionMapper;
+import com.faber.api.base.tn.vo.req.TenantPermissionUpdateVo;
+import com.faber.core.constant.FaSetting;
+import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
+import com.faber.core.exception.BuzzException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class TenantPermissionBizTest {
+
+    @AfterEach
+    void tearDown() {
+        BaseContextHandler.remove();
+        TenantContext.clear();
+    }
+
+    @Test
+    void platformAdminCanUpdateTenantPermissions() {
+        TenantPermissionMapper mapper = mock(TenantPermissionMapper.class);
+        RbacMenuBiz menuBiz = mock(RbacMenuBiz.class);
+        TenantPermissionBiz biz = createBiz(mapper, menuBiz);
+        BaseContextHandler.setUserId("1");
+
+        when(menuBiz.list()).thenReturn(List.of(menu(10L), menu(20L)));
+        when(mapper.selectList(any())).thenReturn(List.of());
+        when(mapper.selectByTenantIdAndMenuIdIgnoreLogic("tenant-1", 10L)).thenReturn(null);
+        when(mapper.selectByTenantIdAndMenuIdIgnoreLogic("tenant-1", 20L)).thenReturn(null);
+
+        TenantPermissionUpdateVo request = new TenantPermissionUpdateVo();
+        request.setTenantId("tenant-1");
+        request.setMenuIds(List.of(10L, 20L));
+
+        biz.updateMenuIds(request);
+
+        verify(mapper, org.mockito.Mockito.times(2)).insert(any(TenantPermission.class));
+    }
+
+    @Test
+    void rejectsPermissionOutsidePlatformSet() {
+        TenantPermissionMapper mapper = mock(TenantPermissionMapper.class);
+        RbacMenuBiz menuBiz = mock(RbacMenuBiz.class);
+        TenantPermissionBiz biz = createBiz(mapper, menuBiz);
+        BaseContextHandler.setUserId("1");
+        when(menuBiz.list()).thenReturn(List.of(menu(10L)));
+
+        TenantPermissionUpdateVo request = new TenantPermissionUpdateVo();
+        request.setTenantId("tenant-1");
+        request.setMenuIds(List.of(99L));
+
+        assertThrows(BuzzException.class, () -> biz.updateMenuIds(request));
+        verify(mapper, never()).insert(any(TenantPermission.class));
+    }
+
+    @Test
+    void tenantAdminCanReadButCannotUpdateTenantPermissions() {
+        TenantPermissionMapper mapper = mock(TenantPermissionMapper.class);
+        RbacMenuBiz menuBiz = mock(RbacMenuBiz.class);
+        TenantUserBiz tenantUserBiz = mock(TenantUserBiz.class);
+        TenantPermissionBiz biz = createBiz(mapper, menuBiz);
+        ReflectionTestUtils.setField(biz, "tenantUserBiz", tenantUserBiz);
+        BaseContextHandler.setUserId("user-1");
+        TenantContext.setTenantId("tenant-1");
+        when(tenantUserBiz.isTenantAdminUser("user-1", "tenant-1")).thenReturn(true);
+
+        TenantPermission permission = new TenantPermission();
+        permission.setTenantId("tenant-1");
+        permission.setMenuId(10L);
+        when(mapper.selectList(any())).thenReturn(List.of(permission));
+
+        assertEquals(List.of(10L), biz.getMenuIds("tenant-1"));
+
+        TenantPermissionUpdateVo request = new TenantPermissionUpdateVo();
+        request.setTenantId("tenant-1");
+        request.setMenuIds(List.of(10L));
+        assertThrows(BuzzException.class, () -> biz.updateMenuIds(request));
+        verify(mapper, never()).insert(any(TenantPermission.class));
+    }
+
+    private TenantPermissionBiz createBiz(TenantPermissionMapper mapper, RbacMenuBiz menuBiz) {
+        TenantPermissionBiz biz = new TenantPermissionBiz();
+        ReflectionTestUtils.setField(biz, "baseMapper", mapper);
+        ReflectionTestUtils.setField(biz, "rbacMenuBiz", menuBiz);
+
+        TenantBiz tenantBiz = mock(TenantBiz.class);
+        when(tenantBiz.getById("tenant-1")).thenReturn(new Tenant());
+        ReflectionTestUtils.setField(biz, "tenantBiz", tenantBiz);
+
+        FaSetting faSetting = new FaSetting();
+        FaSetting.Tenant tenantSetting = new FaSetting.Tenant();
+        tenantSetting.setEnabled(true);
+        faSetting.setTenant(tenantSetting);
+        ReflectionTestUtils.setField(biz, "faSetting", faSetting);
+        return biz;
+    }
+
+    private RbacMenu menu(Long id) {
+        RbacMenu menu = new RbacMenu();
+        menu.setId(id);
+        menu.setDeleted(false);
+        return menu;
+    }
+}
