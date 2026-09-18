@@ -2,12 +2,16 @@ package com.faber.api.base.tn.biz;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.tn.entity.Tenant;
 import com.faber.api.base.tn.entity.TenantUser;
 import com.faber.api.base.tn.mapper.TenantUserMapper;
+import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
+import com.faber.core.exception.NoDataException;
+import com.faber.core.vo.query.QueryParams;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +23,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.io.Serializable;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +38,19 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
 
     @Resource
     private UserBiz userBiz;
+
+    @Override
+    public QueryWrapper<TenantUser> parseQuery(QueryParams query) {
+        QueryWrapper<TenantUser> wrapper = super.parseQuery(query);
+        if (!isTenantEnabled() || isSuperAdminUser(getCurrentUserId())) {
+            return wrapper;
+        }
+
+        String tenantId = getCurrentTenantId();
+        checkCanManageTenant(tenantId);
+        wrapper.eq("tenant_id", tenantId);
+        return wrapper;
+    }
 
     @Override
     protected void saveBefore(TenantUser entity) {
@@ -70,11 +88,13 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
     /**
      * 新增关联时优先恢复同一租户和用户的逻辑删除记录，避免唯一索引与逻辑删除冲突。
      */
+    @FaCacheClear(pre = "rbac:")
     @Override
     public boolean save(TenantUser entity) {
-        return restoreOrCreate(entity, false);
+        return restoreOrCreate(entity, false, true);
     }
 
+    @FaCacheClear(pre = "rbac:")
     @Override
     public boolean saveBatch(Collection<TenantUser> entityList) {
         if (CollUtil.isEmpty(entityList)) {
@@ -88,14 +108,143 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         return true;
     }
 
-    private boolean restoreOrCreate(TenantUser entity, boolean tolerateActive) {
+    @Override
+    public boolean saveBatch(Collection<TenantUser> entityList, int batchSize) {
+        return saveBatch(entityList);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean updateById(TenantUser entity) {
+        if (entity == null || StrUtil.isBlank(entity.getId())) {
+            throw new BuzzException("租户用户关联ID不能为空");
+        }
+
+        TenantUser existing = baseMapper.selectByIdIgnoreLogic(entity.getId());
+        if (existing == null || Boolean.TRUE.equals(existing.getDeleted())) {
+            throw new NoDataException();
+        }
+        checkCanManageTenant(existing.getTenantId());
+
+        String tenantId = StrUtil.trim(entity.getTenantId());
+        String userId = StrUtil.trim(entity.getUserId());
+        if (!StrUtil.equals(existing.getTenantId(), tenantId)
+                || !StrUtil.equals(existing.getUserId(), userId)) {
+            throw new BuzzException("租户用户关联的租户和用户不可修改");
+        }
+        return super.updateById(entity);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean updateBatchById(Collection<TenantUser> entityList) {
+        if (CollUtil.isEmpty(entityList)) {
+            return true;
+        }
+        for (TenantUser entity : entityList) {
+            if (!updateById(entity)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean updateBatchById(Collection<TenantUser> entityList, int batchSize) {
+        return updateBatchById(entityList);
+    }
+
+    @Override
+    public TenantUser getById(Serializable id) {
+        TenantUser entity = super.getById(id);
+        if (entity != null) {
+            checkCanManageTenant(entity.getTenantId());
+        }
+        return entity;
+    }
+
+    @Override
+    public TenantUser getDetailById(Serializable id) {
+        TenantUser entity = getById(id);
+        decorateOne(entity);
+        return entity;
+    }
+
+    @Override
+    public <ID extends Serializable> List<TenantUser> getByIds(List<ID> ids) {
+        List<TenantUser> list = super.getByIds(ids);
+        list.forEach(item -> checkCanManageTenant(item.getTenantId()));
+        return list;
+    }
+
+    @Override
+    public List<TenantUser> list() {
+        return list(new QueryParams());
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean removeById(Serializable id) {
+        checkCanManageTenant(getTenantIdIgnoreLogic(id));
+        return super.removeById(id);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public void removeBatchByIds(List<Serializable> ids) {
+        ids.forEach(id -> checkCanManageTenant(getTenantIdIgnoreLogic(id)));
+        super.removeBatchByIds(ids);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public void removePerById(Serializable id) {
+        checkCanManageTenant(getTenantIdIgnoreLogic(id));
+        super.removePerById(id);
+    }
+
+    @Override
+    public void removePerByIds(Collection<? extends Serializable> ids) {
+        ids.forEach(id -> checkCanManageTenant(getTenantIdIgnoreLogic(id)));
+        super.removePerByIds(ids);
+    }
+
+    @Override
+    public void removeMine() {
+        QueryParams query = new QueryParams();
+        query.getQuery().put("crtUser", getCurrentUserId());
+        removeByQuery(query);
+    }
+
+    @Override
+    public boolean saveOrUpdateBatch(Collection<TenantUser> entityList) {
+        if (CollUtil.isEmpty(entityList)) {
+            return true;
+        }
+        for (TenantUser entity : entityList) {
+            if (!saveOrUpdate(entity)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean saveOrUpdateBatch(Collection<TenantUser> entityList, int batchSize) {
+        return saveOrUpdateBatch(entityList);
+    }
+
+    private boolean restoreOrCreate(TenantUser entity, boolean tolerateActive, boolean checkPermission) {
         normalizeAndValidate(entity);
+        if (checkPermission) {
+            checkCanManageTenant(entity.getTenantId());
+        }
 
         TenantUser existing = baseMapper.selectByTenantIdAndUserIdIgnoreLogic(
                 entity.getTenantId(), entity.getUserId()
         );
         if (existing == null) {
-            return super.save(entity);
+            return checkPermission ? super.save(entity) : saveInternal(entity);
         }
 
         if (Boolean.TRUE.equals(existing.getDeleted())) {
@@ -129,6 +278,34 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
             source.setDeleted(false);
         }
         return updated;
+    }
+
+    private boolean saveInternal(TenantUser entity) {
+        boolean saved = baseMapper.insert(entity) > 0;
+        if (saved) {
+            afterSave(entity);
+            afterChange(entity);
+        }
+        return saved;
+    }
+
+    private String getTenantIdIgnoreLogic(Serializable id) {
+        TenantUser entity = baseMapper.selectByIdIgnoreLogic(id);
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
+            throw new NoDataException();
+        }
+        return entity.getTenantId();
+    }
+
+    private void checkCanManageTenant(String tenantId) {
+        if (!isTenantEnabled() || isSuperAdminUser(getCurrentUserId())) {
+            return;
+        }
+        if (StrUtil.isBlank(tenantId)
+                || !StrUtil.equals(tenantId, getCurrentTenantId())
+                || !isTenantAdminUser(getCurrentUserId(), tenantId)) {
+            throw new BuzzException("无权管理当前租户成员");
+        }
     }
 
     private boolean updateIgnoreLogic(TenantUser entity) {
@@ -277,7 +454,7 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         entity.setIsAdmin(false);
         entity.setStatus(true);
         entity.setSort(0);
-        restoreOrCreate(entity, true);
+        restoreOrCreate(entity, true, false);
     }
 
     /**
@@ -298,7 +475,7 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
 
         TenantUser existing = baseMapper.selectByTenantIdAndUserIdIgnoreLogic(tenantId, userId);
         if (existing == null) {
-            super.save(entity);
+            saveInternal(entity);
             return;
         }
         if (Boolean.TRUE.equals(existing.getDeleted())) {

@@ -5,7 +5,11 @@ import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.tn.entity.Tenant;
 import com.faber.api.base.tn.entity.TenantUser;
 import com.faber.api.base.tn.mapper.TenantUserMapper;
+import com.faber.core.constant.FaSetting;
+import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
 import com.faber.core.exception.BuzzException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -20,6 +24,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TenantUserBizTest {
+
+    @AfterEach
+    void tearDown() {
+        BaseContextHandler.remove();
+        TenantContext.clear();
+    }
 
     @Test
     void restoresLogicallyDeletedAssociationOnSave() {
@@ -103,13 +113,54 @@ class TenantUserBizTest {
         verify(mapper).updateByIdIgnoreLogic(association);
     }
 
+    @Test
+    void rejectsChangingAssociationTenantOrUserOnUpdate() {
+        TenantUserMapper mapper = mock(TenantUserMapper.class);
+        TenantUserBiz biz = createBiz(mapper);
+        TenantUser existing = association("association-1", false);
+        TenantUser request = association("association-1", false);
+        request.setTenantId("tenant-2");
+        BaseContextHandler.setUserId("1");
+
+        when(mapper.selectByIdIgnoreLogic("association-1")).thenReturn(existing);
+
+        BuzzException exception = assertThrows(BuzzException.class, () -> biz.updateById(request));
+
+        assertEquals("租户用户关联的租户和用户不可修改", exception.getMessage());
+        verify(mapper, never()).updateById(any(TenantUser.class));
+    }
+
+    @Test
+    void rejectsMemberSaveOutsideCurrentTenant() {
+        TenantUserMapper mapper = mock(TenantUserMapper.class);
+        TenantUserBiz biz = createBiz(mapper, new Tenant(), true);
+        BaseContextHandler.setUserId("user-1");
+        TenantContext.setTenantId("tenant-2");
+
+        BuzzException exception = assertThrows(BuzzException.class,
+                () -> biz.save(association(null, false)));
+
+        assertEquals("无权管理当前租户成员", exception.getMessage());
+        verify(mapper, never()).insert(any(TenantUser.class));
+    }
+
     private TenantUserBiz createBiz(TenantUserMapper mapper) {
         return createBiz(mapper, new Tenant());
     }
 
     private TenantUserBiz createBiz(TenantUserMapper mapper, Tenant tenant) {
+        return createBiz(mapper, tenant, false);
+    }
+
+    private TenantUserBiz createBiz(TenantUserMapper mapper, Tenant tenant, boolean tenantEnabled) {
         TenantUserBiz biz = new TenantUserBiz();
         ReflectionTestUtils.setField(biz, "baseMapper", mapper);
+
+        FaSetting faSetting = new FaSetting();
+        FaSetting.Tenant tenantSetting = new FaSetting.Tenant();
+        tenantSetting.setEnabled(tenantEnabled);
+        faSetting.setTenant(tenantSetting);
+        ReflectionTestUtils.setField(biz, "faSetting", faSetting);
 
         TenantBiz tenantBiz = mock(TenantBiz.class);
         when(tenantBiz.getById("tenant-1")).thenReturn(tenant);
