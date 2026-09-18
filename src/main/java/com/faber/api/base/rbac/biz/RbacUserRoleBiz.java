@@ -118,7 +118,14 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
      * @return
      */
     public boolean checkUserLinkUrl(String userId, String linkUrl) {
-        return baseMapper.countByUserIdAndLinkUrl(userId, linkUrl) > 0;
+        String tenantId = null;
+        if (isTenantEnabled() && !isSuperAdminUser(userId)) {
+            tenantId = getCurrentTenantId();
+            if (StrUtil.isBlank(tenantId)) {
+                return false;
+            }
+        }
+        return baseMapper.countByUserIdAndLinkUrl(userId, linkUrl, tenantId) > 0;
     }
 
     public TableRet<RbacUserRoleRetVo> pageVo(BasePageQuery<RbacUserRoleQueryVo> query) {

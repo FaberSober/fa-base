@@ -19,7 +19,9 @@ public interface RbacUserRoleMapper extends FaBaseMapper<RbacUserRole> {
 
     List<RbacUserRoleRetVo> pageVo(@Param("query") RbacUserRoleQueryVo query, @Param("sorter") String sorter);
 
-    int countByUserIdAndLinkUrl(@Param("userId") String userId, @Param("linkUrl") String linkUrl);
+    int countByUserIdAndLinkUrl(@Param("userId") String userId,
+                                @Param("linkUrl") String linkUrl,
+                                @Param("tenantId") String tenantId);
 
     int countPlatformPermission(@Param("userId") String userId, @Param("linkUrl") String linkUrl);
 	

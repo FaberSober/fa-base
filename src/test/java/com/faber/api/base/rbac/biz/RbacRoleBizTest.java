@@ -6,11 +6,14 @@ import com.faber.api.base.rbac.enums.RbacRoleTypeEnum;
 import com.faber.api.base.rbac.mapper.RbacRoleMapper;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
+import com.faber.core.exception.BuzzException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -23,6 +26,7 @@ class RbacRoleBizTest {
     @AfterEach
     void tearDown() {
         BaseContextHandler.remove();
+        TenantContext.clear();
     }
 
     @Test
@@ -57,6 +61,23 @@ class RbacRoleBizTest {
         biz.ensureTenantAdminRole("tenant-1");
 
         verify(mapper, never()).insert(any(RbacRole.class));
+    }
+
+    @Test
+    void tenantUserCannotReadAnotherTenantRoleById() {
+        RbacRoleMapper mapper = mock(RbacRoleMapper.class);
+        RbacRoleBiz biz = createBiz(true);
+        ReflectionTestUtils.setField(biz, "baseMapper", mapper);
+        BaseContextHandler.setUserId("user-1");
+        TenantContext.setTenantId("tenant-1");
+
+        RbacRole role = new RbacRole();
+        role.setId(2L);
+        role.setType(RbacRoleTypeEnum.TENANT);
+        role.setTenantId("tenant-2");
+        when(mapper.selectById(2L)).thenReturn(role);
+
+        assertThrows(BuzzException.class, () -> biz.getById(2L));
     }
 
     private RbacRoleBiz createBiz(boolean tenantEnabled) {

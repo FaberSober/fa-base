@@ -44,19 +44,49 @@
     </select>
 
     <select id="countByUserIdAndLinkUrl" databaseId="oracle" parameterType="map" resultType="int">
-        SELECT count(0) FROM base_rbac_menu WHERE deleted = 0 AND id IN (
-            SELECT menu_id FROM base_rbac_role_menu WHERE deleted = 0 AND role_id IN (
-                SELECT role_id FROM base_rbac_user_role WHERE deleted = 0 AND user_id = #{userId}
-            )
-        ) AND link_url = #{linkUrl}
+        SELECT count(0)
+          FROM base_rbac_menu m
+         WHERE deleted = 0
+           AND status = 1
+           AND id IN (
+                SELECT rm.menu_id
+                  FROM base_rbac_role_menu rm
+                  JOIN base_rbac_user_role ur ON ur.role_id = rm.role_id
+                  JOIN base_rbac_role r ON r.id = ur.role_id
+                 WHERE rm.deleted = 0
+                   AND ur.deleted = 0
+                   AND r.deleted = 0
+                   AND r.status = 1
+                   AND ur.user_id = #{userId}
+                <if test="tenantId != null and tenantId != ''">
+                   AND ((r.type = 2 AND (r.tenant_id IS NULL OR r.tenant_id = ''))
+                        OR (r.type = 3 AND r.tenant_id = #{tenantId}))
+                </if>
+           )
+           AND link_url = #{linkUrl}
     </select>
 
     <select id="countByUserIdAndLinkUrl" parameterType="map" resultType="int">
-        SELECT count(0) FROM base_rbac_menu WHERE deleted = false AND id IN (
-            SELECT menu_id FROM base_rbac_role_menu WHERE deleted = false AND role_id IN (
-                SELECT role_id FROM base_rbac_user_role WHERE deleted = false AND user_id = #{userId}
-            )
-        ) AND link_url = #{linkUrl}
+        SELECT count(0)
+          FROM base_rbac_menu m
+         WHERE m.deleted = false
+           AND m.status = true
+           AND m.id IN (
+                SELECT rm.menu_id
+                  FROM base_rbac_role_menu rm
+                  JOIN base_rbac_user_role ur ON ur.role_id = rm.role_id
+                  JOIN base_rbac_role r ON r.id = ur.role_id
+                 WHERE rm.deleted = false
+                   AND ur.deleted = false
+                   AND r.deleted = false
+                   AND r.status = true
+                   AND ur.user_id = #{userId}
+                <if test="tenantId != null and tenantId != ''">
+                   AND ((r.type = 2 AND (r.tenant_id IS NULL OR r.tenant_id = ''))
+                        OR (r.type = 3 AND r.tenant_id = #{tenantId}))
+                </if>
+           )
+           AND m.link_url = #{linkUrl}
     </select>
 
     <!-- 在线用户属于平台能力，租户角色即使关联相同菜单也不能授予此权限。 -->

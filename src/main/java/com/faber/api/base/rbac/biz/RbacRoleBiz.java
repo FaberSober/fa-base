@@ -16,6 +16,7 @@ import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,79 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         return wrapper;
     }
 
+    @Override
+    public RbacRole getById(Serializable id) {
+        RbacRole role = super.getById(id);
+        if (role != null) {
+            checkCanViewRole(role);
+        }
+        return role;
+    }
+
+    @Override
+    public RbacRole getDetailById(Serializable id) {
+        RbacRole role = getById(id);
+        decorateOne(role);
+        return role;
+    }
+
+    @Override
+    public <ID extends Serializable> List<RbacRole> getByIds(List<ID> ids) {
+        List<RbacRole> roles = super.getByIds(ids);
+        roles.forEach(this::checkCanViewRole);
+        return roles;
+    }
+
+    @Override
+    public List<RbacRole> list() {
+        return list(new QueryParams());
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean saveBatch(Collection<RbacRole> entityList) {
+        if (entityList == null || entityList.isEmpty()) {
+            return true;
+        }
+        entityList.forEach(this::fillAndCheckSaveRole);
+        return super.saveBatch(entityList);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean saveBatch(Collection<RbacRole> entityList, int batchSize) {
+        if (entityList == null || entityList.isEmpty()) {
+            return true;
+        }
+        entityList.forEach(this::fillAndCheckSaveRole);
+        return super.saveBatch(entityList, batchSize);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean saveOrUpdate(RbacRole entity) {
+        return entity.getId() == null ? save(entity) : updateById(entity);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean saveOrUpdateBatch(Collection<RbacRole> entityList) {
+        if (entityList == null || entityList.isEmpty()) {
+            return true;
+        }
+        for (RbacRole entity : entityList) {
+            if (!saveOrUpdate(entity)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean saveOrUpdateBatch(Collection<RbacRole> entityList, int batchSize) {
+        return saveOrUpdateBatch(entityList);
+    }
+
     @FaCacheClear(pre = "rbac:")
     @Override
     public boolean save(RbacRole entity) {
@@ -75,6 +149,30 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     public void removeBatchByIds(List<Serializable> ids) {
         ids.forEach(id -> checkCanManageRole(getById(id)));
         super.removeBatchByIds(ids);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public void removePerById(Serializable id) {
+        checkCanManageRole(toRoleId(id));
+        super.removePerById(id);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public void removePerByIds(Collection<? extends Serializable> ids) {
+        ids.forEach(id -> checkCanManageRole(toRoleId(id)));
+        super.removePerByIds(ids);
+    }
+
+    @Override
+    public void removeByQuery(QueryParams query) {
+        if (isTenantEnabled()
+                && !isSuperAdminUser(getCurrentUserId())
+                && !tenantUserBiz.isTenantAdminUser(getCurrentUserId(), getCurrentTenantId())) {
+            throw new BuzzException("无权管理角色");
+        }
+        super.removeByQuery(query);
     }
 
     public RbacRole getRoleByName(String name) {
@@ -150,7 +248,11 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     }
 
     public void checkCanViewRole(Long roleId) {
-        RbacRole role = getById(roleId);
+        RbacRole role = super.getById(roleId);
+        checkCanViewRole(role);
+    }
+
+    public void checkCanViewRole(RbacRole role) {
         if (role == null) {
             throw new BuzzException("角色不存在");
         }
@@ -161,7 +263,7 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     }
 
     public void checkCanManageRole(Long roleId) {
-        RbacRole role = getById(roleId);
+        RbacRole role = super.getById(roleId);
         checkCanManageRole(role);
     }
 
@@ -242,7 +344,7 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         if (!isTenantEnabled()) {
             return;
         }
-        RbacRole db = getById(entity.getId());
+        RbacRole db = super.getById(entity.getId());
         checkCanManageRole(db);
 
         if (isSuperAdminUser(getCurrentUserId())) {
@@ -302,6 +404,10 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
             return RbacRoleTypeEnum.GLOBAL_SUPER;
         }
         return StrUtil.isBlank(role.getTenantId()) ? RbacRoleTypeEnum.GLOBAL : RbacRoleTypeEnum.TENANT;
+    }
+
+    private Long toRoleId(Serializable id) {
+        return id instanceof Number ? ((Number) id).longValue() : Long.valueOf(id.toString());
     }
 
 }
