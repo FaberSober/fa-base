@@ -148,7 +148,7 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     }
 
     private void appendRoleScopeQuery(QueryWrapper<RbacRole> wrapper) {
-        if (isSuperAdminUser(getCurrentUserId())) {
+        if (!isTenantEnabled() || isSuperAdminUser(getCurrentUserId())) {
             return;
         }
 
@@ -162,7 +162,7 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     }
 
     private boolean canViewRole(RbacRole role) {
-        if (isSuperAdminUser(getCurrentUserId())) {
+        if (!isTenantEnabled() || isSuperAdminUser(getCurrentUserId())) {
             return true;
         }
         RbacRoleTypeEnum type = getRoleType(role);
@@ -177,7 +177,7 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     }
 
     private boolean canManageRole(RbacRole role) {
-        if (isSuperAdminUser(getCurrentUserId())) {
+        if (!isTenantEnabled() || isSuperAdminUser(getCurrentUserId())) {
             return true;
         }
         RbacRoleTypeEnum type = getRoleType(role);
@@ -195,6 +195,9 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     }
 
     private void fillAndCheckSaveRole(RbacRole entity) {
+        if (!isTenantEnabled()) {
+            return;
+        }
         if (isSuperAdminUser(getCurrentUserId())) {
             fillSuperAdminRoleScope(entity);
             return;
@@ -208,6 +211,9 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     }
 
     private void fillAndCheckUpdateRole(RbacRole entity) {
+        if (!isTenantEnabled()) {
+            return;
+        }
         RbacRole db = getById(entity.getId());
         checkCanManageRole(db);
 
