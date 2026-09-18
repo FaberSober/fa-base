@@ -31,7 +31,7 @@
 | 模块 | 功能 | 功能详情 | 当前规划 | 进度 |
 | --- | --- | --- | --- | --- |
 | `fa-core` | 删除遗留租户 Entity 层级 | 删除 `com.faber.core.tenant.bean.TnBase*Entity` 及其引用，统一 `com.faber.core.bean.BaseTn*Entity` | 执行开发 | ✅已完成 |
-| `fa-core` | 统一租户 ID 类型 | 租户 Entity、上下文、自动填充和数据库字段统一为 `String` / `varchar(32)` | 执行开发 | ❌未完成 |
+| `fa-core` | 统一租户 ID 类型 | 租户 Entity、上下文、自有数据库字段统一为 `String` / `varchar(32)`，兼容 FlowLong 官方 `varchar(50)` | 执行开发 | ✅已完成 |
 | `fa-core` | 租户模式与上下文 | 封装单/多租户模式判断、当前租户读取、必需租户校验和上下文清理 | 执行开发 | ❌未完成 |
 | `fa-core` | 自动租户隔离 | 仅对 `BaseTn*Entity` 注册拦截器并自动追加 `tenant_id` 条件 | 执行开发 | ❌未完成 |
 | `fa-core` | 自动填充租户 ID | 多租户业务插入时从上下文填充 `tenant_id`，禁止使用请求参数直接覆盖 | 执行开发 | ❌未完成 |
@@ -99,6 +99,8 @@
 
 - 租户私有表增加 `tenant_id varchar(32)`，通常建立 `tenant_id` 查询索引。
 - 租户内唯一业务字段使用包含 `tenant_id` 的联合唯一约束，例如 `(tenant_id, code)`。
+- `fa-flow` 的 FlowLong 官方 `flw_*` 表保留上游约定的 `varchar(50)`；Java Entity 统一使用 `String`，不追加缩短字段的迁移。
+- 项目自有流程 Demo 表仍按本项目约定迁移为 `varchar(32)`。
 - MySQL 和 PostgreSQL 分别维护对应目录下的 DDL，不混用方言。
 - 单租户模式下 `tenant_id` 可以为空或使用明确的默认租户策略；若未来需要切换，必须在启用前完成数据归属处理。
 
@@ -133,7 +135,7 @@
 - 用户在多个租户之间切换时，角色、菜单、按钮权限和缓存正确切换。
 - 用户在一个租户中修改角色，不会覆盖其在其他租户中的角色。
 - 租户私有 Entity 只需继承统一 `BaseTn*Entity`，普通业务逻辑不需要增加租户判断。
-- MySQL 与 PostgreSQL 的 Entity 类型、DDL、索引和迁移脚本一致且符合各自方言。
+- MySQL 与 PostgreSQL 的 Entity 类型、DDL、索引和迁移脚本一致且符合各自方言；FlowLong 官方表保留 `varchar(50)` 兼容约定。
 - 标准 CRUD、自定义 SQL、异步任务和导出场景均有针对性验证结果。
 
 ## 8. 实施顺序

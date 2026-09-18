@@ -38,7 +38,7 @@ public class TelemetryBaseReq {
     @Size(max = 64)
     private String userId;
 
-    @Size(max = 64)
+    @Size(max = 32)
     private String tenantId;
 
     /** 客户端使用 ISO 8601 时间，独立于应用全局日期格式。 */
