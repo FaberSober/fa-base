@@ -8,6 +8,7 @@ import com.faber.api.base.admin.entity.FileSave;
 import com.faber.api.base.admin.vo.ret.FilePreviewResourceRetVo;
 import com.faber.api.base.admin.vo.ret.FilePreviewTicketRetVo;
 import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.utils.FaRedisUtils;
@@ -54,7 +55,7 @@ public class FilePreviewTicketBiz {
         PreviewGrant grant = new PreviewGrant();
         grant.setFileId(fileSave.getId());
         grant.setUserId(userId);
-        grant.setTenantId(BaseContextHandler.getTenantId());
+        grant.setTenantId(TenantContext.getTenantId());
         grant.setWatermarkText(resolveWatermarkText());
         grant.setDownloadAllowed(true);
 

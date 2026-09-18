@@ -9,13 +9,11 @@ import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
 import com.faber.config.auth.OnlineUserTracker;
-import com.faber.api.base.tn.biz.TenantUserBiz;
+import com.faber.config.auth.TenantContextResolver;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
-import com.faber.core.constant.CommonConstants;
-import com.faber.core.constant.FaSetting;
-import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
 import com.faber.core.exception.auth.UserTokenException;
 import com.faber.core.exception.auth.UserNoPermissionException;
 import com.faber.core.vo.msg.BaseRet;
@@ -43,13 +41,10 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
     private UserTokenBiz userTokenBiz;
 
     @Resource
-    private TenantUserBiz tenantUserBiz;
-
-    @Resource
-    private FaSetting faSetting;
-
-    @Resource
     private OnlineUserTracker onlineUserTracker;
+
+    @Resource
+    private TenantContextResolver tenantContextResolver;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -66,6 +61,8 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
     }
 
     private boolean doPreHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        TenantContext.clear();
+
         // 配置该注解，说明在上下文中注入当前操作用户为admin
         AdminOpr adminOpr = getMethodAnno(handler, AdminOpr.class);
         if (adminOpr != null) {
@@ -85,7 +82,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         if (apiToken != null) {
             User user = userBiz.getUserFromApiToken();
             userBiz.setUserLogin(user, "api");
-            this.resolveUserTenant(request, user.getId());
+            tenantContextResolver.resolve(request, user.getId());
             return super.preHandle(request, response, handler);
         }
 
@@ -127,7 +124,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         }
         userBiz.setUserLogin(user);
         requireApplicationAccess(request.getRequestURI(), user);
-        this.resolveUserTenant(request, userId);
+        tenantContextResolver.resolve(request, userId);
 
         onlineUserTracker.touch(token, user, false);
 
@@ -142,23 +139,6 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
     static boolean requiresAdminAccess(String requestUri) {
         return !(requestUri.equals("/api/portal") || requestUri.startsWith("/api/portal/"));
-    }
-
-    private void resolveUserTenant(HttpServletRequest request, String userId) {
-        if (faSetting.getTenant() == null || !faSetting.getTenant().isEnabled()) {
-            BaseContextHandler.setTenantId(null);
-            return;
-        }
-
-        String tenantId = request.getHeader(CommonConstants.FA_TN_TENANT_ID);
-        if (StrUtil.isNotBlank(tenantId)) {
-            if (!tenantUserBiz.hasUserTenant(userId, tenantId)) {
-                throw new UserTokenException("当前账户无权访问该租户");
-            }
-        } else {
-            tenantId = tenantUserBiz.getDefaultTenantId(userId);
-        }
-        BaseContextHandler.setTenantId(tenantId);
     }
 
     @Override

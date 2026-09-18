@@ -7,6 +7,7 @@ import com.faber.api.base.telemetry.enums.TelemetryClientTypeEnum;
 import com.faber.api.base.telemetry.vo.TelemetryEventReq;
 import com.faber.api.base.telemetry.vo.TelemetryTrackCommand;
 import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -77,7 +78,7 @@ public class TelemetryService {
         request.setRelease(release);
         request.setSessionId(sessionId);
         request.setUserId(BaseContextHandler.getUserId());
-        request.setTenantId(BaseContextHandler.getTenantId());
+        request.setTenantId(TenantContext.getTenantId());
         request.setEventType(command.getEventType());
         request.setEventCode(command.getEventCode());
         request.setModule(command.getModule());

@@ -24,6 +24,7 @@ import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.constant.CommonConstants;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
 import com.faber.core.enums.SexEnum;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
@@ -155,15 +156,15 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     }
 
     private void appendTenantUserQueryIfNeed(QueryParams query) {
-        if (faSetting.getTenant() == null || !faSetting.getTenant().isEnabled()) {
+        if (!faSetting.isTenantEnabled()) {
             return;
         }
-        String tenantId = BaseContextHandler.getTenantId();
+        String tenantId = TenantContext.getTenantId();
         if (StrUtil.isBlank(tenantId)) {
             if (isSuperAdminUser(getCurrentUserId())) {
                 return;
             }
-            throw new BuzzException("当前租户上下文为空");
+            tenantId = TenantContext.requireTenantId();
         }
 
         List<String> tenantUserIds = tenantUserBiz.getUserIdsByTenantId(tenantId);
@@ -247,7 +248,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     }
 
     private void bindTenantUserIfNeed(User entity) {
-        if (faSetting.getTenant() == null || !faSetting.getTenant().isEnabled()) {
+        if (!faSetting.isTenantEnabled()) {
             return;
         }
 
