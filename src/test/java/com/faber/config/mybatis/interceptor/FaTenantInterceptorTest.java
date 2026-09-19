@@ -7,7 +7,13 @@ import com.faber.core.context.BaseContextHandler;
 import com.faber.core.context.TenantContext;
 import com.faber.core.exception.BuzzException;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Table;
+import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.delete.Delete;
+import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.update.Update;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -64,5 +70,39 @@ class FaTenantInterceptorTest {
 
         assertTrue(interceptor.getTenantLineHandler().ignoreTable("base_department"));
         assertNull(interceptor.buildTableExpression(new Table("base_department"), null, ""));
+    }
+
+    @Test
+    void tenantEntityCrudSqlGetsTenantScope() throws Exception {
+        BaseContextHandler.setUserId("2");
+        TenantContext.setTenantId("tenant-a");
+        TestableTenantInterceptor interceptor = new TestableTenantInterceptor();
+
+        assertTrue(interceptor.rewrite("SELECT * FROM base_department WHERE name = '研发'")
+                .contains("tenant_id = 'tenant-a'"));
+        String insertSql = interceptor.rewrite("INSERT INTO base_department (id, name) VALUES ('1', '研发')");
+        assertTrue(insertSql.contains("tenant_id"));
+        assertTrue(insertSql.contains("'tenant-a'"));
+        assertTrue(interceptor.rewrite("UPDATE base_department SET name = '产品' WHERE id = '1'")
+                .contains("tenant_id = 'tenant-a'"));
+        assertTrue(interceptor.rewrite("DELETE FROM base_department WHERE id = '1'")
+                .contains("tenant_id = 'tenant-a'"));
+    }
+
+    private static class TestableTenantInterceptor extends FaTenantInterceptor {
+
+        private String rewrite(String sql) throws Exception {
+            Statement statement = CCJSqlParserUtil.parse(sql);
+            if (statement instanceof Select) {
+                processSelect((Select) statement, 0, sql, null);
+            } else if (statement instanceof Insert) {
+                processInsert((Insert) statement, 0, sql, null);
+            } else if (statement instanceof Update) {
+                processUpdate((Update) statement, 0, sql, null);
+            } else if (statement instanceof Delete) {
+                processDelete((Delete) statement, 0, sql, null);
+            }
+            return statement.toString();
+        }
     }
 }

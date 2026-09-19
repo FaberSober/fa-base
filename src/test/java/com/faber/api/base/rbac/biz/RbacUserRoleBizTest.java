@@ -78,6 +78,18 @@ class RbacUserRoleBizTest {
     }
 
     @Test
+    void singleTenantPermissionCheckIgnoresTenantContext() {
+        RbacUserRoleMapper mapper = mock(RbacUserRoleMapper.class);
+        RbacUserRoleBiz biz = createBiz(mapper, false);
+        BaseContextHandler.setUserId("user-1");
+        TenantContext.clear();
+        when(mapper.countByUserIdAndLinkUrl("user-1", "/demo", null)).thenReturn(1);
+
+        assertTrue(biz.checkUserLinkUrl("user-1", "/demo"));
+        verify(mapper).countByUserIdAndLinkUrl("user-1", "/demo", null);
+    }
+
+    @Test
     void initializesUserRoleBindingOnlyWhenMissing() {
         RbacUserRoleMapper mapper = mock(RbacUserRoleMapper.class);
         RbacUserRoleBiz biz = createBiz(mapper, true);
