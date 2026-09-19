@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.rbac.enums.RbacRoleTypeEnum;
 import com.faber.api.base.rbac.mapper.RbacRoleMapper;
+import com.faber.api.base.tn.biz.TenantUserBiz;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.context.TenantContext;
@@ -97,6 +98,36 @@ class RbacRoleBizTest {
         when(mapper.selectById(2L)).thenReturn(role);
 
         assertThrows(BuzzException.class, () -> biz.getById(2L));
+    }
+
+    @Test
+    void tenantAdminCannotAssignGlobalRole() {
+        RbacRoleBiz biz = createBiz(true);
+        ReflectionTestUtils.setField(biz, "tenantUserBiz", mock(TenantUserBiz.class));
+        BaseContextHandler.setUserId("user-1");
+        TenantContext.setTenantId("tenant-1");
+
+        RbacRole role = new RbacRole();
+        role.setType(RbacRoleTypeEnum.GLOBAL);
+
+        assertThrows(BuzzException.class, () -> biz.checkCanAssignRole(role));
+    }
+
+    @Test
+    void tenantAdminCanAssignCurrentTenantRole() {
+        TenantUserBiz tenantUserBiz = mock(TenantUserBiz.class);
+        RbacRoleBiz biz = createBiz(true);
+        ReflectionTestUtils.setField(biz, "tenantUserBiz", tenantUserBiz);
+        BaseContextHandler.setUserId("user-1");
+        TenantContext.setTenantId("tenant-1");
+        when(tenantUserBiz.isTenantAdminUser("user-1", "tenant-1")).thenReturn(true);
+
+        RbacRole role = new RbacRole();
+        role.setType(RbacRoleTypeEnum.TENANT);
+        role.setTenantId("tenant-1");
+        role.setName("业务角色");
+
+        assertDoesNotThrow(() -> biz.checkCanAssignRole(role));
     }
 
     private RbacRoleBiz createBiz(boolean tenantEnabled) {

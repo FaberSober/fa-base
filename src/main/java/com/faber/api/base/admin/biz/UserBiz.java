@@ -241,8 +241,8 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
 
         super.save(entity);
 
-        this.updateUserRoles(entity);
         this.bindTenantUserIfNeed(entity);
+        this.updateUserRoles(entity);
 
         return true;
     }

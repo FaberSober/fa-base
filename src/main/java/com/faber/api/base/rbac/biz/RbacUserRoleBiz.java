@@ -15,9 +15,11 @@ import com.faber.api.base.rbac.vo.req.RbacUserRoleQueryVo;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleUpdateVo;
 import com.faber.api.base.rbac.vo.req.RbacUserRolesVo;
 import com.faber.api.base.tn.biz.TenantPermissionBiz;
+import com.faber.api.base.tn.biz.TenantUserBiz;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.constant.CommonConstants;
 import com.faber.core.exception.BuzzException;
+import com.faber.core.exception.NoDataException;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.BasePageQuery;
 import com.faber.core.vo.tree.TreeNode;
@@ -31,8 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -59,29 +65,136 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
     @Autowired
     private TenantPermissionBiz tenantPermissionBiz;
 
+    @Lazy
+    @Autowired
+    private TenantUserBiz tenantUserBiz;
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean save(RbacUserRole entity) {
+        checkCanAssignBinding(entity == null ? null : entity.getUserId(), entity == null ? null : entity.getRoleId());
+        return super.save(entity);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean saveBatch(Collection<RbacUserRole> entityList) {
+        if (entityList == null || entityList.isEmpty()) {
+            return true;
+        }
+        entityList.forEach(entity -> checkCanAssignBinding(entity.getUserId(), entity.getRoleId()));
+        return super.saveBatch(entityList);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean saveBatch(Collection<RbacUserRole> entityList, int batchSize) {
+        if (entityList == null || entityList.isEmpty()) {
+            return true;
+        }
+        entityList.forEach(entity -> checkCanAssignBinding(entity.getUserId(), entity.getRoleId()));
+        return super.saveBatch(entityList, batchSize);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean saveOrUpdate(RbacUserRole entity) {
+        return entity.getId() == null ? save(entity) : updateById(entity);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean saveOrUpdateBatch(Collection<RbacUserRole> entityList) {
+        if (entityList == null || entityList.isEmpty()) {
+            return true;
+        }
+        for (RbacUserRole entity : entityList) {
+            if (!saveOrUpdate(entity)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean saveOrUpdateBatch(Collection<RbacUserRole> entityList, int batchSize) {
+        return saveOrUpdateBatch(entityList);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean updateById(RbacUserRole entity) {
+        RbacUserRole existing = getExisting(entity.getId());
+        checkCanManageBinding(existing);
+        if (!Objects.equals(existing.getUserId(), entity.getUserId())
+                || !Objects.equals(existing.getRoleId(), entity.getRoleId())) {
+            throw new BuzzException("用户角色关联的用户和角色不可修改");
+        }
+        return super.updateById(entity);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean updateBatchById(Collection<RbacUserRole> entityList) {
+        if (entityList == null || entityList.isEmpty()) {
+            return true;
+        }
+        for (RbacUserRole entity : entityList) {
+            if (!updateById(entity)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean updateBatchById(Collection<RbacUserRole> entityList, int batchSize) {
+        return updateBatchById(entityList);
+    }
+
     @FaCacheClear(pre = "rbac:")
     @Override
     public boolean removeById(Serializable id) {
-        if ((Long)id == 1L) {
-            throw new BuzzException("不能删除默认的超级管理员角色");
-        }
-        RbacUserRole userRole = getById(id);
-        if (userRole != null) {
-            rbacRoleBiz.checkCanManageRole(userRole.getRoleId());
-        }
+        RbacUserRole userRole = getExisting(id);
+        checkCanManageBinding(userRole);
         return super.removeById(id);
     }
 
     @FaCacheClear(pre = "rbac:")
     @Override
     public void removeBatchByIds(List<Serializable> ids) {
-        ids.forEach(id -> {
-            RbacUserRole userRole = getById(id);
-            if (userRole != null) {
-                rbacRoleBiz.checkCanManageRole(userRole.getRoleId());
-            }
-        });
+        ids.forEach(id -> checkCanManageBinding(getExisting(id)));
         super.removeBatchByIds(ids);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public void removePerById(Serializable id) {
+        checkCanManageBinding(getExisting(id));
+        super.removePerById(id);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public void removePerByIds(Collection<? extends Serializable> ids) {
+        ids.forEach(id -> checkCanManageBinding(getExisting(id)));
+        super.removePerByIds(ids);
+    }
+
+    @Override
+    public void removeByQuery(com.faber.core.vo.query.QueryParams query) {
+        if (isTenantEnabled()) {
+            throw new BuzzException("多租户模式不支持按条件删除用户角色");
+        }
+        super.removeByQuery(query);
+    }
+
+    @Override
+    public void removeMine() {
+        if (isTenantEnabled()) {
+            throw new BuzzException("多租户模式不支持按条件删除用户角色");
+        }
+        super.removeMine();
     }
 
     public List<Long> getUserRoleIds(String userId) {
@@ -191,28 +304,66 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
      * @param roleIds
      */
     public void changeUserRoles(String userId, List<Long> roleIds) {
-        if (StrUtil.isEmpty(userId)) throw new BuzzException("用户ID不能为空");
-        if (roleIds == null || roleIds.isEmpty()) throw new BuzzException("更新需要指定角色ID");
-        roleIds.forEach(rbacRoleBiz::checkCanManageRole);
+        if (StrUtil.isEmpty(userId)) {
+            throw new BuzzException("用户ID不能为空");
+        }
+        if (roleIds == null || roleIds.isEmpty()) {
+            throw new BuzzException("更新需要指定角色ID");
+        }
 
-        // 删除之前的角色关联
-        lambdaQuery().eq(RbacUserRole::getUserId, userId).list().forEach(item -> {
-            super.removeById(item.getId());
-        });
-
-        // 绑定新的角色关联
+        List<RbacUserRole> existingBindings = baseMapper.selectList(new QueryWrapper<RbacUserRole>()
+                .eq("user_id", userId));
+        Map<Long, RbacRole> existingRoles = loadRoles(existingBindings.stream()
+                .map(RbacUserRole::getRoleId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet()));
+        Set<Long> existingRoleIds = existingRoles.keySet();
+        Set<Long> requestedRoleIds = new LinkedHashSet<>();
         for (Long roleId : roleIds) {
+            if (roleId == null) {
+                throw new BuzzException("角色ID不能为空");
+            }
+            requestedRoleIds.add(roleId);
+        }
+
+        Map<Long, RbacRole> requestedRoles = loadRoles(requestedRoleIds);
+        for (Long roleId : requestedRoleIds) {
+            RbacRole role = requestedRoles.get(roleId);
+            checkRoleBindingScope(role);
+            checkUserTenant(userId, role);
+            if (!isPreservedRole(existingRoleIds, role)) {
+                rbacRoleBiz.checkCanAssignRole(role);
+            }
+        }
+
+        for (RbacUserRole binding : existingBindings) {
+            RbacRole role = existingRoles.get(binding.getRoleId());
+            if (isManagedBinding(role) && !requestedRoleIds.contains(binding.getRoleId())) {
+                super.removeById(binding.getId());
+            }
+        }
+
+        for (Long roleId : requestedRoleIds) {
+            if (existingRoleIds.contains(roleId)) {
+                continue;
+            }
             RbacUserRole userRole = new RbacUserRole();
             userRole.setUserId(userId);
             userRole.setRoleId(roleId);
-            this.save(userRole);
+            super.save(userRole);
         }
     }
 
     public void addUsers(RbacUserRoleUpdateVo param) {
+        if (param == null || param.getRoleId() == null || param.getUserIds() == null || param.getUserIds().isEmpty()) {
+            throw new BuzzException("用户和角色不能为空");
+        }
         Long roleId = param.getRoleId();
-        rbacRoleBiz.checkCanManageRole(roleId);
+        RbacRole role = rbacRoleBiz.getRoleForBinding(roleId);
+        checkRoleBindingScope(role);
+        rbacRoleBiz.checkCanAssignRole(role);
         for (String userId : param.getUserIds()) {
+            checkUserTenant(userId, role);
             long count = lambdaQuery()
                     .eq(RbacUserRole::getUserId, userId)
                     .eq(RbacUserRole::getRoleId, roleId)
@@ -229,27 +380,82 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
             RbacUserRole userRole = new RbacUserRole();
             userRole.setUserId(userId);
             userRole.setRoleId(roleId);
-            this.save(userRole);
+            super.save(userRole);
         }
     }
 
     @Transactional
     @FaCacheClear(pre = "rbac:")
     public void updateUserRoles(RbacUserRolesVo params) {
-        for (Long roleId : params.getRoleIds()) {
-            rbacRoleBiz.checkCanManageRole(roleId);
+        if (params == null) {
+            throw new BuzzException("用户角色参数不能为空");
         }
+        changeUserRoles(params.getUserId(), params.getRoleIds());
+    }
 
-        lambdaUpdate()
-                .eq(RbacUserRole::getUserId, params.getUserId())
-                .remove();
-
-        for (Long roleId : params.getRoleIds()) {
-            RbacUserRole userRole = new RbacUserRole();
-            userRole.setUserId(params.getUserId());
-            userRole.setRoleId(roleId);
-            this.save(userRole);
+    private void checkCanAssignBinding(String userId, Long roleId) {
+        if (StrUtil.isBlank(userId) || roleId == null) {
+            throw new BuzzException("用户和角色不能为空");
         }
+        RbacRole role = rbacRoleBiz.getRoleForBinding(roleId);
+        checkRoleBindingScope(role);
+        rbacRoleBiz.checkCanAssignRole(role);
+        checkUserTenant(userId, role);
+    }
+
+    private void checkCanManageBinding(RbacUserRole userRole) {
+        if (userRole == null) {
+            throw new NoDataException();
+        }
+        if (Objects.equals(userRole.getRoleId(), 1L)) {
+            throw new BuzzException("不能删除默认的超级管理员角色");
+        }
+        RbacRole role = rbacRoleBiz.getRoleForBinding(userRole.getRoleId());
+        checkRoleBindingScope(role);
+        rbacRoleBiz.checkCanManageRole(role);
+    }
+
+    private void checkRoleBindingScope(RbacRole role) {
+        if (isTenantEnabled() && !rbacRoleBiz.isRoleInTenantScope(role, getCurrentTenantId())) {
+            throw new BuzzException("角色不属于当前租户范围");
+        }
+    }
+
+    private void checkUserTenant(String userId, RbacRole role) {
+        String tenantId = getCurrentTenantId();
+        if (isTenantEnabled() && rbacRoleBiz.isTenantRole(role) && StrUtil.isNotBlank(tenantId)
+                && !tenantUserBiz.hasUserTenant(userId, tenantId)) {
+            throw new BuzzException("用户未加入当前租户");
+        }
+    }
+
+    private boolean isPreservedRole(Set<Long> existingRoleIds, RbacRole role) {
+        return !isSuperAdminUser(getCurrentUserId())
+                && existingRoleIds.contains(role.getId())
+                && (!rbacRoleBiz.isTenantRole(role) || rbacRoleBiz.isTenantAdminRole(role));
+    }
+
+    private boolean isManagedBinding(RbacRole role) {
+        if (!isTenantEnabled()) {
+            return true;
+        }
+        return rbacRoleBiz.isRoleInTenantScope(role, getCurrentTenantId())
+                && (isSuperAdminUser(getCurrentUserId())
+                || (rbacRoleBiz.isTenantRole(role) && !rbacRoleBiz.isTenantAdminRole(role)));
+    }
+
+    private Map<Long, RbacRole> loadRoles(Collection<Long> roleIds) {
+        return roleIds.stream()
+                .map(rbacRoleBiz::getRoleForBinding)
+                .collect(Collectors.toMap(RbacRole::getId, role -> role));
+    }
+
+    private RbacUserRole getExisting(Serializable id) {
+        RbacUserRole userRole = baseMapper.selectByIdIgnoreLogic(id);
+        if (userRole == null || Boolean.TRUE.equals(userRole.getDeleted())) {
+            throw new NoDataException();
+        }
+        return userRole;
     }
 
 }
