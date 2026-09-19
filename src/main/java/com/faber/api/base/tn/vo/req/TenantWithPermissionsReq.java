@@ -10,10 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 租户及初始权限范围创建请求。
+ * 租户及权限范围请求。
  */
 @Data
-public class TenantCreateReq implements Serializable {
+public class TenantWithPermissionsReq implements Serializable {
 
     @Valid
     @NotNull

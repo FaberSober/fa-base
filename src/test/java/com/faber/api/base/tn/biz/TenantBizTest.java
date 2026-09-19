@@ -81,6 +81,26 @@ class TenantBizTest {
 
         assertThrows(BuzzException.class, () -> biz.saveOrUpdate(new Tenant()));
         assertThrows(BuzzException.class, () -> biz.saveOrUpdateBatch(List.of(new Tenant())));
+        assertThrows(BuzzException.class, () -> biz.updateById(new Tenant()));
+        assertThrows(BuzzException.class, () -> biz.updateBatchById(List.of(new Tenant())));
+        assertThrows(BuzzException.class, () -> biz.updateBatchById(List.of(new Tenant()), 100));
+    }
+
+    @Test
+    void syncsTenantAdminRolePermissionsToTenantScope() {
+        TenantBiz biz = createBiz(true);
+        RbacRoleBiz roleBiz = mock(RbacRoleBiz.class);
+        RbacRoleMenuBiz roleMenuBiz = mock(RbacRoleMenuBiz.class);
+        ReflectionTestUtils.setField(biz, "rbacRoleBiz", roleBiz);
+        ReflectionTestUtils.setField(biz, "rbacRoleMenuBiz", roleMenuBiz);
+
+        RbacRole role = new RbacRole();
+        role.setId(10L);
+        when(roleBiz.ensureTenantAdminRole("tenant-1")).thenReturn(role);
+
+        biz.syncTenantAdminRolePermissions("tenant-1", List.of(100L, 200L));
+
+        verify(roleMenuBiz).syncRoleMenus(10L, List.of(100L, 200L));
     }
 
     private TenantBiz createBiz(boolean tenantEnabled) {

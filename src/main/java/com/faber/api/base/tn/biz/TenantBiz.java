@@ -7,6 +7,7 @@ import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.tn.entity.Tenant;
 import com.faber.api.base.tn.mapper.TenantMapper;
+import com.faber.api.base.tn.vo.req.TenantPermissionUpdateVo;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.web.biz.BaseBiz;
@@ -15,7 +16,9 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * 租户
@@ -101,12 +104,47 @@ public class TenantBiz extends BaseBiz<TenantMapper, Tenant> {
     }
 
     @FaCacheClear(pre = "rbac:")
+    public Tenant updateWithPermissions(Tenant entity, Collection<Long> menuIds) {
+        if (entity == null || StrUtil.isBlank(entity.getId())) {
+            throw new BuzzException("租户参数或租户ID不能为空");
+        }
+        if (!super.updateById(entity)) {
+            throw new BuzzException("租户更新失败");
+        }
+        if (isTenantEnabled()) {
+            TenantPermissionUpdateVo vo = new TenantPermissionUpdateVo();
+            vo.setTenantId(entity.getId());
+            vo.setMenuIds(menuIds == null ? List.of() : new ArrayList<>(menuIds));
+            tenantPermissionBiz.updateMenuIds(vo);
+        }
+        return entity;
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean updateBatchById(Collection<Tenant> entityList) {
+        if (isTenantEnabled()) {
+            throw new BuzzException("多租户模式请使用带权限的租户更新接口");
+        }
+        return super.updateBatchById(entityList);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    @Override
+    public boolean updateBatchById(Collection<Tenant> entityList, int batchSize) {
+        if (isTenantEnabled()) {
+            throw new BuzzException("多租户模式请使用带权限的租户更新接口");
+        }
+        return super.updateBatchById(entityList, batchSize);
+    }
+
+    @FaCacheClear(pre = "rbac:")
     @Override
     public boolean updateById(Tenant entity) {
-        boolean updated = super.updateById(entity);
-        if (updated) {
-            syncTenantLifecycle(entity, false, null);
+        if (isTenantEnabled()) {
+            throw new BuzzException("多租户模式请使用带权限的租户更新接口");
         }
+        boolean updated = super.updateById(entity);
         return updated;
     }
 
@@ -132,6 +170,20 @@ public class TenantBiz extends BaseBiz<TenantMapper, Tenant> {
                 rbacUserRoleBiz.ensureUserRole(getCurrentUserId(), tenantAdminRole.getId());
             }
         }
+    }
+
+    /**
+     * 同步租户管理员角色权限，调用方必须已完成平台管理员校验。
+     */
+    public void syncTenantAdminRolePermissions(String tenantId, Collection<Long> menuIds) {
+        if (!isTenantEnabled() || StrUtil.isBlank(tenantId)) {
+            return;
+        }
+        RbacRole tenantAdminRole = rbacRoleBiz.ensureTenantAdminRole(tenantId);
+        if (tenantAdminRole == null || tenantAdminRole.getId() == null) {
+            throw new BuzzException("租户管理员角色不存在");
+        }
+        rbacRoleMenuBiz.syncRoleMenus(tenantAdminRole.getId(), menuIds);
     }
 
     @Override

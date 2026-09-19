@@ -19,12 +19,15 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TenantPermissionBizTest {
+
+    private TenantBiz tenantBiz;
 
     @AfterEach
     void tearDown() {
@@ -51,6 +54,7 @@ class TenantPermissionBizTest {
         biz.updateMenuIds(request);
 
         verify(mapper, org.mockito.Mockito.times(2)).insert(any(TenantPermission.class));
+        verify(tenantBiz).syncTenantAdminRolePermissions(eq("tenant-1"), any());
     }
 
     @Test
@@ -115,7 +119,7 @@ class TenantPermissionBizTest {
         ReflectionTestUtils.setField(biz, "baseMapper", mapper);
         ReflectionTestUtils.setField(biz, "rbacMenuBiz", menuBiz);
 
-        TenantBiz tenantBiz = mock(TenantBiz.class);
+        tenantBiz = mock(TenantBiz.class);
         when(tenantBiz.getById("tenant-1")).thenReturn(new Tenant());
         ReflectionTestUtils.setField(biz, "tenantBiz", tenantBiz);
 

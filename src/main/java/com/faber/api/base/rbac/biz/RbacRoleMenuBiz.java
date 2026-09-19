@@ -254,6 +254,26 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         }
     }
 
+    /**
+     * 将角色权限同步为目标集合，供租户管理员权限范围变更使用。
+     */
+    @FaCacheClear(pre = "rbac:")
+    @Transactional
+    public void syncRoleMenus(Long roleId, Collection<Long> menuIds) {
+        if (roleId == null) {
+            throw new BuzzException("角色ID不能为空");
+        }
+        RoleMenuVo vo = new RoleMenuVo();
+        vo.setRoleId(roleId);
+        vo.setCheckedMenuIds(menuIds == null
+                ? new ArrayList<>()
+                : menuIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toCollection(ArrayList::new)));
+        updateRoleMenu(vo);
+    }
+
     @FaCacheClear(pre = "rbac:")
     @Transactional
     public void updateRoleMenu(RoleMenuVo roleMenuVo) {

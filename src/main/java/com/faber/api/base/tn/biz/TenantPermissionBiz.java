@@ -110,6 +110,7 @@ public class TenantPermissionBiz extends BaseBiz<TenantPermissionMapper, TenantP
         }
 
         replaceMenuIds(tenantId, requested);
+        tenantBiz.syncTenantAdminRolePermissions(tenantId, listTenantMenuIds(tenantId));
     }
 
     private void replaceMenuIds(String tenantId, Set<Long> requested) {
