@@ -17,8 +17,10 @@ import jakarta.annotation.Resource;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -217,6 +219,39 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         vo.setRoleId(roleId);
         vo.setCheckedMenuIds(this.getMenuIdsWithHalfCheck(roleId));
         return vo;
+    }
+
+    /**
+     * 初始化角色权限，绕过当前请求用户的角色管理校验，仅供租户创建流程使用。
+     */
+    @FaCacheClear(pre = "rbac:")
+    @Transactional
+    public void ensureRoleMenus(Long roleId, Collection<Long> menuIds) {
+        if (roleId == null || menuIds == null || menuIds.isEmpty()) {
+            return;
+        }
+
+        Set<Long> targetMenuIds = menuIds.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (targetMenuIds.isEmpty()) {
+            return;
+        }
+
+        List<RbacRoleMenu> existing = baseMapper.selectList(new QueryWrapper<RbacRoleMenu>()
+                .eq("role_id", roleId));
+        Set<Long> existingMenuIds = existing == null ? Set.of() : existing.stream()
+                .map(RbacRoleMenu::getMenuId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<RbacRoleMenu> additions = targetMenuIds.stream()
+                .filter(menuId -> !existingMenuIds.contains(menuId))
+                .map(menuId -> new RbacRoleMenu(null, roleId, menuId, false))
+                .toList();
+        for (RbacRoleMenu addition : additions) {
+            super.save(addition);
+        }
     }
 
     @FaCacheClear(pre = "rbac:")

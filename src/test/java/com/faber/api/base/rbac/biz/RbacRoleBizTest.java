@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,6 +62,24 @@ class RbacRoleBizTest {
         biz.ensureTenantAdminRole("tenant-1");
 
         verify(mapper, never()).insert(any(RbacRole.class));
+    }
+
+    @Test
+    void createsAndReturnsTenantAdminRole() {
+        RbacRoleMapper mapper = mock(RbacRoleMapper.class);
+        RbacRoleBiz biz = new RbacRoleBiz();
+        ReflectionTestUtils.setField(biz, "baseMapper", mapper);
+        when(mapper.selectOne(any())).thenReturn(null);
+        when(mapper.insert(any(RbacRole.class))).thenAnswer(invocation -> {
+            RbacRole role = invocation.getArgument(0);
+            role.setId(10L);
+            return 1;
+        });
+
+        RbacRole role = biz.ensureTenantAdminRole("tenant-1");
+
+        assertEquals(10L, role.getId());
+        verify(mapper).insert(any(RbacRole.class));
     }
 
     @Test

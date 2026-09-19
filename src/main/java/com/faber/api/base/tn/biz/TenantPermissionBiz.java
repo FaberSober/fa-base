@@ -66,6 +66,24 @@ public class TenantPermissionBiz extends BaseBiz<TenantPermissionMapper, TenantP
     }
 
     /**
+     * 创建租户时，初始化表单选择的租户可用权限范围 C_t。
+     */
+    public void initializePermissions(String tenantId, Collection<Long> menuIds) {
+        if (!isTenantEnabled()) {
+            return;
+        }
+        String normalizedTenantId = requireTenantId(tenantId);
+        requireTenant(normalizedTenantId);
+
+        Set<Long> requested = normalizeMenuIds(menuIds);
+        if (requested.isEmpty()) {
+            throw new BuzzException("至少选择一个租户权限点");
+        }
+        checkMenuIdsInPlatform(requested);
+        replaceMenuIds(normalizedTenantId, requested);
+    }
+
+    /**
      * 校验一组权限点是否属于租户当前可用范围 C_t。
      */
     public void checkMenuIdsInTenant(String tenantId, Collection<Long> menuIds) {
@@ -91,6 +109,10 @@ public class TenantPermissionBiz extends BaseBiz<TenantPermissionMapper, TenantP
             throw new BuzzException("租户权限必须属于平台权限全集");
         }
 
+        replaceMenuIds(tenantId, requested);
+    }
+
+    private void replaceMenuIds(String tenantId, Set<Long> requested) {
         List<TenantPermission> current = listTenantPermissions(tenantId);
         Set<Long> currentMenuIds = current.stream()
                 .map(TenantPermission::getMenuId)
@@ -118,6 +140,12 @@ public class TenantPermissionBiz extends BaseBiz<TenantPermissionMapper, TenantP
         }
     }
 
+    private void checkMenuIdsInPlatform(Collection<Long> menuIds) {
+        if (!new HashSet<>(getPlatformMenuIds()).containsAll(menuIds)) {
+            throw new BuzzException("租户权限必须属于平台权限全集");
+        }
+    }
+
     private List<TenantPermission> listTenantPermissions(String tenantId) {
         return baseMapper.selectList(new QueryWrapper<TenantPermission>()
                 .eq("tenant_id", tenantId));
@@ -138,6 +166,7 @@ public class TenantPermissionBiz extends BaseBiz<TenantPermissionMapper, TenantP
         return menus.stream()
                 .filter(Objects::nonNull)
                 .filter(item -> !Boolean.TRUE.equals(item.getDeleted()))
+                .filter(item -> Boolean.TRUE.equals(item.getStatus()))
                 .map(RbacMenu::getId)
                 .filter(Objects::nonNull)
                 .distinct()

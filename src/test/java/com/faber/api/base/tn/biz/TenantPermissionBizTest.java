@@ -54,6 +54,22 @@ class TenantPermissionBizTest {
     }
 
     @Test
+    void initializesSelectedPlatformPermissionsForNewTenant() {
+        TenantPermissionMapper mapper = mock(TenantPermissionMapper.class);
+        RbacMenuBiz menuBiz = mock(RbacMenuBiz.class);
+        TenantPermissionBiz biz = createBiz(mapper, menuBiz);
+
+        when(menuBiz.list()).thenReturn(List.of(menu(10L), menu(20L)));
+        when(mapper.selectList(any())).thenReturn(List.of());
+        when(mapper.selectByTenantIdAndMenuIdIgnoreLogic("tenant-1", 10L)).thenReturn(null);
+        when(mapper.selectByTenantIdAndMenuIdIgnoreLogic("tenant-1", 20L)).thenReturn(null);
+
+        biz.initializePermissions("tenant-1", List.of(10L));
+
+        verify(mapper).insert(any(TenantPermission.class));
+    }
+
+    @Test
     void rejectsPermissionOutsidePlatformSet() {
         TenantPermissionMapper mapper = mock(TenantPermissionMapper.class);
         RbacMenuBiz menuBiz = mock(RbacMenuBiz.class);
@@ -115,6 +131,7 @@ class TenantPermissionBizTest {
         RbacMenu menu = new RbacMenu();
         menu.setId(id);
         menu.setDeleted(false);
+        menu.setStatus(true);
         return menu;
     }
 }

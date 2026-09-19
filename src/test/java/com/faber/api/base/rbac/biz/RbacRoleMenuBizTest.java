@@ -6,6 +6,11 @@ import com.faber.core.exception.BuzzException;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.mockito.ArgumentCaptor;
+
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -49,6 +54,23 @@ class RbacRoleMenuBizTest {
 
         assertThrows(BuzzException.class, () -> biz.updateById(request));
         verify(mapper, never()).updateById(any(RbacRoleMenu.class));
+    }
+
+    @Test
+    void initializesOnlyMissingRolePermissions() {
+        RbacRoleMenuMapper mapper = mock(RbacRoleMenuMapper.class);
+        RbacRoleBiz roleBiz = mock(RbacRoleBiz.class);
+        RbacRoleMenuBiz biz = createBiz(mapper, roleBiz);
+        RbacRoleMenu existing = new RbacRoleMenu();
+        existing.setRoleId(2L);
+        existing.setMenuId(10L);
+        when(mapper.selectList(any())).thenReturn(List.of(existing));
+
+        biz.ensureRoleMenus(2L, List.of(10L, 20L));
+
+        ArgumentCaptor<RbacRoleMenu> captor = ArgumentCaptor.forClass(RbacRoleMenu.class);
+        verify(mapper).insert(captor.capture());
+        assertEquals(20L, captor.getValue().getMenuId());
     }
 
     private RbacRoleMenuBiz createBiz(RbacRoleMenuMapper mapper, RbacRoleBiz roleBiz) {

@@ -185,9 +185,9 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
     /**
      * 确保租户拥有默认的租户管理员角色。
      */
-    public void ensureTenantAdminRole(String tenantId) {
+    public RbacRole ensureTenantAdminRole(String tenantId) {
         if (StrUtil.isBlank(tenantId)) {
-            return;
+            return null;
         }
 
         QueryWrapper<RbacRole> wrapper = new QueryWrapper<>();
@@ -196,7 +196,7 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
                 .eq("tenant_id", tenantId);
         RbacRole role = baseMapper.selectOne(wrapper);
         if (role != null) {
-            return;
+            return role;
         }
 
         role = new RbacRole();
@@ -205,7 +205,10 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         role.setStatus(true);
         role.setType(RbacRoleTypeEnum.TENANT);
         role.setTenantId(tenantId);
-        super.save(role);
+        if (!super.save(role) || role.getId() == null) {
+            throw new BuzzException("租户管理员角色创建失败");
+        }
+        return role;
     }
 
     public List<RbacRole> listVisibleRolesByIds(List<Long> roleIds) {

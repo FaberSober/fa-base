@@ -2,6 +2,7 @@ package com.faber.api.base.rbac.biz;
 
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 //import com.alicp.jetcache.anno.Cached;
 import com.faber.api.base.rbac.entity.RbacMenu;
 import com.faber.api.base.rbac.entity.RbacRole;
@@ -78,6 +79,27 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
     public List<Long> getUserRoleIds(String userId) {
         List<RbacUserRole> userRoleList = lambdaQuery().eq(RbacUserRole::getUserId, userId).list();
         return userRoleList.stream().map(RbacUserRole::getRoleId).collect(Collectors.toList());
+    }
+
+    /**
+     * 初始化用户与租户管理员角色的绑定关系。
+     */
+    @FaCacheClear(pre = "rbac:")
+    public void ensureUserRole(String userId, Long roleId) {
+        if (StrUtil.isBlank(userId) || roleId == null) {
+            return;
+        }
+        Long count = baseMapper.selectCount(new QueryWrapper<RbacUserRole>()
+                .eq("user_id", userId)
+                .eq("role_id", roleId));
+        if (count != null && count > 0) {
+            return;
+        }
+
+        RbacUserRole userRole = new RbacUserRole();
+        userRole.setUserId(userId);
+        userRole.setRoleId(roleId);
+        super.save(userRole);
     }
 
     public List<RbacRole> getUserRoles(String userId) {
