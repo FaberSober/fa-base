@@ -167,10 +167,8 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
 
     @Override
     public void removeByQuery(QueryParams query) {
-        if (isTenantEnabled()
-                && !isSuperAdminUser(getCurrentUserId())
-                && !tenantUserBiz.isTenantAdminUser(getCurrentUserId(), getCurrentTenantId())) {
-            throw new BuzzException("无权管理角色");
+        if (isTenantEnabled() && !isSuperAdminUser(getCurrentUserId())) {
+            throw new BuzzException("租户管理员不能批量删除角色");
         }
         super.removeByQuery(query);
     }
@@ -314,15 +312,15 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
             return true;
         }
         RbacRoleTypeEnum type = getRoleType(role);
-        if (type == RbacRoleTypeEnum.GLOBAL_SUPER) {
+        if (type == RbacRoleTypeEnum.GLOBAL_SUPER || type == RbacRoleTypeEnum.GLOBAL) {
             return false;
         }
         String tenantId = getCurrentTenantId();
         if (StrUtil.isBlank(tenantId) || !tenantUserBiz.isTenantAdminUser(getCurrentUserId(), tenantId)) {
             return false;
         }
-        if (type == RbacRoleTypeEnum.GLOBAL) {
-            return true;
+        if (isTenantAdminRole(role)) {
+            return false;
         }
         return StrUtil.equals(tenantId, role.getTenantId());
     }
@@ -383,20 +381,26 @@ public class RbacRoleBiz extends BaseBiz<RbacRoleMapper, RbacRole> {
         if (StrUtil.isBlank(tenantId)) {
             throw new BuzzException("当前租户不能为空");
         }
-        RbacRoleTypeEnum type = entity.getType() == null ? RbacRoleTypeEnum.TENANT : entity.getType();
-        if (type == RbacRoleTypeEnum.GLOBAL_SUPER) {
-            throw new BuzzException("无权管理全局超管角色");
+        if (StrUtil.equals(TENANT_ADMIN_ROLE_NAME, StrUtil.trim(entity.getName()))) {
+            throw new BuzzException("租户管理员角色由系统维护");
         }
-        if (type == RbacRoleTypeEnum.GLOBAL) {
-            entity.setType(RbacRoleTypeEnum.GLOBAL);
-            entity.setTenantId(null);
-            return;
+        RbacRoleTypeEnum type = entity.getType() == null ? RbacRoleTypeEnum.TENANT : entity.getType();
+        if (type == RbacRoleTypeEnum.GLOBAL_SUPER || type == RbacRoleTypeEnum.GLOBAL) {
+            throw new BuzzException("无权管理平台角色");
         }
         if (type != RbacRoleTypeEnum.TENANT) {
             throw new BuzzException("角色类型错误");
         }
         entity.setType(RbacRoleTypeEnum.TENANT);
         entity.setTenantId(tenantId);
+    }
+
+    boolean isTenantRole(RbacRole role) {
+        return getRoleType(role) == RbacRoleTypeEnum.TENANT;
+    }
+
+    private boolean isTenantAdminRole(RbacRole role) {
+        return isTenantRole(role) && StrUtil.equals(TENANT_ADMIN_ROLE_NAME, role.getName());
     }
 
     private RbacRoleTypeEnum getRoleType(RbacRole role) {

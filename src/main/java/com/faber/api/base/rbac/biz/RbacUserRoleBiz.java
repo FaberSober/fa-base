@@ -14,6 +14,7 @@ import com.faber.api.base.rbac.vo.RbacUserRoleRetVo;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleQueryVo;
 import com.faber.api.base.rbac.vo.req.RbacUserRoleUpdateVo;
 import com.faber.api.base.rbac.vo.req.RbacUserRolesVo;
+import com.faber.api.base.tn.biz.TenantPermissionBiz;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.constant.CommonConstants;
 import com.faber.core.exception.BuzzException;
@@ -24,12 +25,15 @@ import com.faber.core.web.biz.BaseBiz;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -50,6 +54,10 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
 
     @Autowired
     private RbacMenuBiz rbacMenuBiz;
+
+    @Lazy
+    @Autowired
+    private TenantPermissionBiz tenantPermissionBiz;
 
     @FaCacheClear(pre = "rbac:")
     @Override
@@ -118,6 +126,8 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
                 .list();
         List<Long> menuIds = roleMenuList.stream().map(RbacRoleMenu::getMenuId).collect(Collectors.toList());
         if (menuIds.isEmpty()) return new ArrayList<>();
+        menuIds = limitToTenantPermissions(userId, menuIds);
+        if (menuIds.isEmpty()) return new ArrayList<>();
 
         return rbacMenuBiz.lambdaQuery()
                 .eq(RbacMenu::getStatus, true)
@@ -131,6 +141,18 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
     public List<TreeNode<RbacMenu>> getUserMenusTree(String userId, RbacMenuScopeEnum scope) {
         List<RbacMenu> list = this.getUserMenus(userId, scope);
         return rbacMenuBiz.listToTree(list, CommonConstants.ROOT);
+    }
+
+    private List<Long> limitToTenantPermissions(String userId, List<Long> menuIds) {
+        if (!isTenantEnabled() || isSuperAdminUser(userId)) {
+            return menuIds;
+        }
+        String tenantId = getCurrentTenantId();
+        if (StrUtil.isBlank(tenantId)) {
+            return List.of();
+        }
+        Set<Long> allowedMenuIds = new HashSet<>(tenantPermissionBiz.getAllowedMenuIds(tenantId));
+        return menuIds.stream().filter(allowedMenuIds::contains).distinct().toList();
     }
 
     /**

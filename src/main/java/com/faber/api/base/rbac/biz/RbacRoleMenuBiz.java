@@ -2,8 +2,10 @@ package com.faber.api.base.rbac.biz;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.faber.api.base.rbac.entity.RbacRoleMenu;
+import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.rbac.mapper.RbacRoleMenuMapper;
 import com.faber.api.base.rbac.vo.RoleMenuVo;
+import com.faber.api.base.tn.biz.TenantPermissionBiz;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
@@ -17,6 +19,7 @@ import jakarta.annotation.Resource;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -40,6 +43,10 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
     @Lazy
     @Resource
     RbacRoleBiz rbacRoleBiz;
+
+    @Lazy
+    @Resource
+    TenantPermissionBiz tenantPermissionBiz;
 
     @Override
     public QueryWrapper<RbacRoleMenu> parseQuery(QueryParams query) {
@@ -81,7 +88,7 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
     @FaCacheClear(pre = "rbac:")
     @Override
     public boolean save(RbacRoleMenu entity) {
-        rbacRoleBiz.checkCanManageRole(requireRoleId(entity));
+        checkRoleMenuScope(requireRoleId(entity), Collections.singletonList(entity.getMenuId()));
         return super.save(entity);
     }
 
@@ -91,7 +98,7 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         if (entityList == null || entityList.isEmpty()) {
             return true;
         }
-        entityList.forEach(entity -> rbacRoleBiz.checkCanManageRole(requireRoleId(entity)));
+        entityList.forEach(entity -> checkRoleMenuScope(requireRoleId(entity), Collections.singletonList(entity.getMenuId())));
         return super.saveBatch(entityList);
     }
 
@@ -101,7 +108,7 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         if (entityList == null || entityList.isEmpty()) {
             return true;
         }
-        entityList.forEach(entity -> rbacRoleBiz.checkCanManageRole(requireRoleId(entity)));
+        entityList.forEach(entity -> checkRoleMenuScope(requireRoleId(entity), Collections.singletonList(entity.getMenuId())));
         return super.saveBatch(entityList, batchSize);
     }
 
@@ -134,7 +141,7 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
     @Override
     public boolean updateById(RbacRoleMenu entity) {
         RbacRoleMenu existing = getExisting(entity.getId());
-        rbacRoleBiz.checkCanManageRole(existing.getRoleId());
+        checkRoleMenuScope(existing.getRoleId(), Collections.singletonList(entity.getMenuId()));
         if (!Objects.equals(existing.getRoleId(), entity.getRoleId())) {
             throw new BuzzException("角色权限的角色不可修改");
         }
@@ -277,10 +284,15 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
     @FaCacheClear(pre = "rbac:")
     @Transactional
     public void updateRoleMenu(RoleMenuVo roleMenuVo) {
+        if (roleMenuVo == null || roleMenuVo.getRoleId() == null) {
+            throw new BuzzException("角色ID不能为空");
+        }
         long roleId = roleMenuVo.getRoleId();
-        rbacRoleBiz.checkCanManageRole(roleId);
+        List<Long> checkedMenuIds = roleMenuVo.getCheckedMenuIds() == null
+                ? new ArrayList<>() : new ArrayList<>(roleMenuVo.getCheckedMenuIds());
+        checkRoleMenuScope(roleId, checkedMenuIds);
 
-        if (roleMenuVo.getCheckedMenuIds() == null || roleMenuVo.getCheckedMenuIds().isEmpty()) {
+        if (checkedMenuIds.isEmpty()) {
             lambdaUpdate()
                 .eq(RbacRoleMenu::getRoleId, roleId)
                 .remove();
@@ -290,7 +302,7 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
         // 删除被移除的角色菜单
         lambdaUpdate()
             .eq(RbacRoleMenu::getRoleId, roleId)
-            .notIn(RbacRoleMenu::getMenuId, roleMenuVo.getCheckedMenuIds())
+            .notIn(RbacRoleMenu::getMenuId, checkedMenuIds)
             .remove();
 
         // 查询已存在的角色菜单
@@ -301,10 +313,10 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
             .map(RbacRoleMenu::getMenuId)
             .collect(Collectors.toList());
         // 过滤本次新增的菜单IDs
-        roleMenuVo.getCheckedMenuIds().removeAll(existMenuIds);
+        checkedMenuIds.removeAll(existMenuIds);
 
         List<RbacRoleMenu> list = new ArrayList<>();
-        for (Long menuId : roleMenuVo.getCheckedMenuIds()) {
+        for (Long menuId : checkedMenuIds) {
             list.add(new RbacRoleMenu(null, roleId, menuId, false));
         }
 //        for (Long menuId : roleMenuVo.getHalfCheckedMenuIds()) {
@@ -312,6 +324,14 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
 //        }
 
         this.saveBatch(list);
+    }
+
+    private void checkRoleMenuScope(Long roleId, Collection<Long> menuIds) {
+        rbacRoleBiz.checkCanManageRole(roleId);
+        RbacRole role = rbacRoleBiz.getById(roleId);
+        if (role != null && rbacRoleBiz.isTenantRole(role) && isTenantEnabled()) {
+            tenantPermissionBiz.checkMenuIdsInTenant(role.getTenantId(), menuIds);
+        }
     }
 
     /**

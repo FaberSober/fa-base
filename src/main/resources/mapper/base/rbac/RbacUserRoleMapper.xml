@@ -64,6 +64,15 @@
                 </if>
            )
            AND link_url = #{linkUrl}
+           <if test="tenantId != null and tenantId != ''">
+           AND EXISTS (
+                SELECT 1
+                  FROM tn_tenant_permission tp
+                 WHERE tp.tenant_id = #{tenantId}
+                   AND tp.menu_id = m.id
+                   AND tp.deleted = 0
+           )
+           </if>
     </select>
 
     <select id="countByUserIdAndLinkUrl" parameterType="map" resultType="int">
@@ -87,6 +96,15 @@
                 </if>
            )
            AND m.link_url = #{linkUrl}
+           <if test="tenantId != null and tenantId != ''">
+           AND EXISTS (
+                SELECT 1
+                  FROM tn_tenant_permission tp
+                 WHERE tp.tenant_id = #{tenantId}
+                   AND tp.menu_id = m.id
+                   AND tp.deleted = false
+           )
+           </if>
     </select>
 
     <!-- 在线用户属于平台能力，租户角色即使关联相同菜单也不能授予此权限。 -->
