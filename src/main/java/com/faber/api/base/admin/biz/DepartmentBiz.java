@@ -10,6 +10,7 @@ import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.QueryParams;
+import com.faber.core.vo.tree.TreeNode;
 import com.faber.core.web.biz.BaseTreeBiz;
 import org.springframework.stereotype.Service;
 
@@ -58,6 +59,26 @@ public class DepartmentBiz extends BaseTreeBiz<DepartmentMapper, Department> {
         table.getData().setRows(list);
 
         return table;
+    }
+
+    @Override
+    public List<TreeNode<Department>> getTree(QueryParams query) {
+        List<TreeNode<Department>> tree = super.getTree(query);
+        decorateTree(tree);
+        return tree;
+    }
+
+    private void decorateTree(List<TreeNode<Department>> nodes) {
+        if (nodes == null) {
+            return;
+        }
+        for (TreeNode<Department> node : nodes) {
+            Department sourceData = node.getSourceData();
+            if (sourceData != null) {
+                node.setSourceData(decorate(sourceData));
+            }
+            decorateTree(node.getChildren());
+        }
     }
 
     public DepartmentVo decorate(Department entity) {
