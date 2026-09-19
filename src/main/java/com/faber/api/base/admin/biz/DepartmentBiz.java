@@ -34,11 +34,17 @@ public class DepartmentBiz extends BaseTreeBiz<DepartmentMapper, Department> {
     private UserBiz userBiz;
 
     @Override
-    public boolean updateById(Department entity) {
+    protected void saveBefore(Department entity) {
         if (ObjectUtil.equal(entity.getParentId(), entity.getId())) {
             throw new BuzzException("父节点不能是自身");
         }
-        return super.updateById(entity);
+        if (entity.getId() != null && entity.getParentId() != null) {
+            boolean parentIsDescendant = findChildren(entity.getId()).stream()
+                    .anyMatch(item -> ObjectUtil.equal(item.getId(), entity.getParentId()));
+            if (parentIsDescendant) {
+                throw new BuzzException("父节点不能是当前部门或其下级部门");
+            }
+        }
     }
 
     @Override
