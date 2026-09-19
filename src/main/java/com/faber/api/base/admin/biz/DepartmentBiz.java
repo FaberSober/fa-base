@@ -49,10 +49,23 @@ public class DepartmentBiz extends BaseTreeBiz<DepartmentMapper, Department> {
 
     @Override
     public boolean removeById(Serializable id) {
-        // 删除部门，检查部门下是否还有员工
-        long count = userBiz.lambdaQuery().eq(User::getDepartmentId, id).count();
+        List<Department> subtree = findAllChildren(id);
+        if (subtree.isEmpty()) {
+            throw new BuzzException("部门不存在，无法删除");
+        }
+
+        boolean hasChildren = subtree.stream()
+                .anyMatch(item -> !ObjectUtil.equal(item.getId(), id));
+        if (hasChildren) {
+            throw new BuzzException("该部门包含子部门，无法删除，请先处理子部门");
+        }
+
+        List<String> departmentIds = subtree.stream()
+                .map(Department::getId)
+                .collect(Collectors.toList());
+        long count = userBiz.lambdaQuery().in(User::getDepartmentId, departmentIds).count();
         if (count > 0) {
-            throw new BuzzException("该部门名下仍有员工，无法删除部门，请确认");
+            throw new BuzzException("该部门或其下级部门仍有员工，无法删除，请先转移员工");
         }
         return super.removeById(id);
     }
