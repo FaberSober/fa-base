@@ -18,6 +18,7 @@ import com.faber.api.base.tn.biz.TenantPermissionBiz;
 import com.faber.api.base.tn.biz.TenantUserBiz;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.constant.CommonConstants;
+import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
 import com.faber.core.vo.msg.TableRet;
@@ -51,6 +52,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
+
+    private static final String PERMISSION_CACHE_NAME = "RbacUserRoleBiz.permission";
 
     @Autowired
     private RbacRoleBiz rbacRoleBiz;
@@ -207,6 +210,7 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
      */
     @FaCacheClear(pre = "rbac:")
     public void ensureUserRole(String userId, Long roleId) {
+        clearPermissionCache();
         if (StrUtil.isBlank(userId) || roleId == null) {
             return;
         }
@@ -224,36 +228,75 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
     }
 
     public List<RbacRole> getUserRoles(String userId) {
-        List<Long> roleIds = this.getUserRoleIds(userId);
-        if (roleIds.isEmpty()) return new ArrayList<>();
+        String cacheKey = permissionCacheKey("roles", userId, "");
+        Map<Serializable, Object> cache = permissionCache();
+        if (cache.containsKey(cacheKey)) {
+            return (List<RbacRole>) cache.get(cacheKey);
+        }
 
-        return rbacRoleBiz.listVisibleRolesByIds(roleIds);
+        List<Long> roleIds = this.getUserRoleIds(userId);
+        if (roleIds.isEmpty()) {
+            List<RbacRole> roles = new ArrayList<>();
+            cache.put(cacheKey, roles);
+            return roles;
+        }
+
+        List<RbacRole> roles = rbacRoleBiz.listVisibleRolesByIds(roleIds);
+        cache.put(cacheKey, roles);
+        return roles;
     }
 
     public List<RbacMenu> getUserMenus(String userId, RbacMenuScopeEnum scope) {
+        String cacheKey = permissionCacheKey("menus", userId, scope == null ? "" : scope.getValue());
+        Map<Serializable, Object> cache = permissionCache();
+        if (cache.containsKey(cacheKey)) {
+            return (List<RbacMenu>) cache.get(cacheKey);
+        }
+
         List<Long> roleIds = this.getUserRoles(userId).stream().map(RbacRole::getId).collect(Collectors.toList());
-        if (roleIds.isEmpty()) return new ArrayList<>();
+        if (roleIds.isEmpty()) {
+            List<RbacMenu> menus = new ArrayList<>();
+            cache.put(cacheKey, menus);
+            return menus;
+        }
 
         List<RbacRoleMenu> roleMenuList = rbacRoleMenuBiz.lambdaQuery()
                 .in(RbacRoleMenu::getRoleId, roleIds)
                 .list();
         List<Long> menuIds = roleMenuList.stream().map(RbacRoleMenu::getMenuId).collect(Collectors.toList());
-        if (menuIds.isEmpty()) return new ArrayList<>();
+        if (menuIds.isEmpty()) {
+            List<RbacMenu> menus = new ArrayList<>();
+            cache.put(cacheKey, menus);
+            return menus;
+        }
         menuIds = limitToTenantPermissions(userId, menuIds);
-        if (menuIds.isEmpty()) return new ArrayList<>();
+        if (menuIds.isEmpty()) {
+            List<RbacMenu> menus = new ArrayList<>();
+            cache.put(cacheKey, menus);
+            return menus;
+        }
 
-        return rbacMenuBiz.lambdaQuery()
+        List<RbacMenu> menus = rbacMenuBiz.lambdaQuery()
                 .eq(RbacMenu::getStatus, true)
                 .eq(RbacMenu::getScope, scope)
                 .in(RbacMenu::getId, menuIds)
                 .orderByAsc(RbacMenu::getSort)
                 .list();
+        cache.put(cacheKey, menus);
+        return menus;
     }
 
-//    @Cached(name="rbac:userMenus:", key="#userId")
     public List<TreeNode<RbacMenu>> getUserMenusTree(String userId, RbacMenuScopeEnum scope) {
+        String cacheKey = permissionCacheKey("menu-tree", userId, scope == null ? "" : scope.getValue());
+        Map<Serializable, Object> cache = permissionCache();
+        if (cache.containsKey(cacheKey)) {
+            return (List<TreeNode<RbacMenu>>) cache.get(cacheKey);
+        }
+
         List<RbacMenu> list = this.getUserMenus(userId, scope);
-        return rbacMenuBiz.listToTree(list, CommonConstants.ROOT);
+        List<TreeNode<RbacMenu>> tree = rbacMenuBiz.listToTree(list, CommonConstants.ROOT);
+        cache.put(cacheKey, tree);
+        return tree;
     }
 
     private List<Long> limitToTenantPermissions(String userId, List<Long> menuIds) {
@@ -275,14 +318,23 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
      * @return
      */
     public boolean checkUserLinkUrl(String userId, String linkUrl) {
+        String cacheKey = permissionCacheKey("link", userId, linkUrl);
+        Map<Serializable, Object> cache = permissionCache();
+        if (cache.containsKey(cacheKey)) {
+            return (Boolean) cache.get(cacheKey);
+        }
+
         String tenantId = null;
         if (isTenantEnabled() && !isSuperAdminUser(userId)) {
             tenantId = getCurrentTenantId();
             if (StrUtil.isBlank(tenantId)) {
+                cache.put(cacheKey, false);
                 return false;
             }
         }
-        return baseMapper.countByUserIdAndLinkUrl(userId, linkUrl, tenantId) > 0;
+        boolean granted = baseMapper.countByUserIdAndLinkUrl(userId, linkUrl, tenantId) > 0;
+        cache.put(cacheKey, granted);
+        return granted;
     }
 
     public TableRet<RbacUserRoleRetVo> pageVo(BasePageQuery<RbacUserRoleQueryVo> query) {
@@ -304,6 +356,7 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
      * @param roleIds
      */
     public void changeUserRoles(String userId, List<Long> roleIds) {
+        clearPermissionCache();
         if (StrUtil.isEmpty(userId)) {
             throw new BuzzException("用户ID不能为空");
         }
@@ -352,9 +405,11 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
             userRole.setRoleId(roleId);
             super.save(userRole);
         }
+        clearPermissionCache();
     }
 
     public void addUsers(RbacUserRoleUpdateVo param) {
+        clearPermissionCache();
         if (param == null || param.getRoleId() == null || param.getUserIds() == null || param.getUserIds().isEmpty()) {
             throw new BuzzException("用户和角色不能为空");
         }
@@ -382,6 +437,7 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
             userRole.setRoleId(roleId);
             super.save(userRole);
         }
+        clearPermissionCache();
     }
 
     @Transactional
@@ -401,6 +457,23 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
         checkRoleBindingScope(role);
         rbacRoleBiz.checkCanAssignRole(role);
         checkUserTenant(userId, role);
+    }
+
+    private Map<Serializable, Object> permissionCache() {
+        return BaseContextHandler.getCacheMap(PERMISSION_CACHE_NAME);
+    }
+
+    private void clearPermissionCache() {
+        permissionCache().clear();
+    }
+
+    String permissionCacheKey(String type, String userId, Object target) {
+        String tenantId = isTenantEnabled() ? getCurrentTenantId() : null;
+        return String.join("\u0000", cacheKeyPart(type), cacheKeyPart(userId), cacheKeyPart(tenantId), cacheKeyPart(target));
+    }
+
+    private String cacheKeyPart(Object value) {
+        return value == null ? "" : value.toString();
     }
 
     private void checkCanManageBinding(RbacUserRole userRole) {

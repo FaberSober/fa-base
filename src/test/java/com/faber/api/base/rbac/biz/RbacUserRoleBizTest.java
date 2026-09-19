@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -45,6 +46,25 @@ class RbacUserRoleBizTest {
 
         assertTrue(biz.checkUserLinkUrl("user-1", "/demo"));
         verify(mapper).countByUserIdAndLinkUrl("user-1", "/demo", "tenant-1");
+    }
+
+    @Test
+    void permissionCacheSeparatesTenants() {
+        RbacUserRoleMapper mapper = mock(RbacUserRoleMapper.class);
+        RbacUserRoleBiz biz = createBiz(mapper, true);
+        BaseContextHandler.setUserId("user-1");
+        TenantContext.setTenantId("tenant-1");
+        when(mapper.countByUserIdAndLinkUrl("user-1", "/demo", "tenant-1")).thenReturn(1);
+        when(mapper.countByUserIdAndLinkUrl("user-1", "/demo", "tenant-2")).thenReturn(0);
+
+        assertTrue(biz.checkUserLinkUrl("user-1", "/demo"));
+        assertTrue(biz.checkUserLinkUrl("user-1", "/demo"));
+
+        TenantContext.setTenantId("tenant-2");
+        assertFalse(biz.checkUserLinkUrl("user-1", "/demo"));
+
+        verify(mapper, times(1)).countByUserIdAndLinkUrl("user-1", "/demo", "tenant-1");
+        verify(mapper, times(1)).countByUserIdAndLinkUrl("user-1", "/demo", "tenant-2");
     }
 
     @Test
