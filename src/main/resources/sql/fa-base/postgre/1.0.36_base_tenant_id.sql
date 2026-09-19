@@ -1,6 +1,6 @@
 -- ------------------------- info -------------------------
 -- @@ver: 1_000_036
--- @@info: 统一 Telemetry 租户ID字段类型，增加租户权限范围
+-- @@info: 统一 Telemetry 租户ID字段类型，增加租户权限范围和查询索引
 -- ------------------------- info -------------------------
 
 ALTER TABLE "base_client_error_event"
@@ -47,3 +47,9 @@ DROP TRIGGER IF EXISTS "tn_tenant_permission__upd_time" ON "tn_tenant_permission
 CREATE TRIGGER "tn_tenant_permission__upd_time"
     BEFORE UPDATE ON "tn_tenant_permission"
     FOR EACH ROW EXECUTE FUNCTION fa_base_set_upd_time();
+
+-- 租户私有/租户范围查询索引
+CREATE INDEX IF NOT EXISTS "base_department__idx_tenant_id"
+    ON "base_department" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "base_rbac_role__idx_tenant_id"
+    ON "base_rbac_role" ("tenant_id");

@@ -1,6 +1,6 @@
 -- ------------------------- info -------------------------
 -- @@ver: 1_000_036
--- @@info: 统一 Telemetry 租户ID字段类型，增加租户权限范围
+-- @@info: 统一 Telemetry 租户ID字段类型，增加租户权限范围和查询索引
 -- ------------------------- info -------------------------
 
 ALTER TABLE `base_client_error_event`
@@ -26,3 +26,10 @@ CREATE TABLE IF NOT EXISTS `tn_tenant_permission` (
   UNIQUE KEY `uk_tn_tenant_permission` (`tenant_id`, `menu_id`) USING BTREE,
   KEY `idx_tn_tenant_permission_menu_id` (`menu_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户权限范围';
+
+-- 租户私有/租户范围查询索引
+ALTER TABLE `base_department`
+    ADD KEY `idx_base_department_tenant_id` (`tenant_id`) USING BTREE;
+
+ALTER TABLE `base_rbac_role`
+    ADD KEY `idx_base_rbac_role_tenant_id` (`tenant_id`) USING BTREE;
