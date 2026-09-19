@@ -48,6 +48,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -271,6 +272,7 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         User beanDB = getById(entity.getId());
         if (beanDB == null) throw new NoDataException();
 
+        ensureSuperAdminStatus(entity);
         this.checkBeanValid(entity);
 
         // 修改用户，不能修改用户密码
@@ -279,6 +281,24 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
         this.updateUserRoles(entity);
 
         return super.updateById(entity);
+    }
+
+    @Override
+    public boolean updateBatchById(Collection<User> entityList) {
+        if (entityList != null) {
+            entityList.forEach(this::ensureSuperAdminStatus);
+        }
+        return super.updateBatchById(entityList);
+    }
+
+    private void ensureSuperAdminStatus(User entity) {
+        if (!CommonConstants.SUPER_ADMIN_ID.equals(entity.getId())) {
+            return;
+        }
+        if (Boolean.FALSE.equals(entity.getStatus())) {
+            throw new BuzzException("超级管理员账户必须保持有效");
+        }
+        entity.setStatus(true);
     }
 
     /**
