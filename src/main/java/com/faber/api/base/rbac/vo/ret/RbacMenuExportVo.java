@@ -28,6 +28,7 @@ public class RbacMenuExportVo {
         private RbacMenuLevelEnum level;
         private String icon;
         private Boolean status;
+        private Boolean tenantRequired;
         private RbacLinkTypeEnum linkType;
         private String linkUrl;
 
@@ -41,6 +42,7 @@ public class RbacMenuExportVo {
             node.level = menu.getLevel();
             node.icon = menu.getIcon();
             node.status = menu.getStatus();
+            node.tenantRequired = menu.getTenantRequired();
             node.linkType = menu.getLinkType();
             node.linkUrl = menu.getLinkUrl();
             return node;

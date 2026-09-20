@@ -12,12 +12,14 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.faber.api.base.admin.biz.EntityLogBiz;
 import com.faber.api.base.rbac.entity.RbacMenu;
 //import com.alicp.jetcache.anno.Cached;
 import com.faber.api.base.rbac.enums.RbacMenuScopeEnum;
 import com.faber.api.base.rbac.mapper.RbacMenuMapper;
 import com.faber.api.base.rbac.vo.query.RbacMenuExportReqVo;
 import com.faber.api.base.rbac.vo.ret.RbacMenuExportVo;
+import com.faber.api.base.tn.biz.TenantPermissionBiz;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.service.FaFlowService;
@@ -31,6 +33,8 @@ import com.faber.core.web.biz.BaseTreeBiz;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import jakarta.annotation.Resource;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * BASE-权限表
@@ -48,6 +52,9 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
 
     @Resource FaFlowService faFlowService;
     @Resource ObjectMapper objectMapper;
+    @Resource EntityLogBiz entityLogBiz;
+    @Lazy
+    @Resource TenantPermissionBiz tenantPermissionBiz;
 
 //    @Cached(name="rbac:allMenuTree", key="new String('')", expire = 3600)
     @Override
@@ -100,8 +107,12 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
     }
 
     @FaCacheClear(pre = "rbac:")
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean save(RbacMenu entity) {
+        if (Boolean.TRUE.equals(entity.getTenantRequired())) {
+            checkTenantRequiredPermission();
+        }
         if (StrUtil.isBlank(entity.getConfigKey())) {
             entity.setConfigKey(generateConfigKey());
         } else {
@@ -111,10 +122,15 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
 //        long count = lambdaQuery().eq(RbacMenu::getLinkUrl, entity.getLinkUrl()).count();
 //        if (count > 0) throw new BuzzException("链接已存在，不可重复录入");
 
-        return super.save(entity);
+        boolean saved = super.save(entity);
+        if (saved && Boolean.TRUE.equals(entity.getTenantRequired()) && entity.getId() != null) {
+            syncTenantRequiredPermission(entity, false, true);
+        }
+        return saved;
     }
 
     @FaCacheClear(pre = "rbac:")
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean updateById(RbacMenu entity) {
         RbacMenu current = getById(entity.getId());
@@ -130,6 +146,12 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
         entity.setConfigKey(configKey);
         validateConfigKey(configKey, entity.getId());
 
+        boolean requiredChanged = entity.getTenantRequired() != null
+                && !ObjectUtil.equal(current.getTenantRequired(), entity.getTenantRequired());
+        if (requiredChanged) {
+            checkTenantRequiredPermission();
+        }
+
         if (ObjectUtil.equal(entity.getParentId(), entity.getId())) {
             throw new BuzzException("父节点不能是自身");
         }
@@ -144,7 +166,15 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
 //        long count = lambdaQuery().eq(RbacMenu::getLinkUrl, entity.getLinkUrl()).ne(RbacMenu::getId, entity.getId()).count();
 //        if (count > 0) throw new BuzzException("链接已存在，不可重复录入");
 
-        return super.updateById(entity);
+        boolean updated = super.updateById(entity);
+        if (updated && requiredChanged) {
+            syncTenantRequiredPermission(
+                    current,
+                    Boolean.TRUE.equals(current.getTenantRequired()),
+                    Boolean.TRUE.equals(entity.getTenantRequired())
+            );
+        }
+        return updated;
     }
 
     @FaCacheClear(pre = "rbac:")
@@ -180,6 +210,9 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
         if (entity.getId() == null && StrUtil.isBlank(entity.getConfigKey())) {
             entity.setConfigKey(generateConfigKey());
         }
+        if (entity.getId() == null && entity.getTenantRequired() == null) {
+            entity.setTenantRequired(false);
+        }
     }
 
     private String generateConfigKey() {
@@ -198,6 +231,21 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
                 : lambdaQuery().eq(RbacMenu::getConfigKey, configKey).ne(RbacMenu::getId, excludedId).count();
         if (count > 0) {
             throw new BuzzException("菜单配置标识已存在: " + configKey);
+        }
+    }
+
+    private void checkTenantRequiredPermission() {
+        if (isTenantEnabled() && !isSuperAdminUser(getCurrentUserId())) {
+            throw new BuzzException("仅平台管理员可维护租户必选权限");
+        }
+    }
+
+    private void syncTenantRequiredPermission(RbacMenu menu, boolean oldRequired, boolean newRequired) {
+        if (tenantPermissionBiz != null) {
+            tenantPermissionBiz.syncRequiredPermissionChange(menu.getId(), oldRequired, newRequired);
+        }
+        if (entityLogBiz != null) {
+            entityLogBiz.saveMsgLog(menu, "平台必选权限变更: " + oldRequired + " -> " + newRequired);
         }
     }
 }

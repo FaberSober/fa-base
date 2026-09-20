@@ -1,6 +1,8 @@
 package com.faber.api.base.tn.vo.req;
 
 import com.faber.api.base.tn.entity.Tenant;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -20,5 +22,8 @@ public class TenantWithPermissionsReq implements Serializable {
     private Tenant tenant;
 
     @NotNull
+    /** 新接口语义为 O_t；旧客户端仍可提交 menuIds。 */
+    @JsonProperty("optionalMenuIds")
+    @JsonAlias("menuIds")
     private List<Long> menuIds = new ArrayList<>();
 }

@@ -2,6 +2,7 @@ package com.faber.api.base.tn.rest;
 
 import com.faber.api.base.tn.biz.TenantPermissionBiz;
 import com.faber.api.base.tn.vo.req.TenantPermissionUpdateVo;
+import com.faber.api.base.tn.vo.ret.TenantPermissionScopeVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.utils.BaseResHandler;
@@ -29,6 +30,12 @@ public class TenantPermissionController extends BaseResHandler {
     @GetMapping("/getMenuIds/{tenantId}")
     public Ret<List<Long>> getMenuIds(@PathVariable String tenantId) {
         return ok(tenantPermissionBiz.getMenuIds(tenantId));
+    }
+
+    @FaLogOpr("获取租户权限范围")
+    @GetMapping("/getPermissionScope/{tenantId}")
+    public Ret<TenantPermissionScopeVo> getPermissionScope(@PathVariable String tenantId) {
+        return ok(tenantPermissionBiz.getPermissionScope(tenantId));
     }
 
     @FaLogOpr("更新租户权限")

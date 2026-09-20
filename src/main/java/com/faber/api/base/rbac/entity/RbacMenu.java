@@ -59,6 +59,9 @@ public class RbacMenu extends BaseDelEntity {
     @ExcelProperty("模块：1-web/2-app")
     private RbacMenuScopeEnum scope;
 
+    @ExcelProperty("租户必选权限")
+    private Boolean tenantRequired;
+
     @NotNull
     @ExcelProperty("菜单等级：0-模块/1-菜单/9-按钮")
     private RbacMenuLevelEnum level;

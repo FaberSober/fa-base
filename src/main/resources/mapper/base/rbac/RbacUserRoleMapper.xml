@@ -65,13 +65,13 @@
            )
            AND link_url = #{linkUrl}
            <if test="tenantId != null and tenantId != ''">
-           AND EXISTS (
+           AND (m.tenant_required = TRUE OR EXISTS (
                 SELECT 1
                   FROM tn_tenant_permission tp
                  WHERE tp.tenant_id = #{tenantId}
                    AND tp.menu_id = m.id
                    AND tp.deleted = 0
-           )
+           ))
            </if>
     </select>
 
@@ -97,13 +97,13 @@
            )
            AND m.link_url = #{linkUrl}
            <if test="tenantId != null and tenantId != ''">
-           AND EXISTS (
+           AND (m.tenant_required = TRUE OR EXISTS (
                 SELECT 1
                   FROM tn_tenant_permission tp
                  WHERE tp.tenant_id = #{tenantId}
                    AND tp.menu_id = m.id
                    AND tp.deleted = false
-           )
+           ))
            </if>
     </select>
 
