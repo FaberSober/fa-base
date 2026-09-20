@@ -15,6 +15,7 @@ import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
 import com.faber.api.base.admin.mapper.UserMapper;
 import com.faber.api.base.admin.vo.query.*;
+import com.faber.api.base.admin.vo.ret.UserExportVo;
 import com.faber.api.base.rbac.biz.RbacRoleBiz;
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.api.base.rbac.entity.RbacRole;
@@ -29,6 +30,7 @@ import com.faber.core.enums.SexEnum;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
 import com.faber.core.exception.auth.UserInvalidException;
+import com.faber.core.utils.FaExcelUtils;
 import com.faber.core.utils.FaPwdUtils;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.QueryParams;
@@ -47,6 +49,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
@@ -141,6 +144,26 @@ public class UserBiz extends BaseBiz<UserMapper, User> {
     public TableRet<User> selectPageByQuery(QueryParams query) {
         appendTenantUserQueryIfNeed(query);
         return super.selectPageByQuery(query);
+    }
+
+    @Override
+    public void exportExcel(QueryParams query) throws IOException {
+        appendTenantUserQueryIfNeed(query);
+        exportUsers(query);
+    }
+
+    public void exportExcelSuper(QueryParams query) throws IOException {
+        if (!isSuperAdminUser(getCurrentUserId())) {
+            throw new BuzzException("仅平台管理员可导出全部用户");
+        }
+        exportUsers(query);
+    }
+
+    private void exportUsers(QueryParams query) throws IOException {
+        List<UserExportVo> list = this.list(query).stream()
+                .map(UserExportVo::from)
+                .collect(Collectors.toList());
+        FaExcelUtils.sendFileExcel(UserExportVo.class, list);
     }
 
     public TableRet<User> selectSuperPageByQuery(QueryParams query) {
