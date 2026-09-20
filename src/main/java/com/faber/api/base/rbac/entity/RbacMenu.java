@@ -1,5 +1,6 @@
 package com.faber.api.base.rbac.entity;
 
+import com.alibaba.excel.annotation.ExcelIgnore;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -14,6 +15,7 @@ import lombok.Data;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Null;
+import jakarta.validation.constraints.Size;
 
 
 /**
@@ -34,6 +36,10 @@ public class RbacMenu extends BaseDelEntity {
     @ExcelProperty("ID")
     @TableId(type = IdType.AUTO)
     private Long id;
+
+    @ExcelIgnore
+    @Size(max = 64)
+    private String configKey;
 
     @NotNull
     @SqlTreeParentId
