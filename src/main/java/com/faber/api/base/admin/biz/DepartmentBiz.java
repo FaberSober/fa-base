@@ -5,9 +5,11 @@ import cn.hutool.core.util.ObjectUtil;
 import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.mapper.DepartmentMapper;
+import com.faber.api.base.admin.vo.ret.DepartmentExportVo;
 import com.faber.api.base.admin.vo.ret.DepartmentVo;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
+import com.faber.core.utils.FaExcelUtils;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.vo.query.QueryParams;
 import com.faber.core.vo.tree.TreeNode;
@@ -15,9 +17,14 @@ import com.faber.core.web.biz.BaseTreeBiz;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -85,6 +92,90 @@ public class DepartmentBiz extends BaseTreeBiz<DepartmentMapper, Department> {
         List<TreeNode<Department>> tree = super.getTree(query);
         decorateTree(tree);
         return tree;
+    }
+
+    @Override
+    public void exportExcel(QueryParams query) throws IOException {
+        List<TreeNode<Department>> tree = super.getTree(query);
+        if (hasExportFilters(query)) {
+            Set<String> matchedIds = new HashSet<>();
+            collectIds(tree, matchedIds);
+            tree = filterTree(super.getTree(new QueryParams()), matchedIds);
+        }
+        Map<String, User> managers = findManagers(tree);
+        List<DepartmentExportVo> list = flattenTree(tree, managers);
+        FaExcelUtils.sendFileExcel(DepartmentExportVo.class, list);
+    }
+
+    private boolean hasExportFilters(QueryParams query) {
+        return query != null && query.getQuery() != null && !query.getQuery().isEmpty();
+    }
+
+    private void collectIds(List<TreeNode<Department>> nodes, Set<String> ids) {
+        if (nodes == null) {
+            return;
+        }
+        for (TreeNode<Department> node : nodes) {
+            ids.add(String.valueOf(node.getId()));
+            collectIds(node.getChildren(), ids);
+        }
+    }
+
+    private List<TreeNode<Department>> filterTree(List<TreeNode<Department>> nodes, Set<String> matchedIds) {
+        List<TreeNode<Department>> result = new ArrayList<>();
+        if (nodes == null) {
+            return result;
+        }
+        for (TreeNode<Department> node : nodes) {
+            List<TreeNode<Department>> children = filterTree(node.getChildren(), matchedIds);
+            if (matchedIds.contains(String.valueOf(node.getId())) || !children.isEmpty()) {
+                node.setChildren(children.isEmpty() ? null : children);
+                node.setHasChildren(!children.isEmpty());
+                result.add(node);
+            }
+        }
+        return result;
+    }
+
+    private Map<String, User> findManagers(List<TreeNode<Department>> nodes) {
+        Set<String> managerIds = new HashSet<>();
+        collectManagerIds(nodes, managerIds);
+        if (managerIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, User> managers = new HashMap<>();
+        userBiz.getByIds(new ArrayList<>(managerIds)).forEach(user -> managers.put(user.getId(), user));
+        return managers;
+    }
+
+    private void collectManagerIds(List<TreeNode<Department>> nodes, Set<String> managerIds) {
+        if (nodes == null) {
+            return;
+        }
+        for (TreeNode<Department> node : nodes) {
+            Department department = node.getSourceData();
+            if (department != null && department.getManagerId() != null) {
+                managerIds.add(department.getManagerId());
+            }
+            collectManagerIds(node.getChildren(), managerIds);
+        }
+    }
+
+    private List<DepartmentExportVo> flattenTree(List<TreeNode<Department>> nodes, Map<String, User> managers) {
+        List<DepartmentExportVo> list = new ArrayList<>();
+        if (nodes == null) {
+            return list;
+        }
+        for (TreeNode<Department> node : nodes) {
+            Department department = node.getSourceData();
+            if (department == null) {
+                continue;
+            }
+            list.add(DepartmentExportVo.from(department, node.getLevel(), managers.get(department.getManagerId())));
+            list.addAll(flattenTree(node.getChildren(), managers));
+        }
+        return list;
     }
 
     private void decorateTree(List<TreeNode<Department>> nodes) {
