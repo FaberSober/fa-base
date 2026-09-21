@@ -42,7 +42,9 @@ import com.faber.core.web.biz.BaseTreeBiz;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import jakarta.annotation.Resource;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -69,6 +71,26 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
     @Override
     public List<TreeNode<RbacMenu>> allTree() {
         return super.allTree();
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    @FaCacheClear(pre = "rbac:")
+    @Transactional(rollbackFor = Exception.class)
+    public void initLegacyConfigKey() {
+        List<RbacMenu> menus = lambdaQuery().list().stream()
+                .filter(menu -> StrUtil.isBlank(menu.getConfigKey()))
+                .toList();
+        for (RbacMenu menu : menus) {
+            RbacMenu update = new RbacMenu();
+            update.setId(menu.getId());
+            update.setConfigKey(generateLegacyConfigKey(menu));
+            if (!super.updateById(update)) {
+                throw new BuzzException("菜单配置标识初始化失败: " + menu.getId());
+            }
+        }
+        if (!menus.isEmpty()) {
+            _logger.info("菜单配置标识初始化完成，补全数量：{}", menus.size());
+        }
     }
 
     public void exportJson(RbacMenuExportReqVo request) throws IOException {
@@ -579,6 +601,11 @@ public class RbacMenuBiz extends BaseTreeBiz<RbacMenuMapper, RbacMenu> {
 
     private String generateConfigKey() {
         return UUID.randomUUID().toString().replace("-", "");
+    }
+
+    private String generateLegacyConfigKey(RbacMenu menu) {
+        Integer scope = menu.getScope() == null ? RbacMenuScopeEnum.WEB.getValue() : menu.getScope().getValue();
+        return "legacy:" + scope + ":" + menu.getId();
     }
 
     private void validateConfigKey(String configKey, Long excludedId) {
