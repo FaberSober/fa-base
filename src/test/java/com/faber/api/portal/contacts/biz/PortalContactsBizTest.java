@@ -1,7 +1,10 @@
 package com.faber.api.portal.contacts.biz;
 
 import com.faber.api.base.admin.entity.Department;
+import com.faber.api.base.admin.entity.User;
+import com.faber.api.base.admin.enums.UserWorkStatusEnum;
 import com.faber.api.portal.contacts.vo.PortalDepartmentNodeVo;
+import com.faber.api.portal.contacts.vo.PortalContactSummaryVo;
 import com.faber.core.vo.tree.TreeNode;
 import org.junit.jupiter.api.Test;
 
@@ -38,5 +41,27 @@ class PortalContactsBizTest {
         assertEquals("研发部", result.get(0).getChildren().get(0).getName());
         assertEquals(3, result.get(0).getChildren().get(0).getMemberCount());
         assertFalse(result.get(0).getChildren().get(0).isHasChildren());
+    }
+
+    @Test
+    void mapsOnlyContactSummaryFields() {
+        User user = new User();
+        user.setId("user-1");
+        user.setName("张三");
+        user.setImg("avatar.png");
+        user.setDepartmentId("dept-1");
+        user.setDepartmentName("研发部");
+        user.setRoleNames("成员");
+        user.setWorkStatus(UserWorkStatusEnum.ON_JOB);
+        user.setTel("13800000000");
+        user.setEmail("zhangsan@example.com");
+
+        PortalContactSummaryVo result = PortalContactsBiz.toContactSummary(user);
+
+        assertEquals("user-1", result.getId());
+        assertEquals("张三", result.getName());
+        assertEquals("avatar.png", result.getAvatar());
+        assertEquals("研发部", result.getDepartmentName());
+        assertEquals(UserWorkStatusEnum.ON_JOB, result.getWorkStatus());
     }
 }

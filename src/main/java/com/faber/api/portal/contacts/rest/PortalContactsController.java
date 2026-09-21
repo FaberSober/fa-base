@@ -1,14 +1,20 @@
 package com.faber.api.portal.contacts.rest;
 
 import com.faber.api.portal.contacts.biz.PortalContactsBiz;
+import com.faber.api.portal.contacts.vo.PortalContactPageQueryVo;
 import com.faber.api.portal.contacts.vo.PortalDepartmentNodeVo;
+import com.faber.api.portal.contacts.vo.PortalContactSummaryVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.annotation.LogNoRet;
 import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
+import com.faber.core.vo.msg.TableRet;
+import com.faber.core.vo.query.BasePageQuery;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,5 +33,14 @@ public class PortalContactsController extends BaseResHandler {
     @GetMapping("/departments/tree")
     public Ret<List<PortalDepartmentNodeVo>> departmentTree() {
         return ok(contactsBiz.getDepartmentTree());
+    }
+
+    @FaLogOpr("联系人分页")
+    @LogNoRet
+    @PostMapping("/users/page")
+    public TableRet<PortalContactSummaryVo> userPage(
+            @RequestBody BasePageQuery<PortalContactPageQueryVo> request
+    ) {
+        return contactsBiz.pageUsers(request);
     }
 }
