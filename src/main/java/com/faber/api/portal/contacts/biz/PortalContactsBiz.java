@@ -140,6 +140,7 @@ public class PortalContactsBiz {
         PortalContactSummaryVo vo = new PortalContactSummaryVo();
         vo.setId(user.getId());
         vo.setName(user.getName());
+        vo.setUsername(user.getUsername());
         vo.setAvatar(user.getImg());
         vo.setDepartmentId(user.getDepartmentId());
         vo.setDepartmentName(user.getDepartmentName());

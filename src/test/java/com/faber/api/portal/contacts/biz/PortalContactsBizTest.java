@@ -49,6 +49,7 @@ class PortalContactsBizTest {
         User user = new User();
         user.setId("user-1");
         user.setName("张三");
+        user.setUsername("zhangsan");
         user.setImg("avatar.png");
         user.setDepartmentId("dept-1");
         user.setDepartmentName("研发部");
@@ -61,6 +62,7 @@ class PortalContactsBizTest {
 
         assertEquals("user-1", result.getId());
         assertEquals("张三", result.getName());
+        assertEquals("zhangsan", result.getUsername());
         assertEquals("avatar.png", result.getAvatar());
         assertEquals("研发部", result.getDepartmentName());
         assertEquals(UserWorkStatusEnum.ON_JOB, result.getWorkStatus());

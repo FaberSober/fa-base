@@ -12,6 +12,8 @@ public class PortalContactSummaryVo implements Serializable {
 
     private String name;
 
+    private String username;
+
     private String avatar;
 
     private String departmentId;
