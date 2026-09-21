@@ -7,8 +7,11 @@ import com.faber.api.base.admin.entity.Department;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.tn.biz.TenantUserBiz;
 import com.faber.api.portal.contacts.vo.PortalContactPageQueryVo;
+import com.faber.api.portal.contacts.vo.PortalContactDetailVo;
 import com.faber.api.portal.contacts.vo.PortalDepartmentNodeVo;
 import com.faber.api.portal.contacts.vo.PortalContactSummaryVo;
+import com.faber.core.constant.FaSetting;
+import com.faber.core.exception.NoDataException;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.core.context.TenantContext;
 import com.faber.core.vo.query.BasePageQuery;
@@ -45,6 +48,9 @@ public class PortalContactsBiz {
 
     @Resource
     private UserBiz userBiz;
+
+    @Resource
+    private FaSetting faSetting;
 
     public List<PortalDepartmentNodeVo> getDepartmentTree() {
         return toDepartmentTree(departmentBiz.allTree(), loadMemberCounts());
@@ -85,6 +91,12 @@ public class PortalContactsBiz {
                 .map(PortalContactsBiz::toContactSummary)
                 .toList();
         return new TableRet<>(page.getData().getPagination(), rows);
+    }
+
+    public PortalContactDetailVo getUserDetail(String userId) {
+        User user = loadCurrentTenantUser(userId);
+        userBiz.decorateOne(user);
+        return toContactDetail(user);
     }
 
     private Map<String, Long> loadMemberCounts() {
@@ -134,6 +146,39 @@ public class PortalContactsBiz {
         vo.setRoleNames(user.getRoleNames());
         vo.setWorkStatus(user.getWorkStatus());
         return vo;
+    }
+
+    static PortalContactDetailVo toContactDetail(User user) {
+        PortalContactDetailVo vo = new PortalContactDetailVo();
+        vo.setId(user.getId());
+        vo.setName(user.getName());
+        vo.setAvatar(user.getImg());
+        vo.setDepartmentId(user.getDepartmentId());
+        vo.setDepartmentName(user.getDepartmentName());
+        vo.setRoleNames(user.getRoleNames());
+        vo.setWorkStatus(user.getWorkStatus());
+        vo.setUsername(user.getUsername());
+        vo.setTel(user.getTel());
+        vo.setEmail(user.getEmail());
+        return vo;
+    }
+
+    private User loadCurrentTenantUser(String userId) {
+        if (StrUtil.isBlank(userId)) {
+            throw new NoDataException();
+        }
+        User user = userBiz.getById(userId);
+        if (user == null || !Boolean.TRUE.equals(user.getStatus())) {
+            throw new NoDataException();
+        }
+        if (!faSetting.isTenantEnabled()) {
+            return user;
+        }
+        String tenantId = TenantContext.requireTenantId();
+        if (!tenantUserBiz.getUserIdsByTenantId(tenantId).contains(userId)) {
+            throw new NoDataException();
+        }
+        return user;
     }
 
     private static ConditionGroup keywordConditions(String keyword, List<String> departmentIds) {

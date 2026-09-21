@@ -1,6 +1,7 @@
 package com.faber.api.portal.contacts.rest;
 
 import com.faber.api.portal.contacts.biz.PortalContactsBiz;
+import com.faber.api.portal.contacts.vo.PortalContactDetailVo;
 import com.faber.api.portal.contacts.vo.PortalContactPageQueryVo;
 import com.faber.api.portal.contacts.vo.PortalDepartmentNodeVo;
 import com.faber.api.portal.contacts.vo.PortalContactSummaryVo;
@@ -15,6 +16,7 @@ import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -42,5 +44,12 @@ public class PortalContactsController extends BaseResHandler {
             @RequestBody BasePageQuery<PortalContactPageQueryVo> request
     ) {
         return contactsBiz.pageUsers(request);
+    }
+
+    @FaLogOpr("联系人详情")
+    @LogNoRet
+    @GetMapping("/users/{userId}")
+    public Ret<PortalContactDetailVo> userDetail(@PathVariable String userId) {
+        return ok(contactsBiz.getUserDetail(userId));
     }
 }
