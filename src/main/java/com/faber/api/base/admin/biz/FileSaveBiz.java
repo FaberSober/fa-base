@@ -105,6 +105,46 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     }
 
     /**
+     * 保存已经上传到物理存储的文件记录。
+     */
+    private FileSave saveUploadedFile(FileInfo fileInfo, String id, String md5) {
+        FileSave fileSave = new FileSave();
+        BeanUtil.copyProperties(fileInfo, fileSave);
+        fileSave.setId(id);
+        fileSave.setMd5(md5);
+        try {
+            if (!super.save(fileSave)) {
+                throw new BuzzException("文件记录保存失败");
+            }
+            return fileSave;
+        } catch (RuntimeException e) {
+            cleanupStorage(fileInfo);
+            throw e;
+        }
+    }
+
+    private void cleanupStorage(FileInfo fileInfo) {
+        try {
+            if (fileInfo != null && fileStorageService.exists(fileInfo)) {
+                fileStorageService.delete(fileInfo);
+            }
+        } catch (Exception e) {
+            log.error("清理上传文件失败, url={}", fileInfo == null ? null : fileInfo.getUrl(), e);
+        }
+    }
+
+    /**
+     * 清理尚未建立业务关联的上传文件。调用方的数据库事务负责回滚文件记录。
+     */
+    public void cleanupUploadedFile(FileSave fileSave) {
+        if (fileSave == null) return;
+        FileInfo fileInfo = getFileInfo(fileSave);
+        if (fileStorageService.exists(fileInfo) && !fileStorageService.delete(fileInfo)) {
+            throw new BuzzException("上传文件清理失败");
+        }
+    }
+
+    /**
      * 上传文件
      *
      * @param file
@@ -140,15 +180,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
                 .setPath(dir)
                 .setSaveFilename(FaFileUtils.addTsAndIdToFileName(file.getOriginalFilename(), id))
                 .upload();
-
-        FileSave fileSave = new FileSave();
-        BeanUtil.copyProperties(fileInfo, fileSave);
-        fileSave.setId(id);
-
-//        fileSave.setMd5(md5);
-
-        super.save(fileSave);
-        return fileSave;
+        return saveUploadedFile(fileInfo, id, null);
     }
 
     /**
@@ -235,15 +267,7 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
                 .setPath(dir)
                 .setSaveFilename(FaFileUtils.addTsAndIdToFileName(file.getName(), id))
                 .upload();
-
-        FileSave fileSave = new FileSave();
-        BeanUtil.copyProperties(fileInfo, fileSave);
-        fileSave.setId(id);
-
-        fileSave.setMd5(md5);
-
-        super.save(fileSave);
-        return fileSave;
+        return saveUploadedFile(fileInfo, id, md5);
     }
 
     public File getFileObj(FileSave fileSave) {
