@@ -491,14 +491,15 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     }
 
     public String getFileUrl(String fileId) {
-        return this.getFileUrl(faSetting.getUrl().getServerHost(), fileId);
+        String serverHost = faSetting.getUrl() == null ? null : faSetting.getUrl().getServerHost();
+        return this.getFileUrl(serverHost, fileId);
     }
 
     public String getFileUrl(String server, String fileId) {
         FileSave fileSave = getById(fileId);
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
-            return server + "/api/base/admin/fileSave/getFile/" + fileId;
+            return buildLocalFileUrl(server, fileId);
         }
         return fileSave.getUrl();
     }
@@ -506,9 +507,14 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     public String getFileUrl(String server, FileSave fileSave) {
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
-            return server + "/api/base/admin/fileSave/getFile/" + fileSave.getId();
+            return buildLocalFileUrl(server, fileSave.getId());
         }
         return fileSave.getUrl();
+    }
+
+    private String buildLocalFileUrl(String server, String fileId) {
+        String path = "/api/base/admin/fileSave/getFile/" + fileId;
+        return StrUtil.isBlank(server) ? path : StrUtil.removeSuffix(server.trim(), "/") + path;
     }
 
 }
