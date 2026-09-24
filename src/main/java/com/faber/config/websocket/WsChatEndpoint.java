@@ -7,7 +7,6 @@ import cn.hutool.json.JSONObject;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.core.config.websocket.ClientInfoEntity;
-import com.faber.core.config.websocket.ServiceException;
 import jakarta.annotation.PostConstruct;
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,9 +34,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @CrossOrigin(origins = "*")
 @ServerEndpoint(value = "/api/websocket/base/{token}")
 public class WsChatEndpoint {
-    // key：客户端连接唯一标识(token)
+    // key：WebSocket session ID；同一 token 可以同时建立多个连接
     // value：ClientInfoEntity
-    private static final Map<String, WsClientInfoEntity> uavWebSocketInfoMap = new ConcurrentHashMap<String, WsClientInfoEntity>();
+    private static final Map<String, WsClientInfoEntity> webSocketSessionMap = new ConcurrentHashMap<>();
 
     private static final int EXIST_TIME_HOUR = 6;
 
@@ -60,10 +58,6 @@ public class WsChatEndpoint {
     @OnOpen
     public void onOpen(Session session, EndpointConfig sec, @PathParam("token") String token) {
         init();
-        if (uavWebSocketInfoMap.containsKey(token)) {
-            throw new ServiceException("token已建立连接");
-        }
-
         String userId = (String) StpUtil.getLoginIdByToken(token);
         User user = userBiz.getById(userId);
         if (user == null) {
@@ -82,11 +76,11 @@ public class WsChatEndpoint {
         entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR)); // 默认连接6个小时
         entity.setConnectedAt(System.currentTimeMillis());
         entity.setLastSeenAt(entity.getConnectedAt());
-        uavWebSocketInfoMap.put(token, entity);
         entity.setUser(user);
+        webSocketSessionMap.put(session.getId(), entity);
 
         // 之所以获取http session 是为了获取获取httpsession中的数据 (用户名 /账号/信息)
-        log.info("WebSocket 连接建立成功: 用户ID={} 用户={}", userId, user.getUsername());
+        log.info("WebSocket 连接建立成功: 用户ID={} 用户={} sessionId={}", userId, user.getUsername(), session.getId());
     }
 
     /**
@@ -95,15 +89,13 @@ public class WsChatEndpoint {
      * @param session
      */
     @OnClose
-    public void onClose(Session session, @PathParam("token") String token) {
-        // 找到关闭会话对应的用户 ID 并从 uavWebSocketInfoMap 中移除
-        if (token != null && !token.isEmpty()) {
-            WsClientInfoEntity entity = uavWebSocketInfoMap.get(token);
-            if (entity == null || entity.getSession() != session || !uavWebSocketInfoMap.remove(token, entity)) return;
-            log.info("WebSocket 连接关闭成功: 用户ID={}", entity.getUser().getId());
+    public void onClose(Session session) {
+        String sessionId = session.getId();
+        WsClientInfoEntity entity = webSocketSessionMap.get(sessionId);
+        if (entity == null || entity.getSession() != session || !webSocketSessionMap.remove(sessionId, entity)) return;
+        log.info("WebSocket 连接关闭成功: 用户ID={} sessionId={}", entity.getUser().getId(), sessionId);
 
-            WsHolder.processClose(entity);
-        }
+        WsHolder.processClose(entity);
     }
 
     /**
@@ -112,9 +104,9 @@ public class WsChatEndpoint {
      */
     @OnMessage
     public void onMessage(Session session, @PathParam("token") String token, String message) throws IOException {
-        WsClientInfoEntity entity = uavWebSocketInfoMap.get(token);
-        if (entity == null) {
-            log.warn("无法找到 WebSocket 会话");
+        WsClientInfoEntity entity = webSocketSessionMap.get(session.getId());
+        if (entity == null || !entity.getToken().equals(token)) {
+            log.warn("无法找到 WebSocket 会话: sessionId={}", session.getId());
             return;
         }
         // 如果是心跳包
@@ -162,21 +154,20 @@ public class WsChatEndpoint {
     public void refreshDate() {
         // 开启定时任务，1秒一次向前台发送当前时间
         // 当没有客户端连接时阻塞等待
-        if (!uavWebSocketInfoMap.isEmpty()) {
+        if (!webSocketSessionMap.isEmpty()) {
             // 超过存活时间进行删除
-            Iterator<Map.Entry<String, WsClientInfoEntity>> iterator = uavWebSocketInfoMap.entrySet().iterator();
-            while (iterator.hasNext()) {
-                Map.Entry<String, WsClientInfoEntity> entry = iterator.next();
-                if (!entry.getValue().getExistTime().isAfter(LocalDateTime.now())) {
-                    log.info("WebSocket 用户 {} 已到存活时间，自动断开连接", entry.getValue().getUser().getId());
-                    WsHolder.processClose(entry.getValue());
+            for (Map.Entry<String, WsClientInfoEntity> entry : webSocketSessionMap.entrySet()) {
+                WsClientInfoEntity entity = entry.getValue();
+                if (!entity.getExistTime().isAfter(LocalDateTime.now())
+                        && webSocketSessionMap.remove(entry.getKey(), entity)) {
+                    log.info("WebSocket 用户 {} sessionId={} 已到存活时间，自动断开连接",
+                            entity.getUser().getId(), entry.getKey());
+                    WsHolder.processClose(entity);
                     try {
-                        entry.getValue().getSession().close();
+                        entity.getSession().close();
                     } catch (IOException e) {
                         log.error("WebSocket 连接关闭失败: {} - {}", entry.getKey(), e.getMessage());
                     }
-                    // 过期则进行移除
-                    iterator.remove();
                 }
             }
             // sendMessageToAll(FORMAT.format(new Date()));
@@ -191,7 +182,7 @@ public class WsChatEndpoint {
     public void sendMessageToAll(String message) {
         // log.info("WebSocket 发送全体消息：{}", message);
         // 循环客户端map发送消息
-        uavWebSocketInfoMap.values().forEach(item -> {
+        webSocketSessionMap.values().forEach(item -> {
             // 向每个用户发送文本信息。这里getAsyncRemote()解释一下，向用户发送文本信息有两种方式，
             // 一种是getBasicRemote，一种是getAsyncRemote
             // 区别：getAsyncRemote是异步的，不会阻塞，而getBasicRemote是同步的，会阻塞，由于同步特性，第二行的消息必须等待第一行的发送完成才能进行。
@@ -202,14 +193,21 @@ public class WsChatEndpoint {
     }
 
     public static List<WsClientInfoEntity> getByUserId(String userId) {
-        return uavWebSocketInfoMap.values().stream()
+        return webSocketSessionMap.values().stream()
                 .filter(item -> item.getUser().getId().equals(userId))
+                .toList();
+    }
+
+    public static List<WsClientInfoEntity> getByToken(String token) {
+        if (token == null || token.isEmpty()) return List.of();
+        return webSocketSessionMap.values().stream()
+                .filter(item -> token.equals(item.getToken()))
                 .toList();
     }
 
     /** 返回已注册且仍打开的客户端连接；调用方负责过滤过期心跳并映射为安全响应对象。 */
     public static List<WsClientInfoEntity> getRemoteClientConnections() {
-        return uavWebSocketInfoMap.values().stream()
+        return webSocketSessionMap.values().stream()
                 .filter(client -> client.getClientType() != null)
                 .filter(client -> client.getSession() != null && client.getSession().isOpen())
                 .toList();
@@ -247,11 +245,20 @@ public class WsChatEndpoint {
     }
 
     public static void sendMessageToToken(String token, String type, String channel, Object msg) {
-        try {
-            WsClientInfoEntity client = uavWebSocketInfoMap.get(token);
-            if (client != null) {
+        for (WsClientInfoEntity client : getByToken(token)) {
+            try {
                 client.sendMessage(type, channel, msg);
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
             }
+        }
+    }
+
+    public static void sendMessageToSession(String sessionId, String type, String channel, Object msg) {
+        WsClientInfoEntity client = webSocketSessionMap.get(sessionId);
+        if (client == null) return;
+        try {
+            client.sendMessage(type, channel, msg);
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }

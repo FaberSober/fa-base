@@ -16,19 +16,32 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WebSocketTaskImpl implements WsBaseService, SocketTaskProgressService {
     public static final String TYPE = "WebSocketTaskDemo";
 
-    private static final Map<String, WsClientInfoEntity> uavWebSocketInfoMap = new ConcurrentHashMap<String, WsClientInfoEntity>();
+    private static final Map<String, Map<String, WsClientInfoEntity>> taskSessions = new ConcurrentHashMap<>();
 
     @Override
     public void onMessage(WsClientInfoEntity entity, JSONObject msg) {
         String taskId = msg.getStr("taskId");
-        uavWebSocketInfoMap.put(taskId, entity);
+        String sessionId = entity.getSession().getId();
+        taskSessions.compute(taskId, (key, sessions) -> {
+            if (sessions == null) sessions = new ConcurrentHashMap<>();
+            sessions.put(sessionId, entity);
+            return sessions;
+        });
+    }
+
+    @Override
+    public void onClose(WsClientInfoEntity entity) {
+        String sessionId = entity.getSession().getId();
+        taskSessions.forEach((taskId, sessions) -> taskSessions.computeIfPresent(taskId, (key, current) -> {
+            current.remove(sessionId, entity);
+            return current.isEmpty() ? null : current;
+        }));
     }
 
     private static void doSendProgress(SocketTaskVo socketTaskVo) {
-        WsClientInfoEntity entity = uavWebSocketInfoMap.get(socketTaskVo.getTaskId());
-        if (entity == null) return;
-
-        entity.sendMessage(TYPE, socketTaskVo);
+        Map<String, WsClientInfoEntity> sessions = taskSessions.get(socketTaskVo.getTaskId());
+        if (sessions == null) return;
+        sessions.values().forEach(entity -> entity.sendMessage(TYPE, socketTaskVo));
     }
 
     public static void sendProgress(SocketTaskVo socketTaskVo) {
