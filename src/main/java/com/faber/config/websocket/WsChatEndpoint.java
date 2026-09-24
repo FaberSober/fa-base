@@ -2,7 +2,6 @@ package com.faber.config.websocket;
 
 
 import cn.dev33.satoken.stp.StpUtil;
-import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.json.JSONObject;
 import com.faber.api.base.admin.biz.UserBiz;
@@ -71,7 +70,7 @@ public class WsChatEndpoint {
             try {
                 session.close();
             } catch (IOException e) {
-                log.error("用户信息为空，userId=" + userId + ", token=" + token);
+                log.error("用户信息为空，userId={}", userId);
             }
             return;
         }
@@ -81,11 +80,13 @@ public class WsChatEndpoint {
         entity.setToken(token);
         entity.setSession(session);
         entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR)); // 默认连接6个小时
+        entity.setConnectedAt(System.currentTimeMillis());
+        entity.setLastSeenAt(entity.getConnectedAt());
         uavWebSocketInfoMap.put(token, entity);
         entity.setUser(user);
 
         // 之所以获取http session 是为了获取获取httpsession中的数据 (用户名 /账号/信息)
-        log.info("WebSocket 连接建立成功: {} 用户ID={} 用户={}", token, userId, user.getUsername());
+        log.info("WebSocket 连接建立成功: 用户ID={} 用户={}", userId, user.getUsername());
     }
 
     /**
@@ -96,9 +97,10 @@ public class WsChatEndpoint {
     @OnClose
     public void onClose(Session session, @PathParam("token") String token) {
         // 找到关闭会话对应的用户 ID 并从 uavWebSocketInfoMap 中移除
-        if (ObjectUtil.isNotEmpty(token) && uavWebSocketInfoMap.containsKey(token)) {
-            uavWebSocketInfoMap.remove(token);
-            log.info("WebSocket 连接关闭成功: {}", token);
+        if (token != null && !token.isEmpty()) {
+            WsClientInfoEntity entity = uavWebSocketInfoMap.get(token);
+            if (entity == null || entity.getSession() != session || !uavWebSocketInfoMap.remove(token, entity)) return;
+            log.info("WebSocket 连接关闭成功: 用户ID={}", entity.getUser().getId());
 
             // TODO 通知WsBaseService实现类进行关闭处理
         }
@@ -110,17 +112,16 @@ public class WsChatEndpoint {
      */
     @OnMessage
     public void onMessage(Session session, @PathParam("token") String token, String message) throws IOException {
-        log.debug("接收到消息：{}", message);
-
         WsClientInfoEntity entity = uavWebSocketInfoMap.get(token);
         if (entity == null) {
-            log.error("无法找到对应的WebSocket实体，token={}", token);
+            log.warn("无法找到 WebSocket 会话");
             return;
         }
         // 如果是心跳包
         if("ping".equals(message)){
             // 只要接受到客户端的消息就进行续命(时间)
             entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR));
+            entity.setLastSeenAt(System.currentTimeMillis());
             if (entity.getSession().isOpen()) {
                 entity.sendSuccess();
             }
@@ -131,11 +132,12 @@ public class WsChatEndpoint {
         JSONObject json = new JSONObject(message);
         String type = json.getStr("type");
         JSONObject data = json.getJSONObject("data");
+        entity.setLastSeenAt(System.currentTimeMillis());
+        entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR));
+        log.debug("WebSocket 消息: type={}", type);
         WsHolder.processMessage(entity, type, data);
 
 
-        // 只要接受到客户端的消息就进行续命(时间)
-        entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR));
 //        if (entity.getSession().isOpen()) {
 //            entity.sendSuccess();
 //        }
@@ -166,7 +168,7 @@ public class WsChatEndpoint {
             while (iterator.hasNext()) {
                 Map.Entry<String, WsClientInfoEntity> entry = iterator.next();
                 if (!entry.getValue().getExistTime().isAfter(LocalDateTime.now())) {
-                    log.info("WebSocket {} 已到存活时间，自动断开连接", entry.getKey());
+                    log.info("WebSocket 用户 {} 已到存活时间，自动断开连接", entry.getValue().getUser().getId());
                     try {
                         entry.getValue().getSession().close();
                     } catch (IOException e) {
@@ -201,6 +203,14 @@ public class WsChatEndpoint {
     public static List<WsClientInfoEntity> getByUserId(String userId) {
         return uavWebSocketInfoMap.values().stream()
                 .filter(item -> item.getUser().getId().equals(userId))
+                .toList();
+    }
+
+    /** 返回已注册且仍打开的客户端连接；调用方负责过滤过期心跳并映射为安全响应对象。 */
+    public static List<WsClientInfoEntity> getRemoteClientConnections() {
+        return uavWebSocketInfoMap.values().stream()
+                .filter(client -> client.getClientType() != null)
+                .filter(client -> client.getSession() != null && client.getSession().isOpen())
                 .toList();
     }
 
@@ -247,4 +257,3 @@ public class WsChatEndpoint {
     }
 
 }
-

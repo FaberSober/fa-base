@@ -1,13 +1,11 @@
-package com.faber.config.websocket;
+package com.faber.api.base.admin.vo.ret;
 
-import com.faber.api.base.admin.entity.User;
-import com.faber.core.config.websocket.ClientInfoEntity;
 import lombok.Data;
 
+/** 在线 WebSocket 客户端公开信息，不包含 Token 或 Session。时间为 Unix 毫秒。 */
 @Data
-public class WsClientInfoEntity extends ClientInfoEntity {
-
-    /** 通用客户端类别，例如 MOBILE、DESKTOP、OTHER。 */
+public class RemoteClientVo {
+    private String id;
     private String clientType;
     private String runtime;
     private String appCode;
@@ -18,12 +16,9 @@ public class WsClientInfoEntity extends ClientInfoEntity {
     private String osName;
     private String osVersion;
     private String deviceModel;
+    private String userId;
+    private String username;
+    private String name;
     private long connectedAt;
     private long lastSeenAt;
-
-    /**
-     * 用户信息
-     */
-    private User user;
-
 }
