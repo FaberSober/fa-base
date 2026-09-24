@@ -17,7 +17,7 @@
 | 4 | `mobile/fa-core-mobile` | 连接与客户端注册 | App 登录且前台时连接；退出、后台或断线时更新在线状态 | 执行开发 | ✅已完成 |
 | 5 | `mobile/fa-core-mobile` | Console 与运行时错误采集 | 远程开启后采集各级 Console、未捕获异常和 Promise 异常 | 执行开发 | ✅已完成 |
 | 6 | `frontend/apps/admin` | 在线客户端列表 | 展示在线客户端类别、应用、用户、版本和运行平台 | 执行开发 | ✅已完成 |
-| 7 | `frontend/apps/admin` | 实时日志查看 | 选择客户端并启停采集，按级别查看实时日志 | 执行开发 | ✅已完成 |
+| 7 | `frontend/apps/admin` | 实时日志查看 | Switch 控制采集、自动滚动和 HTTP JSON/原文；支持单条切换、级别筛选与搜索 | 执行开发 | ✅已完成 |
 | 8 | `fa-base`、`mobile`、`frontend/apps/admin` | 发布包与权限验证 | 验证完整远程日志功能的发布包、权限、脱敏、断线和重连 | 执行开发 | 🔍验证中 |
 
 ## 2. 功能开发说明
