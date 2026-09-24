@@ -53,6 +53,18 @@ public class WsHolder {
         }
     }
 
+    public static void processClose(WsClientInfoEntity entity) {
+        for (List<WsBaseService> services : SERVICE_MAP.values()) {
+            for (WsBaseService service : services) {
+                try {
+                    service.onClose(entity);
+                } catch (Exception e) {
+                    log.error("WebSocket 断开清理失败: {}", e.getMessage(), e);
+                }
+            }
+        }
+    }
+
     public static void setChannel(String channel) {
         BaseContextHandler.setWsChannel(channel);
     }

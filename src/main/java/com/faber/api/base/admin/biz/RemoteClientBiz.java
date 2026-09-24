@@ -33,10 +33,8 @@ public class RemoteClientBiz {
         requireAccess();
         int size = Math.min(100, Math.max(1, params.getPageSize()));
         int current = Math.max(1, params.getCurrent());
-        long now = System.currentTimeMillis();
         RemoteClientQueryVo query = params.getQuery() == null ? new RemoteClientQueryVo() : params.getQuery();
-        List<RemoteClientVo> matches = WsChatEndpoint.getRemoteClientConnections().stream()
-                .filter(client -> now - client.getLastSeenAt() <= ONLINE_WINDOW_MILLIS)
+        List<RemoteClientVo> matches = getOnlineClients().stream()
                 .filter(client -> StrUtil.isBlank(query.getClientType())
                         || Objects.equals(query.getClientType(), client.getClientType()))
                 .filter(client -> matches(client, query.getKeyword()))
@@ -51,6 +49,21 @@ public class RemoteClientBiz {
         pagination.setTotal(matches.size());
         pagination.setPages((matches.size() + size - 1L) / size);
         return new TableRet<>(pagination, rows);
+    }
+
+    public WsClientInfoEntity getOnlineClient(String sessionId) {
+        if (StrUtil.isBlank(sessionId)) return null;
+        return getOnlineClients().stream()
+                .filter(client -> sessionId.equals(client.getSession().getId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private List<WsClientInfoEntity> getOnlineClients() {
+        long now = System.currentTimeMillis();
+        return WsChatEndpoint.getRemoteClientConnections().stream()
+                .filter(client -> now - client.getLastSeenAt() <= ONLINE_WINDOW_MILLIS)
+                .toList();
     }
 
     private boolean matches(WsClientInfoEntity client, String keyword) {
@@ -89,8 +102,10 @@ public class RemoteClientBiz {
     }
 
     private void requireAccess() {
-        String userId = BaseContextHandler.getUserId();
-        String token = StpUtil.getTokenValue();
+        requireAccess(BaseContextHandler.getUserId(), StpUtil.getTokenValue());
+    }
+
+    public void requireAccess(String userId, String token) {
         if (StrUtil.isBlank(userId) || !userId.equals(StpUtil.getLoginIdByToken(token))) {
             throw new UserNoPermissionException("无在线客户端查看权限");
         }

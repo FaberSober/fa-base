@@ -6,4 +6,7 @@ public interface WsBaseService {
 
     void onMessage(WsClientInfoEntity entity, JSONObject msg);
 
+    default void onClose(WsClientInfoEntity entity) {
+    }
+
 }

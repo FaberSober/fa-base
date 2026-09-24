@@ -102,7 +102,7 @@ public class WsChatEndpoint {
             if (entity == null || entity.getSession() != session || !uavWebSocketInfoMap.remove(token, entity)) return;
             log.info("WebSocket 连接关闭成功: 用户ID={}", entity.getUser().getId());
 
-            // TODO 通知WsBaseService实现类进行关闭处理
+            WsHolder.processClose(entity);
         }
     }
 
@@ -169,6 +169,7 @@ public class WsChatEndpoint {
                 Map.Entry<String, WsClientInfoEntity> entry = iterator.next();
                 if (!entry.getValue().getExistTime().isAfter(LocalDateTime.now())) {
                     log.info("WebSocket 用户 {} 已到存活时间，自动断开连接", entry.getValue().getUser().getId());
+                    WsHolder.processClose(entry.getValue());
                     try {
                         entry.getValue().getSession().close();
                     } catch (IOException e) {
