@@ -44,6 +44,9 @@ public class UserDevice extends BaseDelEntity {
     @ExcelProperty("设备ID")
     private String deviceId;
 
+    @ExcelProperty("客户端类型")
+    private String clientType;
+
     @ExcelProperty("设备型号")
     private String model;
 

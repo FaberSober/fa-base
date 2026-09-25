@@ -1,5 +1,6 @@
 package com.faber.api.base.admin.biz;
 
+import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserDevice;
 import com.faber.api.base.admin.mapper.UserDeviceMapper;
@@ -37,8 +38,10 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
     }
 
     public void updateMine(UserDevice entity) {
+        String currentUserId = getCurrentUserId();
         long count = lambdaQuery()
                 .eq(UserDevice::getDeviceId, entity.getDeviceId())
+                .isNull(UserDevice::getClientType)
                 .count();
 
         if (count > 1) {
@@ -46,7 +49,14 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
         }
 
         if (count == 0) {
-            entity.setUserId(getCurrentUserId());
+            long existingClientCount = lambdaQuery()
+                    .eq(UserDevice::getDeviceId, entity.getDeviceId())
+                    .count();
+            if (existingClientCount > 0) {
+                throw new BuzzException("设备已登记为客户端设备，不能通过旧设备接口修改");
+            }
+            entity.setUserId(currentUserId);
+            entity.setClientType(null);
             entity.setEnable(faSetting.getApp().isDeviceDefaultAllow()); // 默认不允许访问
             entity.setLastOnlineTime(new Date());
             this.save(entity);
@@ -55,8 +65,11 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
 
         UserDevice entityDB = lambdaQuery()
                 .eq(UserDevice::getDeviceId, entity.getDeviceId())
+                .isNull(UserDevice::getClientType)
                 .one();
-        entityDB.setUserId(getCurrentUserId());
+        if (!currentUserId.equals(entityDB.getUserId())) {
+            throw new BuzzException("设备已登记到其他用户，不允许转移归属");
+        }
         entityDB.setModel(entity.getModel());
         entityDB.setManufacturer(entity.getManufacturer());
         entityDB.setOs(entity.getOs());
@@ -64,9 +77,34 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
         this.updateById(entityDB);
     }
 
+    /** 登录成功后按用户、客户端类型和客户端实例 ID 维护设备登记。 */
+    public void registerClientOnLogin(User user, String clientType, String clientInstanceId, String os) {
+        if (user == null || StrUtil.hasBlank(user.getId(), clientType, clientInstanceId)) return;
+
+        UserDevice entity = lambdaQuery()
+                .eq(UserDevice::getUserId, user.getId())
+                .eq(UserDevice::getClientType, clientType)
+                .eq(UserDevice::getDeviceId, clientInstanceId)
+                .one();
+        Date now = new Date();
+        if (entity == null) {
+            entity = new UserDevice();
+            entity.setUserId(user.getId());
+            entity.setClientType(clientType);
+            entity.setDeviceId(clientInstanceId);
+            entity.setEnable(faSetting.getApp().isDeviceDefaultAllow());
+        }
+        if (StrUtil.isNotBlank(os)) entity.setOs(os);
+        entity.setLastOnlineTime(now);
+
+        if (entity.getId() == null) save(entity);
+        else updateById(entity);
+    }
+
     public UserDevice getByDeviceId(String deviceId) {
         long count = lambdaQuery()
                 .eq(UserDevice::getDeviceId, deviceId)
+                .isNull(UserDevice::getClientType)
                 .count();
 
         if (count > 1) {
@@ -79,6 +117,7 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
 
         UserDevice entityDB = lambdaQuery()
                 .eq(UserDevice::getDeviceId, deviceId)
+                .isNull(UserDevice::getClientType)
                 .one();
         return entityDB;
     }

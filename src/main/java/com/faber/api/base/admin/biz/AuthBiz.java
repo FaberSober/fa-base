@@ -2,6 +2,7 @@ package com.faber.api.base.admin.biz;
 
 import cn.dev33.satoken.stp.SaTokenInfo;
 import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.useragent.UserAgent;
 import cn.hutool.http.useragent.UserAgentUtil;
 //import com.alicp.jetcache.Cache;
@@ -11,25 +12,36 @@ import cn.hutool.http.useragent.UserAgentUtil;
 import com.faber.api.base.admin.entity.LogLogin;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
+import com.faber.api.base.telemetry.enums.TelemetryClientTypeEnum;
+import com.faber.api.base.telemetry.service.TelemetryService;
 import com.faber.config.utils.user.LoginReqVo;
 import com.faber.config.auth.OnlineUserTracker;
+import com.faber.core.constant.CommonConstants;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.service.LogoutService;
 import com.faber.core.utils.IpUtils;
 import com.faber.core.utils.RequestUtils;
 import com.faber.core.vo.utils.IpAddr;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.Locale;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 
 @Service
+@Slf4j
 public class AuthBiz implements LogoutService {
 
     @Resource UserBiz userBiz;
     @Resource UserTokenBiz userTokenBiz;
+    @Resource UserDeviceBiz userDeviceBiz;
     @Resource LogLoginBiz logLoginBiz;
     @Resource OnlineUserTracker onlineUserTracker;
 
@@ -98,10 +110,13 @@ public class AuthBiz implements LogoutService {
 
         // 解析agent字符串
         UserAgent ua = UserAgentUtil.parse(logLogin.getAgent());
+        ClientIdentity clientIdentity = resolveClientIdentity(source);
         logLogin.setOs(ua.getOs().toString());
         logLogin.setBrowser(ua.getBrowser().toString());
         logLogin.setVersion(ua.getVersion());
         logLogin.setMobile(ua.isMobile());
+        logLogin.setClientType(clientIdentity.clientType());
+        logLogin.setDeviceId(clientIdentity.clientInstanceId());
 
         // 获取IP地址
         IpAddr ipAddr = IpUtils.getIpAddrByApi(BaseContextHandler.getIp());
@@ -113,12 +128,66 @@ public class AuthBiz implements LogoutService {
 
         logLoginBiz.save(logLogin);
 
+        if (clientIdentity.clientType() != null && clientIdentity.clientInstanceId() != null) {
+            try {
+                userDeviceBiz.registerClientOnLogin(user, clientIdentity.clientType(),
+                        clientIdentity.clientInstanceId(), ua.getOs().toString());
+            } catch (Exception e) {
+                // 设备登记仅用于在线设备展示，不影响已通过认证的登录。
+                log.warn("登录设备登记失败 userId={} clientType={}",
+                        user.getId(), clientIdentity.clientType(), e);
+            }
+        }
+
         // 使用sa-token登录框架
         StpUtil.login(user.getId(), source);
         SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
         if ("web".equals(source)) onlineUserTracker.touch(tokenInfo.getTokenValue(), user, true);
         return tokenInfo;
     }
+
+    private ClientIdentity resolveClientIdentity(String source) {
+        HttpServletRequest request = currentRequest();
+        String clientInstanceId = readHeader(request, "FaClientInstanceId", 128);
+        String clientType = readHeader(request, TelemetryService.HEADER_CLIENT_TYPE, 16);
+        if (clientType != null) {
+            try {
+                clientType = TelemetryClientTypeEnum.valueOf(clientType.toUpperCase(Locale.ROOT)).getValue();
+            } catch (IllegalArgumentException e) {
+                clientType = null;
+            }
+        }
+
+        if (clientType == null && request != null) {
+            String from = readHeader(request, CommonConstants.FA_FROM, 32);
+            if (CommonConstants.FaFrom.FaApp.equalsIgnoreCase(from)) {
+                clientType = TelemetryClientTypeEnum.MOBILE.getValue();
+            } else if (CommonConstants.FaFrom.FaWeb.equalsIgnoreCase(from)) {
+                clientType = TelemetryClientTypeEnum.WEB.getValue();
+            }
+        }
+        if (clientType == null) {
+            if ("portal".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.MOBILE.getValue();
+            else if ("web".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.WEB.getValue();
+        }
+        return new ClientIdentity(clientType, clientInstanceId);
+    }
+
+    private HttpServletRequest currentRequest() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            return attributes.getRequest();
+        }
+        return null;
+    }
+
+    private String readHeader(HttpServletRequest request, String name, int maxLength) {
+        if (request == null) return null;
+        String value = StrUtil.trim(request.getHeader(name));
+        if (StrUtil.isBlank(value) || value.length() > maxLength) return null;
+        return value;
+    }
+
+    private record ClientIdentity(String clientType, String clientInstanceId) {}
 
     private void requireAdminAccess(User user) {
         if (!Boolean.TRUE.equals(user.getAdminEnabled())) {

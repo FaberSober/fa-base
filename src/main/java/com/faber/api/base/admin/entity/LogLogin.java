@@ -29,6 +29,12 @@ public class LogLogin extends BaseDelEntity {
     @ExcelProperty("访问客户端")
     private String agent;
 
+    @ExcelProperty("客户端类型")
+    private String clientType;
+
+    @ExcelProperty("客户端实例ID")
+    private String deviceId;
+
     @ExcelProperty("操作系统")
     private String os;
 
