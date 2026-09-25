@@ -78,6 +78,7 @@ public class WsChatEndpoint {
         entity.setLastSeenAt(entity.getConnectedAt());
         entity.setUser(user);
         webSocketSessionMap.put(session.getId(), entity);
+        WsHolder.processOpen(entity);
 
         // 之所以获取http session 是为了获取获取httpsession中的数据 (用户名 /账号/信息)
         log.info("WebSocket 连接建立成功: 用户ID={} 用户={} sessionId={}", userId, user.getUsername(), session.getId());
@@ -114,6 +115,7 @@ public class WsChatEndpoint {
             // 只要接受到客户端的消息就进行续命(时间)
             entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR));
             entity.setLastSeenAt(System.currentTimeMillis());
+            WsHolder.processHeartbeat(entity);
             if (entity.getSession().isOpen()) {
                 entity.sendSuccess();
             }

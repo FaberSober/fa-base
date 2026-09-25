@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 @Slf4j
 public class WsHolder {
@@ -50,6 +51,28 @@ public class WsHolder {
         }
         for (WsBaseService impl : list) {
             impl.onMessage(entity, msg);
+        }
+    }
+
+    public static void processOpen(WsClientInfoEntity entity) {
+        processLifecycle(entity, "连接建立", service -> service.onOpen(entity));
+    }
+
+    public static void processHeartbeat(WsClientInfoEntity entity) {
+        processLifecycle(entity, "心跳", service -> service.onHeartbeat(entity));
+    }
+
+    private static void processLifecycle(WsClientInfoEntity entity, String action, Consumer<WsBaseService> callback) {
+        String sessionId = entity.getSession() == null ? null : entity.getSession().getId();
+        String userId = entity.getUser() == null ? null : entity.getUser().getId();
+        for (List<WsBaseService> services : SERVICE_MAP.values()) {
+            for (WsBaseService service : services) {
+                try {
+                    callback.accept(service);
+                } catch (Exception e) {
+                    log.error("WebSocket {}生命周期回调失败 userId={} sessionId={}", action, userId, sessionId, e);
+                }
+            }
         }
     }
 
