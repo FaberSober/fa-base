@@ -2,10 +2,16 @@ package com.faber.api.base.admin.biz;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
+import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.vo.query.OnlineUserKickoutVo;
+import com.faber.api.base.admin.vo.query.OnlineUserPresenceQueryVo;
 import com.faber.api.base.admin.vo.query.OnlineUserQueryVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserPresenceDeviceVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserPresenceSummaryVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserStatsVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserVo;
+import com.faber.config.websocket.WsClientPresenceRecord;
+import com.faber.config.websocket.WsClientPresenceStore;
 import com.faber.api.base.rbac.mapper.RbacUserRoleMapper;
 import com.faber.config.auth.OnlineUserSession;
 import com.faber.config.auth.OnlineUserStore;
@@ -23,7 +29,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -35,12 +43,19 @@ public class OnlineUserBiz {
     @Resource
     private OnlineUserStore store;
     @Resource
+    private WsClientPresenceStore clientPresenceStore;
+    @Resource
+    private UserBiz userBiz;
+    @Resource
     private RbacUserRoleMapper roleMapper;
     @Value("${fa.online-user.active-window-seconds:300}")
     private long activeWindowSeconds;
 
     private volatile Snapshot snapshot;
     private record Snapshot(long revision, long time, List<OnlineUserSession> sessions) {}
+    private record DeviceKey(String clientType, String clientInstanceId) {}
+    private record PresenceDevice(String clientType, String clientInstanceId,
+                                  WsClientPresenceRecord metadata, long connectedAt, long lastSeenAt) {}
 
     public TableRet<OnlineUserVo> page(BasePageQuery<OnlineUserQueryVo> params) {
         requireAccess(VIEW_PERMISSION);
@@ -78,6 +93,49 @@ public class OnlineUserBiz {
                 .map(OnlineUserSession::getUserId).distinct().count());
         result.setActiveWindowSeconds(Math.max(1, activeWindowSeconds));
         return result;
+    }
+
+    /** 汇总在线设备后分页，避免一个用户的多个连接占据多行。 */
+    public TableRet<OnlineUserPresenceSummaryVo> presencePage(
+            BasePageQuery<OnlineUserPresenceQueryVo> params) {
+        requireAccess(VIEW_PERMISSION);
+        int size = Math.min(100, Math.max(1, params.getPageSize()));
+        int current = Math.max(1, params.getCurrent());
+        OnlineUserPresenceQueryVo query = params.getQuery() == null
+                ? new OnlineUserPresenceQueryVo() : params.getQuery();
+        Map<String, List<PresenceDevice>> devicesByUser = currentDevicesByUser(System.currentTimeMillis());
+
+        Map<String, User> usersById = new HashMap<>();
+        if (!devicesByUser.isEmpty()) {
+            userBiz.listByIds(devicesByUser.keySet()).forEach(user -> usersById.put(user.getId(), user));
+        }
+        List<OnlineUserPresenceSummaryVo> matches = new ArrayList<>();
+        for (Map.Entry<String, List<PresenceDevice>> entry : devicesByUser.entrySet()) {
+            User user = usersById.get(entry.getKey());
+            if (!matches(user, entry.getKey(), query.getKeyword())) continue;
+            matches.add(toPresenceSummary(entry.getKey(), user, entry.getValue()));
+        }
+        matches.sort(Comparator.comparingLong(OnlineUserPresenceSummaryVo::getLastSeenAt).reversed()
+                .thenComparing(OnlineUserPresenceSummaryVo::getUserId));
+
+        current = Math.min(current, Math.max(1, (matches.size() + size - 1) / size));
+        List<OnlineUserPresenceSummaryVo> rows = matches.stream()
+                .skip((long) (current - 1) * size).limit(size).toList();
+        TableRet.Pagination pagination = new TableRet.Pagination();
+        pagination.setCurrent(current);
+        pagination.setPageSize(size);
+        pagination.setTotal(matches.size());
+        pagination.setPages((matches.size() + size - 1L) / size);
+        return new TableRet<>(pagination, rows);
+    }
+
+    /** 查询指定用户当前活跃的去重设备，不向响应暴露实例 ID 或连接标识。 */
+    public List<OnlineUserPresenceDeviceVo> presenceDevices(String userId) {
+        requireAccess(VIEW_PERMISSION);
+        return currentDevicesByUser(System.currentTimeMillis()).getOrDefault(userId, List.of()).stream()
+                .sorted(Comparator.comparingLong(PresenceDevice::lastSeenAt).reversed())
+                .map(this::toPresenceDevice)
+                .toList();
     }
 
     public int kickout(OnlineUserKickoutVo params) {
@@ -170,6 +228,85 @@ public class OnlineUserBiz {
     private boolean matches(OnlineUserSession session, String keyword) {
         return StrUtil.isBlank(keyword) || StrUtil.containsIgnoreCase(session.getUsername(), keyword.trim())
                 || StrUtil.containsIgnoreCase(session.getName(), keyword.trim());
+    }
+
+    private boolean matches(User user, String userId, String keyword) {
+        return StrUtil.isBlank(keyword)
+                || StrUtil.containsIgnoreCase(userId, keyword.trim())
+                || (user != null && (StrUtil.containsIgnoreCase(user.getUsername(), keyword.trim())
+                    || StrUtil.containsIgnoreCase(user.getName(), keyword.trim())));
+    }
+
+    private Map<String, List<PresenceDevice>> currentDevicesByUser(long now) {
+        long activeAfter = now - WsClientPresenceStore.ONLINE_TTL_SECONDS * 1000;
+        Map<String, Map<DeviceKey, PresenceDevice>> devicesByUser = new HashMap<>();
+        for (WsClientPresenceRecord record : clientPresenceStore.all().values()) {
+            if (record == null || StrUtil.isBlank(record.getUserId())
+                    || record.getLastSeenAt() < activeAfter || record.getLastSeenAt() <= 0) continue;
+
+            String clientType = record.getClientType();
+            if (!isPresenceClientType(clientType)) continue;
+            String clientInstanceId = StrUtil.blankToDefault(record.getClientInstanceId(), record.getSessionId());
+            if (StrUtil.isBlank(clientInstanceId)) continue;
+
+            DeviceKey key = new DeviceKey(clientType, clientInstanceId);
+            Map<DeviceKey, PresenceDevice> userDevices = devicesByUser.computeIfAbsent(
+                    record.getUserId(), ignored -> new HashMap<>());
+            PresenceDevice existing = userDevices.get(key);
+            long connectedAt = earliest(existing == null ? 0 : existing.connectedAt(), record.getConnectedAt());
+            long lastSeenAt = Math.max(existing == null ? 0 : existing.lastSeenAt(), record.getLastSeenAt());
+            WsClientPresenceRecord metadata = existing == null || record.getLastSeenAt() >= existing.lastSeenAt()
+                    ? record : existing.metadata();
+            userDevices.put(key, new PresenceDevice(clientType, clientInstanceId,
+                    metadata, connectedAt, lastSeenAt));
+        }
+
+        Map<String, List<PresenceDevice>> result = new HashMap<>();
+        devicesByUser.forEach((userId, devices) -> result.put(userId, List.copyOf(devices.values())));
+        return result;
+    }
+
+    private boolean isPresenceClientType(String clientType) {
+        return "WEB".equals(clientType) || "MOBILE".equals(clientType) || "DESKTOP".equals(clientType);
+    }
+
+    private long earliest(long first, long second) {
+        if (first <= 0) return second;
+        if (second <= 0) return first;
+        return Math.min(first, second);
+    }
+
+    private OnlineUserPresenceSummaryVo toPresenceSummary(
+            String userId, User user, List<PresenceDevice> devices) {
+        OnlineUserPresenceSummaryVo vo = new OnlineUserPresenceSummaryVo();
+        vo.setUserId(userId);
+        if (user != null) {
+            vo.setUsername(user.getUsername());
+            vo.setName(user.getName());
+        }
+        vo.setWebCount(devices.stream().filter(device -> "WEB".equals(device.clientType())).count());
+        vo.setAppCount(devices.stream().filter(device -> "MOBILE".equals(device.clientType())).count());
+        vo.setDesktopCount(devices.stream().filter(device -> "DESKTOP".equals(device.clientType())).count());
+        vo.setDeviceCount(devices.size());
+        vo.setLastSeenAt(devices.stream().mapToLong(PresenceDevice::lastSeenAt).max().orElse(0));
+        return vo;
+    }
+
+    private OnlineUserPresenceDeviceVo toPresenceDevice(PresenceDevice device) {
+        WsClientPresenceRecord metadata = device.metadata();
+        OnlineUserPresenceDeviceVo vo = new OnlineUserPresenceDeviceVo();
+        vo.setClientType(device.clientType());
+        vo.setAppCode(metadata.getAppCode());
+        vo.setAppName(metadata.getAppName());
+        vo.setRelease(metadata.getRelease());
+        vo.setEnvironment(metadata.getEnvironment());
+        vo.setPlatform(metadata.getPlatform());
+        vo.setOsName(metadata.getOsName());
+        vo.setOsVersion(metadata.getOsVersion());
+        vo.setDeviceModel(metadata.getDeviceModel());
+        vo.setConnectedAt(device.connectedAt());
+        vo.setLastSeenAt(device.lastSeenAt());
+        return vo;
     }
 
     private OnlineUserVo toVo(OnlineUserSession session, long now) {
