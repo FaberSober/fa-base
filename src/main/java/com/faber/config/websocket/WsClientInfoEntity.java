@@ -9,6 +9,8 @@ public class WsClientInfoEntity extends ClientInfoEntity {
 
     /** 通用客户端类别，例如 MOBILE、DESKTOP、OTHER。 */
     private String clientType;
+    /** 客户端安装实例标识；仅用于识别，不作为可信凭据。 */
+    private String clientInstanceId;
     private String runtime;
     private String appCode;
     private String appName;

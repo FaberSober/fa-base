@@ -24,6 +24,7 @@ public class RemoteClientPresenceService implements WsBaseService {
         if (!supported) return;
 
         client.setClientType(clientType);
+        client.setClientInstanceId(read(message, "clientInstanceId", 128));
         client.setRuntime(read(message, "runtime", 40));
         client.setAppCode(read(message, "appCode", 100));
         client.setAppName(read(message, "appName", 100));
