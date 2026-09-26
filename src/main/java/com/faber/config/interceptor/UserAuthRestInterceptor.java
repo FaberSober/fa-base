@@ -13,6 +13,7 @@ import com.faber.config.auth.TenantContextResolver;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
+import com.faber.core.constant.FaSetting;
 import com.faber.core.context.TenantContext;
 import com.faber.core.exception.auth.UserTokenException;
 import com.faber.core.exception.auth.UserNoPermissionException;
@@ -46,6 +47,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
     @Resource
     private TenantContextResolver tenantContextResolver;
 
+    @Resource
+    private FaSetting faSetting;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         try {
@@ -77,9 +81,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
             return super.preHandle(request, response, handler);
         }
 
-        // type 1: 读取API信息
+        // type 1: 读取API信息 —— 携带 API token 头才走 API 认证；网页 jwt 调用回退到下方逻辑
         ApiToken apiToken = getMethodAnno(handler, ApiToken.class);
-        if (apiToken != null) {
+        if (apiToken != null && StrUtil.isNotEmpty(request.getHeader(faSetting.getApi().getTokenApiHeader()))) {
             User user = userBiz.getUserFromApiToken();
             userBiz.setUserLogin(user, "api");
             tenantContextResolver.resolve(request, user.getId());
