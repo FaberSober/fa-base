@@ -268,6 +268,18 @@ class OnlineUserBizTest {
     }
 
     @Test
+    void rejectsOnlinePresenceAccessWithoutViewPermission() {
+        BaseContextHandler.setUserId("5");
+        stp.when(() -> StpUtil.getLoginIdByToken("current-secret")).thenReturn("5");
+
+        assertThrows(UserNoPermissionException.class,
+                () -> biz.presencePage(new BasePageQuery<OnlineUserPresenceQueryVo>()));
+        assertThrows(UserNoPermissionException.class, () -> biz.presenceDevices("2"));
+
+        verifyNoInteractions(clientPresenceStore, userBiz);
+    }
+
+    @Test
     void rejectsPortalAndApiTokenEvenForSuperAdmin() {
         stp.when(() -> StpUtil.getLoginDeviceByToken("current-secret")).thenReturn("portal");
         assertThrows(UserNoPermissionException.class, biz::stats);
