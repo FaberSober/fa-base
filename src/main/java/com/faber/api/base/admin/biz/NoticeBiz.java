@@ -9,6 +9,8 @@ import com.faber.core.context.BaseContextHandler;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import jakarta.annotation.Resource;
 import java.util.Arrays;
@@ -40,7 +42,8 @@ public class NoticeBiz extends BaseBiz<NoticeMapper, Notice> {
     protected void afterSave(Notice entity) {
         // 同步发送消息给所有人
         Map<String, Object> holdMap = BaseContextHandler.getHoldMap();
-        executor.execute(() -> {
+        String fromUserId = getCurrentUserId();
+        Runnable send = () -> executor.execute(() -> {
             // 线程中执行
             BaseContextHandler.setHoldMap(holdMap);
 
@@ -52,8 +55,19 @@ public class NoticeBiz extends BaseBiz<NoticeMapper, Notice> {
                     .buzzId(entity.getId() + "")
                     .content(entity.getTitle() + ": " + entity.getContent())
                     .build();
-            msgHelper.sendSysMsg(getCurrentUserId(), userIds.toArray(new String[]{}), config);
+            msgHelper.sendSysMsg(fromUserId, userIds.toArray(new String[]{}), config);
         });
+        if (TransactionSynchronizationManager.isSynchronizationActive()
+                && TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    send.run();
+                }
+            });
+        } else {
+            send.run();
+        }
     }
 
 }

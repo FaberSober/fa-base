@@ -61,6 +61,9 @@ public class MsgHelperImpl implements MsgHelper {
 
             msg.setType(msgSendConfig.getType());
 
+            msgSendConfig.beforeSave(msg);
+            msgBiz.save(msg);
+
             // 发送模板短信
             if (msgSendConfig.isSendSms()) {
                 try {
@@ -73,8 +76,6 @@ public class MsgHelperImpl implements MsgHelper {
             // send through websocket
             WsHolder.sendMessage(toUserId, "PLAIN_MSG", msg);
 
-            msgSendConfig.beforeSave(msg);
-            msgBiz.save(msg);
         }
     }
 
