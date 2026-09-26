@@ -145,6 +145,25 @@ class OnlineUserBizTest {
     }
 
     @Test
+    void presenceExcludesConnectionsWithoutAHeartbeatForSixtySeconds() {
+        long now = System.currentTimeMillis();
+        long window = WsClientPresenceStore.ONLINE_TTL_SECONDS * 1000;
+        var expired = presenceRecord("socket-expired", "mobile-install-expired",
+                now - window - 1_000, now - window - 1_000);
+        expired.setDeviceModel("expired-device");
+        var active = presenceRecord("socket-active", "mobile-install-active",
+                now - window + 1_000, now - window + 1_000);
+        active.setDeviceModel("active-device");
+        when(clientPresenceStore.all()).thenReturn(
+                Map.of("socket-expired", expired, "socket-active", active));
+
+        var devices = biz.presenceDevices("2");
+
+        assertEquals(1, devices.size());
+        assertEquals("active-device", devices.get(0).getDeviceModel());
+    }
+
+    @Test
     void cannotKickCurrentSharedSessionOrAllOwnSessions() {
         var current = session("current-secret", "1", 0);
         assertThrows(BuzzException.class, () -> biz.kickout(kick(current, false)));
