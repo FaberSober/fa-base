@@ -12,10 +12,12 @@ import com.faber.api.base.push.unipush.UniCloudPushClient;
 import com.faber.api.base.push.vo.req.PushTestSendReqVo;
 import com.faber.api.base.push.vo.req.PushTestStatusReqVo;
 import com.faber.api.base.push.vo.ret.PushTestRunAdminVo;
+import com.faber.api.portal.push.vo.PortalPushTestReceiptReqVo;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.utils.FaRedisUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RScoredSortedSet;
+import org.redisson.api.RAtomicLong;
 import org.redisson.client.codec.StringCodec;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +43,7 @@ public class PushTestAdminBiz {
     private static final Set<String> RESERVED_EXTRA_KEYS = Set.of("type", "testId", "link", "route");
     private static final String RUN_KEY_PREFIX = "fa:push:test:run:";
     private static final String RECENT_RUNS_KEY = "fa:push:test:recent";
+    private static final String RECEIPT_KEY_PREFIX = "fa:push:test:receipt:";
 
     @Resource
     private PushDeviceAdminBiz pushDeviceAdminBiz;
@@ -122,7 +125,7 @@ public class PushTestAdminBiz {
             throw new BuzzException("测试记录不存在或已超过 24 小时");
         }
         try {
-            return objectMapper.readValue(value, PushTestRunAdminVo.class);
+            return withReceipts(objectMapper.readValue(value, PushTestRunAdminVo.class));
         } catch (JsonProcessingException e) {
             throw new BuzzException("测试记录读取失败");
         }
@@ -139,7 +142,7 @@ public class PushTestAdminBiz {
                 continue;
             }
             try {
-                runs.add(objectMapper.readValue(value, PushTestRunAdminVo.class));
+                runs.add(withReceipts(objectMapper.readValue(value, PushTestRunAdminVo.class)));
             } catch (JsonProcessingException e) {
                 log.warn("Failed to read recent push test run, testId={}, errorType={}",
                         testId, e.getClass().getSimpleName());
@@ -147,6 +150,64 @@ public class PushTestAdminBiz {
             }
         }
         return runs;
+    }
+
+    /** Accept a receipt only for an active device bound to the authenticated user and this run. */
+    public void recordReceipt(String userId, PortalPushTestReceiptReqVo reqVo) {
+        PushDevice device = pushDeviceMapper.selectOne(new LambdaQueryWrapper<PushDevice>()
+                .eq(PushDevice::getUserId, userId)
+                .eq(PushDevice::getProvider, "unipush")
+                .eq(PushDevice::getClientId, reqVo.getClientId())
+                .eq(PushDevice::getAppId, reqVo.getAppId())
+                .eq(PushDevice::getEnvironment, reqVo.getEnvironment())
+                .eq(PushDevice::getEnabled, true)
+                .isNull(PushDevice::getInvalidTime));
+        if (device == null) {
+            throw new BuzzException("当前账号没有有效的推送设备绑定");
+        }
+        String value = faRedisUtils.getStr(runKey(reqVo.getTestId()));
+        if (value == null || value.isBlank()) {
+            throw new BuzzException("测试记录不存在或已超过 24 小时");
+        }
+        try {
+            PushTestRunAdminVo run = objectMapper.readValue(value, PushTestRunAdminVo.class);
+            boolean targeted = run.getDevices().stream().anyMatch(result ->
+                    device.getId().equals(result.getDeviceId())
+                            && !"failed".equals(result.getStatus())
+                            && !"ignored".equals(result.getStatus()));
+            if (!targeted) {
+                throw new BuzzException("当前设备不属于此测试记录");
+            }
+        } catch (JsonProcessingException e) {
+            throw new BuzzException("测试记录读取失败");
+        }
+
+        RAtomicLong receipt = faRedisUtils.getRedisson().getAtomicLong(
+                faRedisUtils.buildKey(receiptKey(reqVo.getTestId(), device.getId())));
+        long rank = "clicked".equals(reqVo.getEvent()) ? 2 : 1;
+        long current;
+        do {
+            current = receipt.get();
+            if (current % 10 >= rank) break;
+        } while (!receipt.compareAndSet(current, System.currentTimeMillis() * 10 + rank));
+        receipt.expire(RUN_TTL_HOURS, TimeUnit.HOURS);
+    }
+
+    private PushTestRunAdminVo withReceipts(PushTestRunAdminVo run) {
+        for (PushTestRunAdminVo.DeviceResult result : run.getDevices()) {
+            if ("failed".equals(result.getStatus()) || "ignored".equals(result.getStatus())) continue;
+            long receipt = faRedisUtils.getRedisson().getAtomicLong(
+                    faRedisUtils.buildKey(receiptKey(run.getTestId(), result.getDeviceId()))).get();
+            if (receipt > 0) {
+                result.setStatus(receipt % 10 == 2 ? "clicked" : "received");
+                result.setUpdatedAt(receipt / 10);
+            }
+        }
+        return run;
+    }
+
+    private String receiptKey(String testId, Long deviceId) {
+        return RECEIPT_KEY_PREFIX + testId + ":" + deviceId;
     }
 
     private List<Long> validateAndNormalize(PushTestSendReqVo reqVo) {

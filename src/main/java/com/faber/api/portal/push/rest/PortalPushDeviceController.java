@@ -1,7 +1,9 @@
 package com.faber.api.portal.push.rest;
 
 import com.faber.api.base.push.biz.PushDeviceBiz;
+import com.faber.api.base.push.biz.PushTestAdminBiz;
 import com.faber.api.portal.push.vo.PortalPushDeviceBindingReqVo;
+import com.faber.api.portal.push.vo.PortalPushTestReceiptReqVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.annotation.LogNoRet;
@@ -24,6 +26,9 @@ public class PortalPushDeviceController extends BaseResHandler {
     @Resource
     private PushDeviceBiz pushDeviceBiz;
 
+    @Resource
+    private PushTestAdminBiz pushTestAdminBiz;
+
     @FaLogOpr(value = "登记推送设备", crud = LogCrudEnum.C)
     @LogNoRet
     @IgnoreUserDevice
@@ -39,6 +44,15 @@ public class PortalPushDeviceController extends BaseResHandler {
     @PostMapping("/unregister")
     public Ret<Void> unregister(@Valid @RequestBody PortalPushDeviceBindingReqVo reqVo) {
         pushDeviceBiz.unregisterCurrentUser(reqVo);
+        return ok();
+    }
+
+    @FaLogOpr(value = "回传测试推送事件", crud = LogCrudEnum.U)
+    @LogNoRet
+    @IgnoreUserDevice
+    @PostMapping("/test/receipt")
+    public Ret<Void> testReceipt(@Valid @RequestBody PortalPushTestReceiptReqVo reqVo) {
+        pushTestAdminBiz.recordReceipt(getCurrentUserId(), reqVo);
         return ok();
     }
 }
