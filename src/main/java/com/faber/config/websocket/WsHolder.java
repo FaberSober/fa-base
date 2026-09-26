@@ -7,6 +7,7 @@ import com.faber.core.annotation.FaWsService;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.enums.WsTypeEnum;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.RedissonShutdownException;
 
 import java.util.List;
 import java.util.Map;
@@ -82,7 +83,11 @@ public class WsHolder {
                 try {
                     service.onClose(entity);
                 } catch (Exception e) {
-                    log.error("WebSocket 断开清理失败: {}", e.getMessage(), e);
+                    if (e instanceof RedissonShutdownException) {
+                        log.warn("WebSocket 断开清理失败: {}", e.getMessage());
+                    } else {
+                        log.error("WebSocket 断开清理失败: {}", e.getMessage(), e);
+                    }
                 }
             }
         }
