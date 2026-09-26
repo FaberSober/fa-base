@@ -342,15 +342,21 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                 .distinct()
                 .collect(Collectors.toList());
 
-        Map<String, String> tenantNameMap = tenantBiz.getByIds(tenantIds).stream()
+        List<Tenant> tenants = tenantBiz.getByIds(tenantIds).stream()
                 .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        Map<String, String> tenantNameMap = tenants.stream()
                 .collect(Collectors.toMap(Tenant::getId, Tenant::getName, (a, b) -> a));
+        Map<String, String> tenantIconMap = tenants.stream()
+                .filter(item -> StrUtil.isNotBlank(item.getIcon()))
+                .collect(Collectors.toMap(Tenant::getId, Tenant::getIcon, (a, b) -> a));
         Map<String, String> userNameMap = userBiz.getByIds(userIds).stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(User::getId, User::getName, (a, b) -> a));
 
         list.forEach(item -> {
             item.setTenantName(tenantNameMap.get(item.getTenantId()));
+            item.setTenantIcon(tenantIconMap.get(item.getTenantId()));
             item.setUserName(userNameMap.get(item.getUserId()));
         });
     }
@@ -369,6 +375,7 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                         item.setId(tenant.getId());
                         item.setTenantId(tenant.getId());
                         item.setTenantName(tenant.getName());
+                        item.setTenantIcon(tenant.getIcon());
                         item.setUserId(userId);
                         item.setIsAdmin(true);
                         item.setStatus(true);

@@ -44,6 +44,9 @@ public class Tenant extends BaseDelEntity {
     @ExcelProperty("租户简称")
     private String shortName;
 
+    @ExcelProperty("租户图标")
+    private String icon;
+
     @NotNull
     @SqlEquals
     @ExcelProperty("状态")
