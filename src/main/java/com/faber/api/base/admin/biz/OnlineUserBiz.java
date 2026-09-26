@@ -175,6 +175,33 @@ public class OnlineUserBiz {
         }
     }
 
+    /** 按用户下线全部后台 Web 会话；Token 与会话索引只在服务端处理。 */
+    public int kickoutUserSessions(String userId) {
+        requireAccess(VIEW_PERMISSION);
+        requireAccess(KICK_PERMISSION);
+        if (StrUtil.isBlank(userId)) throw new BuzzException("用户 ID 不能为空");
+        if (Objects.equals(userId, BaseContextHandler.getUserId())) {
+            throw new BuzzException("不能下线当前登录用户的会话，请使用其他管理员账号处理");
+        }
+
+        List<String> tokens = StpUtil.getTokenValueListByLoginId(userId, "web");
+        BaseContextHandler.setLogOprRemark("目标用户=" + userId + ", 范围=全部后台会话, 结果=执行中");
+        int count = 0;
+        try {
+            for (String token : tokens) {
+                StpUtil.kickoutByTokenValue(token);
+                count++;
+                store.remove(OnlineUserTracker.sessionId(token));
+            }
+            return count;
+        } finally {
+            snapshot = null;
+            store.invalidate();
+            BaseContextHandler.setLogOprRemark("目标用户=" + userId + ", 范围=全部后台会话, 已下线="
+                    + count + "/" + tokens.size());
+        }
+    }
+
     private void requireAccess(String permission) {
         String userId = BaseContextHandler.getUserId();
         // API Token 和 portal 会话均不能调用平台在线会话管理接口。

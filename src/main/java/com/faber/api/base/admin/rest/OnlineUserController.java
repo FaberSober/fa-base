@@ -2,6 +2,7 @@ package com.faber.api.base.admin.rest;
 
 import com.faber.api.base.admin.biz.OnlineUserBiz;
 import com.faber.api.base.admin.vo.query.OnlineUserKickoutVo;
+import com.faber.api.base.admin.vo.query.OnlineUserKickoutUserVo;
 import com.faber.api.base.admin.vo.query.OnlineUserPresenceQueryVo;
 import com.faber.api.base.admin.vo.query.OnlineUserQueryVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserPresenceDeviceVo;
@@ -61,5 +62,11 @@ public class OnlineUserController extends BaseResHandler {
     @PostMapping("/kickout")
     public Ret<Integer> kickout(@Valid @RequestBody OnlineUserKickoutVo params) {
         return ok(onlineUserBiz.kickout(params));
+    }
+
+    @FaLogOpr(value = "按用户强制下线后台会话", crud = LogCrudEnum.U)
+    @PostMapping("/kickoutUser")
+    public Ret<Integer> kickoutUser(@Valid @RequestBody OnlineUserKickoutUserVo params) {
+        return ok(onlineUserBiz.kickoutUserSessions(params.getUserId()));
     }
 }

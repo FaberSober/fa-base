@@ -138,6 +138,19 @@ class OnlineUserBizTest {
     }
 
     @Test
+    void kickoutUserSessionsUsesServerSideWebTokensAndRejectsCurrentUser() {
+        stp.when(() -> StpUtil.getTokenValueListByLoginId("2", "web")).thenReturn(List.of("web-a", "web-b"));
+        assertEquals(2, biz.kickoutUserSessions("2"));
+        stp.verify(() -> StpUtil.kickoutByTokenValue("web-a"));
+        stp.verify(() -> StpUtil.kickoutByTokenValue("web-b"));
+        verify(store).remove(OnlineUserTracker.sessionId("web-a"));
+        verify(store).remove(OnlineUserTracker.sessionId("web-b"));
+        assertFalse(BaseContextHandler.getLogOprRemark().contains("web-a"));
+        assertThrows(BuzzException.class, () -> biz.kickoutUserSessions("1"));
+        stp.verify(() -> StpUtil.getTokenValueListByLoginId("1", "web"), never());
+    }
+
+    @Test
     void rejectsTenantOnlyRoleAndSeparatesViewAndKickPermissions() {
         BaseContextHandler.setUserId("5");
         stp.when(() -> StpUtil.getLoginIdByToken("current-secret")).thenReturn("5");
@@ -148,9 +161,12 @@ class OnlineUserBizTest {
         assertDoesNotThrow(() -> biz.page(new BasePageQuery<>()));
         var target = session("target-secret", "2", 0);
         assertThrows(UserNoPermissionException.class, () -> biz.kickout(kick(target, false)));
+        assertThrows(UserNoPermissionException.class, () -> biz.kickoutUserSessions("2"));
         verify(store, never()).get(target.getId());
         when(roles.countPlatformPermission("5", OnlineUserBiz.KICK_PERMISSION)).thenReturn(1);
         assertEquals(1, biz.kickout(kick(target, false)));
+        stp.when(() -> StpUtil.getTokenValueListByLoginId("2", "web")).thenReturn(List.of("target-secret"));
+        assertEquals(1, biz.kickoutUserSessions("2"));
     }
 
     @Test
