@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.faber.api.base.push.entity.PushDevice;
 import com.faber.api.base.push.mapper.PushDeviceMapper;
 import com.faber.api.base.push.unipush.UniPushDeliveryResult;
-import com.faber.api.base.push.unipush.UniPushRestClient;
+import com.faber.api.base.push.unipush.UniCloudPushClient;
 import com.faber.api.base.push.vo.req.PushTestSendReqVo;
 import com.faber.api.base.push.vo.req.PushTestStatusReqVo;
 import com.faber.api.base.push.vo.ret.PushTestRunAdminVo;
@@ -43,7 +43,7 @@ public class PushTestAdminBiz {
     @Resource
     private PushDeviceMapper pushDeviceMapper;
     @Resource
-    private UniPushRestClient uniPushRestClient;
+    private UniCloudPushClient uniCloudPushClient;
     @Resource
     private FaRedisUtils faRedisUtils;
     @Resource
@@ -51,8 +51,8 @@ public class PushTestAdminBiz {
 
     public PushTestRunAdminVo send(PushTestSendReqVo reqVo) {
         pushDeviceAdminBiz.requireAdminAccess();
-        if (!uniPushRestClient.isConfigured()) {
-            throw new BuzzException("UniPush 尚未配置服务端 AppID、AppKey 和 MasterSecret");
+        if (!uniCloudPushClient.isConfigured()) {
+            throw new BuzzException("UniPush 2.0 尚未配置 AppID、UniCloud 云函数地址和调用密钥");
         }
 
         List<Long> deviceIds = validateAndNormalize(reqVo);
@@ -77,8 +77,9 @@ public class PushTestAdminBiz {
         for (PushTestRunAdminVo.DeviceResult result : run.getDevices()) {
             PushDevice device = devicesById.get(result.getDeviceId());
             try {
-                UniPushDeliveryResult delivery = uniPushRestClient.send(
-                        device, reqVo.getTitle().trim(), reqVo.getContent().trim(), payload);
+                UniPushDeliveryResult delivery = uniCloudPushClient.send(
+                        device, reqVo.getTitle().trim(), reqVo.getContent().trim(), payload,
+                        Boolean.TRUE.equals(reqVo.getForceNotification()));
                 result.setStatus(delivery.status());
                 result.setProviderStatus(delivery.providerStatus());
                 result.setProviderTaskId(delivery.providerTaskId());
@@ -87,11 +88,11 @@ public class PushTestAdminBiz {
                     disableInvalidDevice(device);
                 }
             } catch (RuntimeException e) {
-                log.warn("UniPush send failed for testId={}, deviceId={}, errorType={}",
+                log.warn("UniPush 2.0 send failed for testId={}, deviceId={}, errorType={}",
                         testId, device.getId(), e.getClass().getSimpleName());
                 result.setStatus("failed");
                 result.setProviderStatus("request_failed");
-                result.setMessage("UniPush 服务请求失败");
+                result.setMessage(getSafeFailureMessage(e));
             }
             result.setUpdatedAt(System.currentTimeMillis());
             saveRun(run);
@@ -177,8 +178,8 @@ public class PushTestAdminBiz {
                     || device.getClientId() == null || device.getClientId().isBlank()) {
                 throw new BuzzException("所选设备已停用或无效，请刷新设备列表");
             }
-            if (!uniPushRestClient.supports(device)) {
-                throw new BuzzException("所选设备的 App 或环境未被 UniPush 服务端配置允许");
+            if (!uniCloudPushClient.supports(device)) {
+                throw new BuzzException("所选设备的 App 或环境未被 UniPush 2.0 配置允许");
             }
         }
         return devices;
@@ -212,6 +213,14 @@ public class PushTestAdminBiz {
         if (normalized.length() > maxLength) {
             throw new BuzzException(fieldName + "不能超过 " + maxLength + " 个字符");
         }
+    }
+
+    private String getSafeFailureMessage(RuntimeException error) {
+        if (error instanceof BuzzException && error.getMessage() != null && !error.getMessage().isBlank()) {
+            String message = error.getMessage().replaceAll("[\\r\\n\\t]+", " ").trim();
+            return message.length() <= 240 ? message : message.substring(0, 240);
+        }
+        return "UniPush 服务请求失败（" + error.getClass().getSimpleName() + "）";
     }
 
     private void disableInvalidDevice(PushDevice device) {

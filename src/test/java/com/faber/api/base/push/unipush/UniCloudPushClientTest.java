@@ -5,16 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.faber.api.base.push.entity.PushDevice;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayOutputStream;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,20 +26,19 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class UniPushRestClientTest {
+class UniCloudPushClientTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void authenticatesOnceAndSendsPerCidNotificationWithPayload() throws Exception {
+    void callsSignedUniCloudFunctionWithAppIdAndPayload() throws Exception {
         HttpClient httpClient = mock(HttpClient.class);
-        HttpResponse<String> auth = response(200, "{\"code\":0,\"data\":{\"token\":\"provider-token\",\"expire_time\":9999999999999}} ");
-        HttpResponse<String> push = response(200,
-                "{\"code\":0,\"data\":{\"task-123\":{\"cid-1\":\"successed_online\"}}}");
-        doReturn(auth).doReturn(push).doReturn(push)
-                .when(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        HttpResponse<String> response = response(200,
+                "{\"success\":true,\"providerStatus\":\"accepted\",\"providerTaskId\":\"task-123\"}");
+        doReturn(response, response).when(httpClient)
+                .send(any(HttpRequest.class), org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
 
-        UniPushRestClient client = new UniPushRestClient(properties(), objectMapper, httpClient);
+        UniCloudPushClient client = new UniCloudPushClient(properties(), objectMapper, httpClient);
         PushDevice device = device("cid-1");
         String payload = "{\"type\":\"adminPushTest\",\"testId\":\"test-id\",\"link\":\"/pages/message/index\"}";
 
@@ -47,44 +46,46 @@ class UniPushRestClientTest {
         UniPushDeliveryResult second = client.send(device, "标题2", "内容2", payload);
 
         assertEquals("accepted", first.status());
-        assertEquals("successed_online", first.providerStatus());
+        assertEquals("accepted", first.providerStatus());
         assertEquals("task-123", first.providerTaskId());
         assertEquals("accepted", second.status());
-        verify(httpClient, times(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(httpClient, times(2)).send(any(HttpRequest.class),
+                org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
 
         var requests = org.mockito.ArgumentCaptor.forClass(HttpRequest.class);
-        verify(httpClient, times(3)).send(requests.capture(), any(HttpResponse.BodyHandler.class));
+        verify(httpClient, times(2)).send(requests.capture(),
+                org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
         List<HttpRequest> captured = requests.getAllValues();
-        assertEquals("/v2/test-app/auth", captured.get(0).uri().getPath());
-        assertEquals("/v2/test-app/push/single/cid", captured.get(1).uri().getPath());
-        assertEquals("provider-token", captured.get(1).headers().firstValue("token").orElseThrow());
+        assertEquals("https://functions.example.test/fa-unipush-send", captured.get(0).uri().toString());
+        assertTrue(captured.get(0).headers().firstValue("X-Fa-Push-Timestamp").isPresent());
+        assertTrue(captured.get(0).headers().firstValue("X-Fa-Push-Nonce").isPresent());
+        String signature = captured.get(0).headers().firstValue("X-Fa-Push-Signature").orElseThrow();
+        assertTrue(signature.matches("[a-f0-9]{64}"));
 
-        JsonNode requestBody = objectMapper.readTree(readBody(captured.get(1)));
-        assertEquals(32, requestBody.path("request_id").asText().length());
-        assertEquals("cid-1", requestBody.path("audience").path("cid").get(0).asText());
-        JsonNode notification = requestBody.path("push_message").path("notification");
-        assertEquals("payload", notification.path("click_type").asText());
-        assertEquals(payload, notification.path("payload").asText());
-        assertEquals("标题", requestBody.path("push_channel").path("ios").path("aps")
-                .path("alert").path("title").asText());
+        String requestJson = readBody(captured.get(0));
+        JsonNode requestBody = objectMapper.readTree(requestJson);
+        assertEquals("__UNI__TEST", requestBody.path("appId").asText());
+        assertEquals("cid-1", requestBody.path("pushClientId").asText());
+        assertEquals("标题", requestBody.path("title").asText());
+        assertEquals("内容", requestBody.path("content").asText());
+        assertEquals("test-id", requestBody.path("payload").path("testId").asText());
+        assertFalse(requestJson.contains("masterSecret"));
     }
 
     @Test
-    void reportsInvalidCidWithoutLeakingProviderToken() throws Exception {
+    void reportsInvalidCidWithoutLeakingCloudFunctionSecret() throws Exception {
         HttpClient httpClient = mock(HttpClient.class);
-        HttpResponse<String> auth = response(200,
-                "{\"code\":0,\"data\":{\"token\":\"provider-token\",\"expire_time\":9999999999999}}");
-        HttpResponse<String> invalidCid = response(400,
-                "{\"code\":20001,\"msg\":\"target user is invalid\"}");
-        doReturn(auth).doReturn(invalidCid)
-                .when(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        doReturn(response(200,
+                "{\"success\":false,\"providerStatus\":\"invalid_cid\",\"message\":\"invalid cid\",\"invalidClientId\":true}"))
+                .when(httpClient).send(any(HttpRequest.class),
+                        org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
 
-        UniPushRestClient client = new UniPushRestClient(properties(), objectMapper, httpClient);
+        UniCloudPushClient client = new UniCloudPushClient(properties(), objectMapper, httpClient);
         UniPushDeliveryResult result = client.send(device("bad-cid"), "标题", "内容", "{}");
 
         assertEquals("failed", result.status());
         assertTrue(result.invalidClientId());
-        assertFalse(result.message().contains("provider-token"));
+        assertFalse(result.message().contains("cloud-test-secret"));
     }
 
     @SuppressWarnings("unchecked")
@@ -97,10 +98,9 @@ class UniPushRestClientTest {
 
     private UniPushProperties properties() {
         UniPushProperties properties = new UniPushProperties();
-        properties.setApiBaseUrl("https://restapi.getui.com/v2");
-        properties.setAppId("test-app");
-        properties.setAppKey("test-key");
-        properties.setMasterSecret("test-secret");
+        properties.setClientAppId("__UNI__TEST");
+        properties.setCloudFunctionUrl("https://functions.example.test/fa-unipush-send");
+        properties.setCloudFunctionSecret("cloud-test-secret");
         return properties;
     }
 
@@ -108,7 +108,7 @@ class UniPushRestClientTest {
         PushDevice device = new PushDevice();
         device.setId(1L);
         device.setClientId(clientId);
-        device.setAppId("test-app");
+        device.setAppId("__UNI__TEST");
         device.setEnvironment("test");
         device.setProvider("unipush");
         device.setEnabled(true);

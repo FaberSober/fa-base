@@ -6,26 +6,29 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.List;
 
-/** Server-side UniPush REST API settings. Secrets must be supplied outside source control. */
+/** UniPush 2.0 settings for calling the URLized UniCloud push function. */
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "fa.push.unipush")
 public class UniPushProperties {
 
-    private String apiBaseUrl = "https://restapi.getui.com/v2";
-    private String appId = "";
-    private String appKey = "";
-    private String masterSecret = "";
+    /** UniApp runtime AppID (for example, __UNI__...), used to match registered devices. */
+    private String clientAppId = "";
+    /** Public HTTP URL of the authenticated UniCloud push function. */
+    private String cloudFunctionUrl = "";
+    /** Shared HMAC secret; configure the same value in the UniCloud function environment. */
+    private String cloudFunctionSecret = "";
     private List<String> allowedEnvironments = List.of("development", "test", "staging");
     private int connectTimeoutSeconds = 5;
     private int requestTimeoutSeconds = 15;
 
     public boolean isConfigured() {
-        return hasText(appId) && hasText(appKey) && hasText(masterSecret);
+        return hasText(clientAppId) && hasText(cloudFunctionUrl) && hasText(cloudFunctionSecret);
     }
 
     public boolean supports(PushDeviceIdentity device) {
-        if (device == null || !isConfigured() || !appId.equals(device.appId())) {
+        if (device == null || !isConfigured() || !hasText(clientAppId)
+                || !clientAppId.equals(device.appId())) {
             return false;
         }
         String environment = device.environment() == null ? "" : device.environment().trim();

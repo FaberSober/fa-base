@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.faber.api.base.push.entity.PushDevice;
 import com.faber.api.base.push.mapper.PushDeviceMapper;
 import com.faber.api.base.push.unipush.UniPushDeliveryResult;
-import com.faber.api.base.push.unipush.UniPushRestClient;
+import com.faber.api.base.push.unipush.UniCloudPushClient;
 import com.faber.api.base.push.vo.req.PushTestSendReqVo;
 import com.faber.api.base.push.vo.req.PushTestStatusReqVo;
 import com.faber.api.base.push.vo.ret.PushTestRunAdminVo;
@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -41,7 +42,7 @@ class PushTestAdminBizTest {
     @Mock
     private PushDeviceMapper pushDeviceMapper;
     @Mock
-    private UniPushRestClient uniPushRestClient;
+    private UniCloudPushClient uniCloudPushClient;
     @Mock
     private FaRedisUtils faRedisUtils;
     @Spy
@@ -51,25 +52,25 @@ class PushTestAdminBizTest {
 
     @Test
     void rejectsMoreThanFiveDevicesBeforeLookingUpOrSending() {
-        when(uniPushRestClient.isConfigured()).thenReturn(true);
+        when(uniCloudPushClient.isConfigured()).thenReturn(true);
         PushTestSendReqVo req = request(List.of(1L, 2L, 3L, 4L, 5L, 6L));
 
         assertThrows(BuzzException.class, () -> biz.send(req));
 
         verify(pushDeviceMapper, never()).selectList(any());
-        verify(uniPushRestClient, never()).send(any(), any(), any(), any());
+        verify(uniCloudPushClient, never()).send(any(), any(), any(), any(), anyBoolean());
         verify(faRedisUtils, never()).set(any(), any(), anyLong(), any(TimeUnit.class));
     }
 
     @Test
     void rejectsRequestWhenAnyDeviceIsMissingBeforeSending() {
-        when(uniPushRestClient.isConfigured()).thenReturn(true);
+        when(uniCloudPushClient.isConfigured()).thenReturn(true);
         when(pushDeviceMapper.selectList(any())).thenReturn(List.of(device(1L)));
         PushTestSendReqVo req = request(List.of(1L, 2L));
 
         assertThrows(BuzzException.class, () -> biz.send(req));
 
-        verify(uniPushRestClient, never()).send(any(), any(), any(), any());
+        verify(uniCloudPushClient, never()).send(any(), any(), any(), any(), anyBoolean());
         verify(faRedisUtils, never()).set(any(), any(), anyLong(), any(TimeUnit.class));
     }
 
@@ -77,10 +78,10 @@ class PushTestAdminBizTest {
     void savesPerDeviceProviderResultAndReturnsItFromStatusApi() throws Exception {
         PushDevice device = device(1L);
         ArgumentCaptor<String> payloadValues = ArgumentCaptor.forClass(String.class);
-        when(uniPushRestClient.isConfigured()).thenReturn(true);
-        when(uniPushRestClient.supports(device)).thenReturn(true);
-        when(uniPushRestClient.send(eq(device), eq("标题"), eq("内容"), any()))
-                .thenReturn(new UniPushDeliveryResult("accepted", "successed_online", "task-1",
+        when(uniCloudPushClient.isConfigured()).thenReturn(true);
+        when(uniCloudPushClient.supports(device)).thenReturn(true);
+        when(uniCloudPushClient.send(eq(device), eq("标题"), eq("内容"), any(), eq(false)))
+                .thenReturn(new UniPushDeliveryResult("accepted", "accepted", "task-1",
                         "UniPush 已受理", false));
         when(pushDeviceMapper.selectList(any())).thenReturn(List.of(device));
 
@@ -88,8 +89,8 @@ class PushTestAdminBizTest {
 
         assertEquals(1, sent.getDevices().size());
         assertEquals("accepted", sent.getDevices().get(0).getStatus());
-        assertEquals("successed_online", sent.getDevices().get(0).getProviderStatus());
-        verify(uniPushRestClient).send(eq(device), eq("标题"), eq("内容"), payloadValues.capture());
+        assertEquals("accepted", sent.getDevices().get(0).getProviderStatus());
+        verify(uniCloudPushClient).send(eq(device), eq("标题"), eq("内容"), payloadValues.capture(), eq(false));
 
         ArgumentCaptor<String> stateValues = ArgumentCaptor.forClass(String.class);
         String key = "fa:push:test:run:" + sent.getTestId();
@@ -110,14 +111,14 @@ class PushTestAdminBizTest {
 
     @Test
     void rejectsReservedExtraFieldsThatCouldReplaceTestIdOrLink() throws Exception {
-        when(uniPushRestClient.isConfigured()).thenReturn(true);
+        when(uniCloudPushClient.isConfigured()).thenReturn(true);
         PushTestSendReqVo req = request(List.of(1L));
         req.setExtra(objectMapper.readTree("{\"testId\":\"spoofed\"}"));
 
         assertThrows(BuzzException.class, () -> biz.send(req));
 
         verify(pushDeviceMapper, never()).selectList(any());
-        verify(uniPushRestClient, never()).send(any(), any(), any(), any());
+        verify(uniCloudPushClient, never()).send(any(), any(), any(), any(), anyBoolean());
     }
 
     private PushTestSendReqVo request(List<Long> deviceIds) {

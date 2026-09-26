@@ -23,6 +23,8 @@ public class PushTestSendReqVo {
     @Size(max = 256)
     private String content;
 
+    private Boolean forceNotification = false;
+
     @Size(max = 1024)
     private String link;
 
