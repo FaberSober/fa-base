@@ -1,7 +1,9 @@
 package com.faber.api.base.admin.biz;
 
 import cn.dev33.satoken.stp.StpUtil;
+import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.vo.query.OnlineUserKickoutVo;
+import com.faber.api.base.admin.vo.query.OnlineUserPresenceQueryVo;
 import com.faber.api.base.admin.vo.query.OnlineUserQueryVo;
 import com.faber.api.base.rbac.mapper.RbacUserRoleMapper;
 import com.faber.config.auth.OnlineUserSession;
@@ -31,6 +33,7 @@ class OnlineUserBizTest {
     private OnlineUserBiz biz;
     private OnlineUserStore store;
     private WsClientPresenceStore clientPresenceStore;
+    private UserBiz userBiz;
     private RbacUserRoleMapper roles;
     private MockedStatic<StpUtil> stp;
 
@@ -39,9 +42,11 @@ class OnlineUserBizTest {
         biz = new OnlineUserBiz();
         store = mock(OnlineUserStore.class);
         clientPresenceStore = mock(WsClientPresenceStore.class);
+        userBiz = mock(UserBiz.class);
         roles = mock(RbacUserRoleMapper.class);
         ReflectionTestUtils.setField(biz, "store", store);
         ReflectionTestUtils.setField(biz, "clientPresenceStore", clientPresenceStore);
+        ReflectionTestUtils.setField(biz, "userBiz", userBiz);
         ReflectionTestUtils.setField(biz, "roleMapper", roles);
         ReflectionTestUtils.setField(biz, "activeWindowSeconds", 300L);
         BaseContextHandler.setUserId("1");
@@ -88,6 +93,13 @@ class OnlineUserBizTest {
         record.setClientType("MOBILE");
         record.setConnectedAt(connectedAt);
         record.setLastSeenAt(lastSeenAt);
+        return record;
+    }
+
+    private WsClientPresenceRecord presenceRecord(
+            String sessionId, String clientInstanceId, String clientType, long connectedAt, long lastSeenAt) {
+        WsClientPresenceRecord record = presenceRecord(sessionId, clientInstanceId, connectedAt, lastSeenAt);
+        record.setClientType(clientType);
         return record;
     }
 
@@ -161,6 +173,33 @@ class OnlineUserBizTest {
 
         assertEquals(1, devices.size());
         assertEquals("active-device", devices.get(0).getDeviceModel());
+    }
+
+    @Test
+    void presencePageAggregatesMultiPlatformDevicesIntoOneUserRow() {
+        long now = System.currentTimeMillis();
+        when(clientPresenceStore.all()).thenReturn(Map.of(
+                "web-socket", presenceRecord("web-socket", "web-install", "WEB", now - 4_000, now - 100),
+                "app-socket-a", presenceRecord("app-socket-a", "app-install-a", "MOBILE", now - 3_000, now - 200),
+                "app-socket-b", presenceRecord("app-socket-b", "app-install-b", "MOBILE", now - 2_000, now - 300),
+                "desktop-socket", presenceRecord("desktop-socket", "desktop-install", "DESKTOP",
+                        now - 1_000, now - 400)));
+        User user = new User();
+        user.setId("2");
+        user.setUsername("account-2");
+        user.setName("用户2");
+        when(userBiz.listByIds(anyCollection())).thenReturn(List.of(user));
+
+        var page = biz.presencePage(new BasePageQuery<OnlineUserPresenceQueryVo>());
+
+        assertEquals(1, page.getData().getTotal());
+        assertEquals(1, page.getData().getRows().size());
+        var summary = page.getData().getRows().get(0);
+        assertEquals("2", summary.getUserId());
+        assertEquals(1, summary.getWebCount());
+        assertEquals(2, summary.getAppCount());
+        assertEquals(1, summary.getDesktopCount());
+        assertEquals(4, summary.getDeviceCount());
     }
 
     @Test
