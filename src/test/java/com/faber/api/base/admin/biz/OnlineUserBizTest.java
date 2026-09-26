@@ -7,6 +7,8 @@ import com.faber.api.base.rbac.mapper.RbacUserRoleMapper;
 import com.faber.config.auth.OnlineUserSession;
 import com.faber.config.auth.OnlineUserStore;
 import com.faber.config.auth.OnlineUserTracker;
+import com.faber.config.websocket.WsClientPresenceRecord;
+import com.faber.config.websocket.WsClientPresenceStore;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.auth.UserNoPermissionException;
@@ -20,6 +22,7 @@ import org.mockito.MockedStatic;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -27,6 +30,7 @@ import static org.mockito.Mockito.*;
 class OnlineUserBizTest {
     private OnlineUserBiz biz;
     private OnlineUserStore store;
+    private WsClientPresenceStore clientPresenceStore;
     private RbacUserRoleMapper roles;
     private MockedStatic<StpUtil> stp;
 
@@ -34,8 +38,10 @@ class OnlineUserBizTest {
     void setup() {
         biz = new OnlineUserBiz();
         store = mock(OnlineUserStore.class);
+        clientPresenceStore = mock(WsClientPresenceStore.class);
         roles = mock(RbacUserRoleMapper.class);
         ReflectionTestUtils.setField(biz, "store", store);
+        ReflectionTestUtils.setField(biz, "clientPresenceStore", clientPresenceStore);
         ReflectionTestUtils.setField(biz, "roleMapper", roles);
         ReflectionTestUtils.setField(biz, "activeWindowSeconds", 300L);
         BaseContextHandler.setUserId("1");
@@ -73,6 +79,18 @@ class OnlineUserBizTest {
         return params;
     }
 
+    private WsClientPresenceRecord presenceRecord(
+            String sessionId, String clientInstanceId, long connectedAt, long lastSeenAt) {
+        WsClientPresenceRecord record = new WsClientPresenceRecord();
+        record.setSessionId(sessionId);
+        record.setUserId("2");
+        record.setClientInstanceId(clientInstanceId);
+        record.setClientType("MOBILE");
+        record.setConnectedAt(connectedAt);
+        record.setLastSeenAt(lastSeenAt);
+        return record;
+    }
+
     @Test
     void pageFiltersAndStatsDeduplicateUsersWithoutExposingCredentials() throws Exception {
         var active = session("secret-a", "2", 1000);
@@ -102,6 +120,28 @@ class OnlineUserBizTest {
         verify(store).remove(expired.getId());
         verify(store).remove(portal.getId());
         verify(store, times(1)).all(); // 分页、统计复用快照。
+    }
+
+    @Test
+    void duplicateConnectionsCountAsOneDeviceUntilLastConnectionCloses() {
+        long now = System.currentTimeMillis();
+        var firstConnection = presenceRecord("socket-a", "mobile-install-2", now - 5_000, now - 1_000);
+        var secondConnection = presenceRecord("socket-b", "mobile-install-2", now - 4_000, now - 500);
+        when(clientPresenceStore.all()).thenReturn(
+                Map.of("socket-a", firstConnection, "socket-b", secondConnection),
+                Map.of("socket-b", secondConnection),
+                Map.of());
+
+        var bothConnections = biz.presenceDevices("2");
+        assertEquals(1, bothConnections.size());
+        assertEquals(now - 5_000, bothConnections.get(0).getConnectedAt());
+        assertEquals(now - 500, bothConnections.get(0).getLastSeenAt());
+
+        var oneConnection = biz.presenceDevices("2");
+        assertEquals(1, oneConnection.size());
+        assertEquals(now - 4_000, oneConnection.get(0).getConnectedAt());
+
+        assertTrue(biz.presenceDevices("2").isEmpty());
     }
 
     @Test
