@@ -70,7 +70,7 @@ public class PushDeviceAdminBiz {
         return new TableRet<>(pagination, rows);
     }
 
-    private void requireAdminAccess() {
+    public void requireAdminAccess() {
         String userId = BaseContextHandler.getUserId();
         String token = StpUtil.getTokenValue();
         if (StrUtil.isBlank(userId) || StrUtil.isBlank(token)
