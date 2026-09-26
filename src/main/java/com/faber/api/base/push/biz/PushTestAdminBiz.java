@@ -15,6 +15,8 @@ import com.faber.api.base.push.vo.ret.PushTestRunAdminVo;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.utils.FaRedisUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RScoredSortedSet;
+import org.redisson.client.codec.StringCodec;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
@@ -34,9 +36,11 @@ public class PushTestAdminBiz {
 
     private static final int MAX_DEVICES = 5;
     private static final int MAX_PAYLOAD_LENGTH = 3072;
+    private static final int MAX_RECENT_RUNS = 50;
     private static final long RUN_TTL_HOURS = 24;
     private static final Set<String> RESERVED_EXTRA_KEYS = Set.of("type", "testId", "link", "route");
     private static final String RUN_KEY_PREFIX = "fa:push:test:run:";
+    private static final String RECENT_RUNS_KEY = "fa:push:test:recent";
 
     @Resource
     private PushDeviceAdminBiz pushDeviceAdminBiz;
@@ -122,6 +126,27 @@ public class PushTestAdminBiz {
         } catch (JsonProcessingException e) {
             throw new BuzzException("测试记录读取失败");
         }
+    }
+
+    public List<PushTestRunAdminVo> recent() {
+        pushDeviceAdminBiz.requireAdminAccess();
+        RScoredSortedSet<String> recentRuns = recentRunsIndex();
+        List<PushTestRunAdminVo> runs = new ArrayList<>();
+        for (String testId : recentRuns.valueRangeReversed(0, MAX_RECENT_RUNS - 1)) {
+            String value = faRedisUtils.getStr(runKey(testId));
+            if (value == null || value.isBlank()) {
+                recentRuns.remove(testId);
+                continue;
+            }
+            try {
+                runs.add(objectMapper.readValue(value, PushTestRunAdminVo.class));
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to read recent push test run, testId={}, errorType={}",
+                        testId, e.getClass().getSimpleName());
+                recentRuns.remove(testId);
+            }
+        }
+        return runs;
     }
 
     private List<Long> validateAndNormalize(PushTestSendReqVo reqVo) {
@@ -238,9 +263,18 @@ public class PushTestAdminBiz {
         try {
             faRedisUtils.set(runKey(run.getTestId()), objectMapper.writeValueAsString(run),
                     RUN_TTL_HOURS, TimeUnit.HOURS);
+            RScoredSortedSet<String> recentRuns = recentRunsIndex();
+            recentRuns.add(run.getCreatedAt(), run.getTestId());
+            recentRuns.removeRangeByRank(0, -MAX_RECENT_RUNS - 1);
+            recentRuns.expire(RUN_TTL_HOURS, TimeUnit.HOURS);
         } catch (JsonProcessingException e) {
             throw new BuzzException("测试状态暂时无法保存");
         }
+    }
+
+    private RScoredSortedSet<String> recentRunsIndex() {
+        return faRedisUtils.getRedisson().getScoredSortedSet(
+                faRedisUtils.buildKey(RECENT_RUNS_KEY), StringCodec.INSTANCE);
     }
 
     private String runKey(String testId) {

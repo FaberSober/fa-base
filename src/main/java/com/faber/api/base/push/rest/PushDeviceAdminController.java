@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @FaLogBiz("推送设备测试台")
 @RestController
 @RequestMapping("/api/base/admin/pushDevice")
@@ -49,5 +51,12 @@ public class PushDeviceAdminController extends BaseResHandler {
     @PostMapping("/test/status")
     public PushTestRunAdminVo testStatus(@Valid @RequestBody PushTestStatusReqVo reqVo) {
         return pushTestAdminBiz.status(reqVo);
+    }
+
+    @LogNoRet
+    @FaLogOpr(value = "查询近 24 小时测试推送记录", crud = LogCrudEnum.R)
+    @PostMapping("/test/recent")
+    public List<PushTestRunAdminVo> recentTestRuns() {
+        return pushTestAdminBiz.recent();
     }
 }
