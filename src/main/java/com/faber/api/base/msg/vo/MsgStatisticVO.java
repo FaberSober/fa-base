@@ -12,4 +12,10 @@ public class MsgStatisticVO {
      */
     private Long unreadCount;
 
+    /** 系统消息未读数量 */
+    private Long systemUnreadCount;
+
+    /** 流程消息未读数量 */
+    private Long flowUnreadCount;
+
 }

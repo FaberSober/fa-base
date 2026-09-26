@@ -3,6 +3,7 @@ package com.faber.api.base.msg.biz;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.msg.entity.Msg;
+import com.faber.api.base.msg.enums.MsgTypeEnum;
 import com.faber.api.base.msg.mapper.MsgMapper;
 import com.faber.api.base.msg.vo.MsgStatisticVO;
 import com.faber.core.web.biz.BaseBiz;
@@ -44,9 +45,21 @@ public class MsgBiz extends BaseBiz<MsgMapper, Msg> {
                 .eq(Msg::getToUserId, getCurrentUserId())
                 .eq(Msg::getIsRead, false)
                 .count();
+        long systemUnreadCount = lambdaQuery()
+                .eq(Msg::getToUserId, getCurrentUserId())
+                .eq(Msg::getIsRead, false)
+                .eq(Msg::getType, MsgTypeEnum.SYSTEM)
+                .count();
+        long flowUnreadCount = lambdaQuery()
+                .eq(Msg::getToUserId, getCurrentUserId())
+                .eq(Msg::getIsRead, false)
+                .eq(Msg::getType, MsgTypeEnum.FLOW)
+                .count();
 
         MsgStatisticVO vo = new MsgStatisticVO();
         vo.setUnreadCount(unreadCount);
+        vo.setSystemUnreadCount(systemUnreadCount);
+        vo.setFlowUnreadCount(flowUnreadCount);
         return vo;
     }
 
