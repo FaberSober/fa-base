@@ -10,6 +10,7 @@ import com.faber.api.base.push.vo.req.PushTestSendReqVo;
 import com.faber.api.base.push.vo.req.PushTestStatusReqVo;
 import com.faber.api.base.push.vo.ret.PushTestRunAdminVo;
 import com.faber.core.exception.BuzzException;
+import com.faber.core.exception.auth.UserNoPermissionException;
 import com.faber.core.utils.FaRedisUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +19,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.redisson.api.RAtomicLong;
+import org.redisson.api.RScoredSortedSet;
+import org.redisson.api.RedissonClient;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -28,8 +32,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +51,12 @@ class PushTestAdminBizTest {
     private UniCloudPushClient uniCloudPushClient;
     @Mock
     private FaRedisUtils faRedisUtils;
+    @Mock
+    private RedissonClient redisson;
+    @Mock
+    private RScoredSortedSet<String> recentRuns;
+    @Mock
+    private RAtomicLong receipt;
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
     @InjectMocks
@@ -75,6 +87,35 @@ class PushTestAdminBizTest {
     }
 
     @Test
+    void rejectsDisabledDeviceBeforeSending() {
+        PushDevice disabled = device(1L);
+        disabled.setEnabled(false);
+        when(uniCloudPushClient.isConfigured()).thenReturn(true);
+        when(pushDeviceMapper.selectList(any())).thenReturn(List.of(disabled));
+
+        assertThrows(BuzzException.class, () -> biz.send(request(List.of(1L))));
+
+        verify(uniCloudPushClient, never()).send(any(), any(), any(), any(), anyBoolean());
+        verify(faRedisUtils, never()).set(any(), any(), anyLong(), any(TimeUnit.class));
+    }
+
+    @Test
+    void rejectsUnprivilegedUserBeforeReadingOrSending() {
+        doThrow(new UserNoPermissionException("无推送设备管理权限"))
+                .when(pushDeviceAdminBiz).requireAdminAccess();
+
+        assertThrows(UserNoPermissionException.class, () -> biz.send(request(List.of(1L))));
+        assertThrows(UserNoPermissionException.class, () -> biz.recent());
+        PushTestStatusReqVo statusReq = new PushTestStatusReqVo();
+        statusReq.setTestId("5f94671e-321f-4b91-b2cd-984fe6b80b41");
+        assertThrows(UserNoPermissionException.class, () -> biz.status(statusReq));
+
+        verify(pushDeviceMapper, never()).selectList(any());
+        verify(uniCloudPushClient, never()).send(any(), any(), any(), any(), anyBoolean());
+        verify(faRedisUtils, never()).getStr(any());
+    }
+
+    @Test
     void savesPerDeviceProviderResultAndReturnsItFromStatusApi() throws Exception {
         PushDevice device = device(1L);
         ArgumentCaptor<String> payloadValues = ArgumentCaptor.forClass(String.class);
@@ -84,6 +125,10 @@ class PushTestAdminBizTest {
                 .thenReturn(new UniPushDeliveryResult("accepted", "accepted", "task-1",
                         "UniPush 已受理", false));
         when(pushDeviceMapper.selectList(any())).thenReturn(List.of(device));
+        when(faRedisUtils.getRedisson()).thenReturn(redisson);
+        when(faRedisUtils.buildKey(any())).thenAnswer(call -> call.getArgument(0));
+        org.mockito.Mockito.doReturn(recentRuns).when(redisson).getScoredSortedSet(any(), any());
+        when(redisson.getAtomicLong(anyString())).thenReturn(receipt);
 
         PushTestRunAdminVo sent = biz.send(request(List.of(1L)));
 

@@ -1,6 +1,6 @@
 # ADR-014：UniPush 后台测试台
 
-- 状态：Proposed
+- 状态：✅已完成
 - 日期：2026-09-26
 - 范围：`fa-base`、`mobile/fa-core-mobile`、`frontend/apps/admin/features/fa-admin-demo-pages`
 - 关联：[`ADR-mobile-006-message-push.md`](../../../mobile/docs/adrs/ADR-mobile-006-message-push.md)
@@ -18,7 +18,7 @@
 | 4 | `fa-admin-demo-pages` | 目标设备选择 | 搜索并勾选已注册设备，默认单设备，单次最多发送 5 台 | 执行开发 | ✅已完成 |
 | 5 | `fa-admin-demo-pages` | 测试消息编辑与预览 | 编辑标题、内容、应用内链接、通知栏强制展示开关和可选扩展 JSON，发送前预览确认 | 执行开发 | ✅已完成 |
 | 6 | `fa-admin-demo-pages`、`fa-base` | 发送结果与近期记录 | 展示逐设备发送状态和最近 24 小时（最多 50 条）记录；客户端回执接入后展示接收/点击状态 | 执行开发 | ✅已完成 |
-| 7 | `fa-base`、`mobile`、管理端 | 端到端验证 | 验证前台接收、后台通知点击、无效设备和无权限场景 | 执行开发 | 🕒待处理 |
+| 7 | `fa-base`、`mobile`、管理端 | 端到端验证 | 验证前台接收、后台通知点击、无效设备和无权限场景 | 执行开发 | ✅已完成 |
 
 ## 2. 功能开发说明
 
@@ -40,6 +40,7 @@
 - 前置依赖：先完成 `ADR-mobile-006` 中登录态设备注册/注销和 UniPush 服务端发送能力；不要求先完成公告与 `MsgHelper` 接入。
 - 新增的是开发诊断用途的测试台，作为 `ADR-mobile-006` 中“不新增后台推送页面”决策的有限例外；公告和业务消息仍沿用既有 `MsgHelper` 发送链路。
 - 测试台独立使用定向测试接口，不创建 `base_msg`，不调用公告发送，不改变正式消息的保存、发送和点击处理语义。
+- 正式消息后续采用 WebSocket 优先、未确认再 UniPush 的设备级规则；测试台始终按所选 CID 直发 UniPush，以便独立验证 Provider、客户端接收和点击，不受在线状态影响。
 - 仅使用 UniPush 2.0。Java 服务不再直连个推 REST API，也不配置 UniPush 1.0 的 AppKey/MasterSecret；它只保存 UniCloud 云函数 HTTPS 地址、调用 HMAC 密钥和客户端 AppID。HMAC 密钥同时配置在云函数环境中。云函数部署到 App 绑定的 `fa-admin (alipay)` 服务空间，启用 `uni-cloud-push` 扩展并限制仅允许服务端签名请求。
 - `FA_PUSH_UNIPUSH_CLIENT_APP_ID` 使用客户端 `plus.runtime.appid`（`__UNI__...`），用于匹配已注册设备，并由云函数校验后传给 `uniCloud.getPushManager`。接口须有独立管理权限、限制单次目标数量，并校验 App、环境和设备状态；前端不能直接调用云函数或 UniPush Provider。
 - 本期只支持即时发送的系统通知、标题、内容、应用内链接和可选扩展 JSON；不做全员/标签推送、定时发送、模板管理、撤回、长期统计和生产运营控制台。
