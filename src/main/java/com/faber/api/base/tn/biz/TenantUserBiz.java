@@ -8,6 +8,7 @@ import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.tn.entity.Tenant;
 import com.faber.api.base.tn.entity.TenantUser;
 import com.faber.api.base.tn.mapper.TenantUserMapper;
+import com.faber.api.base.tn.vo.req.TenantPanelOrderReq;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
@@ -19,10 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.Resource;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.io.Serializable;
 import java.util.stream.Collectors;
 
@@ -363,7 +367,7 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
 
     public List<TenantUser> getUserTenants(String userId) {
         if (isSuperAdminUser(userId)) {
-            return tenantBiz.lambdaQuery()
+            List<TenantUser> list = tenantBiz.lambdaQuery()
                     .eq(Tenant::getStatus, true)
                     .orderByAsc(Tenant::getSort)
                     .orderByAsc(Tenant::getId)
@@ -377,6 +381,7 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                         item.setTenantName(tenant.getName());
                         item.setTenantIcon(tenant.getIcon());
                         item.setUserId(userId);
+                        item.setIsSuperAdmin(true);
                         item.setIsAdmin(true);
                         item.setStatus(true);
                         item.setSort(tenant.getSort());
@@ -384,6 +389,7 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
                         return item;
                     })
                     .collect(Collectors.toList());
+            return markDefaultTenant(list);
         }
 
         List<TenantUser> list = lambdaQuery()
@@ -403,8 +409,53 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         list = list.stream()
                 .filter(item -> isTenantAvailable(tenantMap.get(item.getTenantId())))
                 .collect(Collectors.toList());
+        list.sort(Comparator
+                .comparingInt((TenantUser item) -> item.getSort() == null || item.getSort() == 0
+                        ? Integer.MAX_VALUE : item.getSort())
+                .thenComparing(TenantUser::getId));
         decorateList(list);
-        return list;
+        return markDefaultTenant(list);
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    public List<TenantUser> saveMyTenantOrder(TenantPanelOrderReq req) {
+        String userId = getCurrentUserId();
+        if (isSuperAdminUser(userId)) {
+            throw new BuzzException("超级管理员沿用平台租户排序");
+        }
+
+        List<TenantUser> tenants = getUserTenants(userId);
+        Set<String> availableTenantIds = tenants.stream()
+                .map(TenantUser::getTenantId)
+                .collect(Collectors.toSet());
+        List<String> tenantIds = req.getTenantIds();
+        Set<String> submittedTenantIds = new HashSet<>(tenantIds);
+
+        if (submittedTenantIds.size() != tenantIds.size()
+                || !submittedTenantIds.equals(availableTenantIds)) {
+            throw new BuzzException("租户列表已变化，请刷新后重试");
+        }
+
+        Map<String, TenantUser> tenantById = tenants.stream()
+                .collect(Collectors.toMap(TenantUser::getTenantId, item -> item));
+        for (int i = 0; i < tenantIds.size(); i++) {
+            TenantUser tenant = tenantById.get(tenantIds.get(i));
+            TenantUser update = new TenantUser();
+            update.setId(tenant.getId());
+            update.setSort(i + 1);
+            if (baseMapper.updateById(update) != 1) {
+                throw new BuzzException("租户列表已变化，请刷新后重试");
+            }
+        }
+
+        return getUserTenants(userId);
+    }
+
+    private List<TenantUser> markDefaultTenant(List<TenantUser> tenants) {
+        for (int i = 0; i < tenants.size(); i++) {
+            tenants.get(i).setIsDefault(i == 0);
+        }
+        return tenants;
     }
 
     public String getDefaultTenantId(String userId) {
@@ -412,7 +463,11 @@ public class TenantUserBiz extends BaseBiz<TenantUserMapper, TenantUser> {
         if (CollUtil.isEmpty(list)) {
             return null;
         }
-        return list.get(0).getTenantId();
+        return list.stream()
+                .filter(item -> Boolean.TRUE.equals(item.getIsDefault()))
+                .map(TenantUser::getTenantId)
+                .findFirst()
+                .orElse(list.get(0).getTenantId());
     }
 
     public boolean hasUserTenant(String userId, String tenantId) {

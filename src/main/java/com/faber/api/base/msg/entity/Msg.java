@@ -2,6 +2,7 @@ package com.faber.api.base.msg.entity;
 
 import com.alibaba.excel.annotation.ExcelIgnore;
 import com.alibaba.excel.annotation.ExcelProperty;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -46,6 +47,11 @@ public class Msg extends BaseDelEntity {
     @SqlEquals
     @ExcelProperty("接收用户ID")
     private String toUserId;
+
+    @SqlEquals
+    @ExcelProperty("租户ID")
+    @TableField(updateStrategy = FieldStrategy.NEVER)
+    private String tenantId;
 
     @SqlSearch
     @ExcelProperty("消息内容")
