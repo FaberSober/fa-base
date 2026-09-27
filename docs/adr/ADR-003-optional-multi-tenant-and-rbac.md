@@ -1,6 +1,6 @@
 # ADR-003：可选多租户模式与租户化 RBAC
 
-- 状态：Proposed
+- 状态：✅已完成
 - 日期：2026-09-17
 - 范围：`fa-core` 租户基础能力、`fa-base` 租户管理、RBAC、后台管理页面及业务 Entity 约定
 - 关联配置：`fa.setting.tenant.enabled`

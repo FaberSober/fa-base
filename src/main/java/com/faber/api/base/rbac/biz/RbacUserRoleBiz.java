@@ -8,6 +8,7 @@ import com.faber.api.base.rbac.entity.RbacMenu;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.rbac.entity.RbacRoleMenu;
 import com.faber.api.base.rbac.entity.RbacUserRole;
+import com.faber.api.base.rbac.enums.RbacMenuLevelEnum;
 import com.faber.api.base.rbac.enums.RbacMenuScopeEnum;
 import com.faber.api.base.rbac.mapper.RbacUserRoleMapper;
 import com.faber.api.base.rbac.vo.RbacUserRoleRetVo;
@@ -281,6 +282,7 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
                 .eq(RbacMenu::getScope, scope)
                 .in(RbacMenu::getId, menuIds)
                 .orderByAsc(RbacMenu::getSort)
+                .orderByAsc(RbacMenu::getId)
                 .list();
         cache.put(cacheKey, menus);
         return menus;
@@ -294,9 +296,54 @@ public class RbacUserRoleBiz extends BaseBiz<RbacUserRoleMapper, RbacUserRole> {
         }
 
         List<RbacMenu> list = this.getUserMenus(userId, scope);
-        List<TreeNode<RbacMenu>> tree = rbacMenuBiz.listToTree(list, CommonConstants.ROOT);
+        List<TreeNode<RbacMenu>> tree = rbacMenuBiz.listToTree(includeNavigationAncestors(list, scope), CommonConstants.ROOT);
         cache.put(cacheKey, tree);
         return tree;
+    }
+
+    /**
+     * 菜单树需要包含已授权菜单的父级结构节点；这些节点只用于导航树组装，
+     * 不会加入 getUserMenus 返回的实际授权菜单集合。
+     */
+    private List<RbacMenu> includeNavigationAncestors(List<RbacMenu> menus, RbacMenuScopeEnum scope) {
+        if (menus == null || menus.isEmpty()) {
+            return List.of();
+        }
+
+        List<RbacMenu> availableMenus = rbacMenuBiz.lambdaQuery()
+                .eq(RbacMenu::getStatus, true)
+                .eq(RbacMenu::getScope, scope)
+                .orderByAsc(RbacMenu::getSort)
+                .orderByAsc(RbacMenu::getId)
+                .list();
+        Map<Long, RbacMenu> menuById = availableMenus.stream()
+                .filter(menu -> menu.getId() != null)
+                .collect(Collectors.toMap(RbacMenu::getId, menu -> menu, (existing, ignored) -> existing));
+
+        Set<Long> treeMenuIds = new LinkedHashSet<>();
+        for (RbacMenu menu : menus) {
+            if (menu == null || menu.getId() == null) {
+                continue;
+            }
+            treeMenuIds.add(menu.getId());
+            if (menu.getLevel() != RbacMenuLevelEnum.MENU) {
+                continue;
+            }
+
+            Long parentId = menu.getParentId();
+            while (parentId != null && !Objects.equals(parentId, (long) CommonConstants.ROOT)) {
+                RbacMenu parent = menuById.get(parentId);
+                if (parent == null) {
+                    break;
+                }
+                treeMenuIds.add(parent.getId());
+                parentId = parent.getParentId();
+            }
+        }
+
+        return availableMenus.stream()
+                .filter(menu -> treeMenuIds.contains(menu.getId()))
+                .toList();
     }
 
     private List<Long> limitToTenantPermissions(String userId, List<Long> menuIds) {
