@@ -15,6 +15,8 @@ public class OnlineUserVo {
     private String ip;
     private String browser;
     private String os;
+    private String clientType;
+    private String clientInstanceId;
     private Long expiresAt;
     private boolean active;
     private boolean current;

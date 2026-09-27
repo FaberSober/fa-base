@@ -8,6 +8,7 @@ import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
+import com.faber.api.base.telemetry.service.TelemetryService;
 import com.faber.config.auth.OnlineUserTracker;
 import com.faber.config.auth.TenantContextResolver;
 import com.faber.core.config.annotation.AdminOpr;
@@ -130,7 +131,8 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         requireApplicationAccess(request.getRequestURI(), user);
         tenantContextResolver.resolve(request, userId);
 
-        onlineUserTracker.touch(token, user, false);
+        onlineUserTracker.touch(token, user, false,
+                request.getHeader(TelemetryService.HEADER_CLIENT_TYPE), request.getHeader("FaClientInstanceId"));
 
         return super.preHandle(request, response, handler);
     }

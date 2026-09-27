@@ -142,7 +142,10 @@ public class AuthBiz implements LogoutService {
         // 使用sa-token登录框架
         StpUtil.login(user.getId(), source);
         SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
-        if ("web".equals(source)) onlineUserTracker.touch(tokenInfo.getTokenValue(), user, true);
+        if ("web".equals(source)) {
+            onlineUserTracker.touch(tokenInfo.getTokenValue(), user, true,
+                    clientIdentity.clientType(), clientIdentity.clientInstanceId());
+        }
         return tokenInfo;
     }
 

@@ -8,11 +8,13 @@ import com.faber.api.base.admin.vo.query.OnlineUserPresenceQueryVo;
 import com.faber.api.base.admin.vo.query.OnlineUserQueryVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserPresenceDeviceVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserPresenceSummaryVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserSessionUserVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserStatsVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserVo;
 import com.faber.config.websocket.WsClientPresenceRecord;
 import com.faber.config.websocket.WsClientPresenceStore;
 import com.faber.api.base.rbac.mapper.RbacUserRoleMapper;
+import com.faber.config.auth.OnlineUserClientInfo;
 import com.faber.config.auth.OnlineUserSession;
 import com.faber.config.auth.OnlineUserStore;
 import com.faber.config.auth.OnlineUserTracker;
@@ -30,9 +32,11 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 public class OnlineUserBiz {
@@ -72,14 +76,73 @@ public class OnlineUserBiz {
                         .thenComparing(OnlineUserSession::getId))
                 .toList();
         current = Math.min(current, Math.max(1, (matches.size() + size - 1) / size));
-        List<OnlineUserVo> rows = matches.stream().skip((long) (current - 1) * size).limit(size)
-                .map(s -> toVo(s, now)).toList();
+        List<OnlineUserSession> pageSessions = matches.stream().skip((long) (current - 1) * size).limit(size).toList();
+        List<OnlineUserVo> rows = toVos(pageSessions, now);
         TableRet.Pagination pagination = new TableRet.Pagination();
         pagination.setCurrent(current);
         pagination.setPageSize(size);
         pagination.setTotal(matches.size());
         pagination.setPages((matches.size() + size - 1L) / size);
         return new TableRet<>(pagination, rows);
+    }
+
+    /** 按账号分页汇总有效后台 Web 登录会话。 */
+    public TableRet<OnlineUserSessionUserVo> sessionUserPage(
+            BasePageQuery<OnlineUserPresenceQueryVo> params) {
+        requireAccess(VIEW_PERMISSION);
+        int size = Math.min(100, Math.max(1, params.getPageSize()));
+        int current = Math.max(1, params.getCurrent());
+        long now = System.currentTimeMillis();
+        OnlineUserPresenceQueryVo query = params.getQuery() == null
+                ? new OnlineUserPresenceQueryVo() : params.getQuery();
+
+        Map<String, List<OnlineUserSession>> sessionsByUser = new HashMap<>();
+        for (OnlineUserSession session : sessions()) {
+            if (matches(session, query.getKeyword())) {
+                sessionsByUser.computeIfAbsent(session.getUserId(), ignored -> new ArrayList<>()).add(session);
+            }
+        }
+
+        List<OnlineUserSessionUserVo> matches = new ArrayList<>();
+        for (Map.Entry<String, List<OnlineUserSession>> entry : sessionsByUser.entrySet()) {
+            List<OnlineUserSession> userSessions = entry.getValue();
+            OnlineUserSession latest = userSessions.stream()
+                    .max(Comparator.comparingLong(OnlineUserSession::getLastAccessTime)).orElseThrow();
+            OnlineUserSessionUserVo vo = new OnlineUserSessionUserVo();
+            vo.setUserId(entry.getKey());
+            vo.setUsername(latest.getUsername());
+            vo.setName(latest.getName());
+            vo.setSessionCount(userSessions.size());
+            vo.setActiveSessionCount(userSessions.stream().filter(session -> active(session, now)).count());
+            vo.setLastAccessTime(latest.getLastAccessTime());
+            vo.setCurrentUser(Objects.equals(entry.getKey(), BaseContextHandler.getUserId()));
+            matches.add(vo);
+        }
+        matches.sort(Comparator.comparingLong(OnlineUserSessionUserVo::getLastAccessTime).reversed()
+                .thenComparing(OnlineUserSessionUserVo::getUserId));
+
+        current = Math.min(current, Math.max(1, (matches.size() + size - 1) / size));
+        List<OnlineUserSessionUserVo> rows = matches.stream()
+                .skip((long) (current - 1) * size).limit(size).toList();
+        TableRet.Pagination pagination = new TableRet.Pagination();
+        pagination.setCurrent(current);
+        pagination.setPageSize(size);
+        pagination.setTotal(matches.size());
+        pagination.setPages((matches.size() + size - 1L) / size);
+        return new TableRet<>(pagination, rows);
+    }
+
+    /** 查询指定账号的有效后台 Web 登录会话及其设备标识。 */
+    public List<OnlineUserVo> userSessions(String userId) {
+        requireAccess(VIEW_PERMISSION);
+        if (StrUtil.isBlank(userId)) throw new BuzzException("用户 ID 不能为空");
+        long now = System.currentTimeMillis();
+        List<OnlineUserSession> userSessions = sessions().stream()
+                .filter(session -> userId.equals(session.getUserId()))
+                .sorted(Comparator.comparingLong(OnlineUserSession::getLastAccessTime).reversed()
+                        .thenComparing(OnlineUserSession::getId))
+                .toList();
+        return toVos(userSessions, now);
     }
 
     public OnlineUserStatsVo stats() {
@@ -336,7 +399,14 @@ public class OnlineUserBiz {
         return vo;
     }
 
-    private OnlineUserVo toVo(OnlineUserSession session, long now) {
+    private List<OnlineUserVo> toVos(List<OnlineUserSession> sessions, long now) {
+        Set<String> sessionIds = new HashSet<>();
+        sessions.forEach(session -> sessionIds.add(session.getId()));
+        Map<String, OnlineUserClientInfo> clientInfos = store.getClientInfos(sessionIds);
+        return sessions.stream().map(session -> toVo(session, now, clientInfos.get(session.getId()))).toList();
+    }
+
+    private OnlineUserVo toVo(OnlineUserSession session, long now, OnlineUserClientInfo clientInfo) {
         OnlineUserVo vo = new OnlineUserVo();
         vo.setId(session.getId());
         vo.setUserId(session.getUserId());
@@ -348,6 +418,10 @@ public class OnlineUserBiz {
         vo.setIp(session.getIp());
         vo.setBrowser(session.getBrowser());
         vo.setOs(session.getOs());
+        if (clientInfo != null) {
+            vo.setClientType(clientInfo.getClientType());
+            vo.setClientInstanceId(clientInfo.getClientInstanceId());
+        }
         vo.setExpiresAt(session.getExpiresAt());
         vo.setActive(active(session, now));
         vo.setCurrent(Objects.equals(session.getToken(), StpUtil.getTokenValue()));

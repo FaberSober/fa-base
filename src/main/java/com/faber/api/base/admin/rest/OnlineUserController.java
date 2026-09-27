@@ -7,6 +7,7 @@ import com.faber.api.base.admin.vo.query.OnlineUserPresenceQueryVo;
 import com.faber.api.base.admin.vo.query.OnlineUserQueryVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserPresenceDeviceVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserPresenceSummaryVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserSessionUserVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserStatsVo;
 import com.faber.api.base.admin.vo.ret.OnlineUserVo;
 import com.faber.core.annotation.FaLogBiz;
@@ -42,6 +43,21 @@ public class OnlineUserController extends BaseResHandler {
     public TableRet<OnlineUserPresenceSummaryVo> presencePage(
             @RequestBody BasePageQuery<OnlineUserPresenceQueryVo> params) {
         return onlineUserBiz.presencePage(params);
+    }
+
+    @LogNoRet
+    @FaLogOpr(value = "查询有效后台登录账号", crud = LogCrudEnum.R)
+    @PostMapping("/session/user/page")
+    public TableRet<OnlineUserSessionUserVo> sessionUserPage(
+            @RequestBody BasePageQuery<OnlineUserPresenceQueryVo> params) {
+        return onlineUserBiz.sessionUserPage(params);
+    }
+
+    @LogNoRet
+    @FaLogOpr(value = "查询账号后台登录会话", crud = LogCrudEnum.R)
+    @GetMapping("/session/user/{userId}")
+    public Ret<List<OnlineUserVo>> userSessions(@PathVariable("userId") String userId) {
+        return ok(onlineUserBiz.userSessions(userId));
     }
 
     @LogNoRet
