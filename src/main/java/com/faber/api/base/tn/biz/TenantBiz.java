@@ -6,8 +6,10 @@ import com.faber.api.base.rbac.biz.RbacRoleMenuBiz;
 import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.tn.entity.Tenant;
+import com.faber.api.base.tn.entity.TenantUser;
 import com.faber.api.base.tn.mapper.TenantMapper;
 import com.faber.api.base.tn.vo.req.TenantPermissionUpdateVo;
+import com.faber.api.base.tn.vo.req.TenantPanelOrderReq;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.web.biz.BaseBiz;
@@ -18,7 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 租户
@@ -118,6 +124,39 @@ public class TenantBiz extends BaseBiz<TenantMapper, Tenant> {
             tenantPermissionBiz.updateMenuIds(vo);
         }
         return entity;
+    }
+
+    @FaCacheClear(pre = "rbac:")
+    public List<TenantUser> savePanelOrder(TenantPanelOrderReq req) {
+        String userId = getCurrentUserId();
+        if (!isSuperAdminUser(userId)) {
+            throw new BuzzException("仅超级管理员可以设置平台租户排序");
+        }
+
+        List<TenantUser> tenants = tenantUserBiz.getUserTenants(userId);
+        Set<String> availableTenantIds = tenants.stream()
+                .map(TenantUser::getTenantId)
+                .collect(Collectors.toSet());
+        List<String> tenantIds = req.getTenantIds();
+        Set<String> submittedTenantIds = new HashSet<>(tenantIds);
+        if (submittedTenantIds.size() != tenantIds.size()
+                || !submittedTenantIds.equals(availableTenantIds)) {
+            throw new BuzzException("租户列表已变化，请刷新后重试");
+        }
+
+        Map<String, TenantUser> tenantById = tenants.stream()
+                .collect(Collectors.toMap(TenantUser::getTenantId, item -> item));
+        for (int i = 0; i < tenantIds.size(); i++) {
+            TenantUser tenant = tenantById.get(tenantIds.get(i));
+            Tenant update = new Tenant();
+            update.setId(tenant.getTenantId());
+            update.setSort(i + 1);
+            if (baseMapper.updateById(update) != 1) {
+                throw new BuzzException("租户列表已变化，请刷新后重试");
+            }
+        }
+
+        return tenantUserBiz.getUserTenants(userId);
     }
 
     @FaCacheClear(pre = "rbac:")

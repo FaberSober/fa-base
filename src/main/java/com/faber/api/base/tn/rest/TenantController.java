@@ -2,6 +2,8 @@ package com.faber.api.base.tn.rest;
 
 import com.faber.api.base.tn.biz.TenantBiz;
 import com.faber.api.base.tn.entity.Tenant;
+import com.faber.api.base.tn.entity.TenantUser;
+import com.faber.api.base.tn.vo.req.TenantPanelOrderReq;
 import com.faber.api.base.tn.vo.req.TenantWithPermissionsReq;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @FaLogBiz("租户")
 @RestController
@@ -28,5 +32,11 @@ public class TenantController extends BaseController<TenantBiz, Tenant, String> 
     @PostMapping("/updateWithPermissions")
     public Ret<Tenant> updateWithPermissions(@Valid @RequestBody TenantWithPermissionsReq request) {
         return ok(baseBiz.updateWithPermissions(request.getTenant(), request.getMenuIds()));
+    }
+
+    @FaLogOpr("保存平台租户排序")
+    @PostMapping("/panelOrder")
+    public Ret<List<TenantUser>> panelOrder(@Valid @RequestBody TenantPanelOrderReq request) {
+        return ok(baseBiz.savePanelOrder(request));
     }
 }

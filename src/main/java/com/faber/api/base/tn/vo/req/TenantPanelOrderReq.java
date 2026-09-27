@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.util.List;
 
-/** 保存当前用户的租户排序。 */
+/** 保存租户面板排序。 */
 @Data
 public class TenantPanelOrderReq {
 
