@@ -1,9 +1,11 @@
 package com.faber.api.base.doc.manager.jwt;
 
 import cn.hutool.json.JSONObject;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTUtil;
 import com.faber.core.constant.FaSetting;
+import com.faber.core.exception.BuzzException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -48,6 +50,22 @@ public class JwtManager {
 
         final JWT jwt = JWTUtil.parseToken(token);
         return jwt.getPayloads();
+    }
+
+    public JSONObject readVerifiedToken() {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        String token = StrUtil.removePrefix(request.getHeader(faSetting.getOnlyoffice().getDocserviceHeader()), "Bearer ");
+        byte[] secret = faSetting.getOnlyoffice().getDocserviceSecret().getBytes();
+        try {
+            if (StrUtil.isBlank(token) || !JWTUtil.verify(token, secret)) {
+                throw new BuzzException("OnlyOffice 回调令牌无效");
+            }
+            return JWTUtil.parseToken(token).getPayloads();
+        } catch (BuzzException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BuzzException("OnlyOffice 回调令牌无效");
+        }
     }
 
 }
