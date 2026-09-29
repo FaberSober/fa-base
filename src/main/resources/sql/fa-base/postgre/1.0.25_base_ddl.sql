@@ -102,13 +102,13 @@ DROP TRIGGER IF EXISTS "tn_tenant_user__upd_time" ON "tn_tenant_user";
 CREATE TRIGGER "tn_tenant_user__upd_time" BEFORE UPDATE ON "tn_tenant_user" FOR EACH ROW EXECUTE FUNCTION fa_base_set_upd_time();
 
 -- 部门表增加租户ID
-ALTER TABLE "base_department" ADD COLUMN "tenant_id" varchar(32) NULL;
+ALTER TABLE "base_department" ADD COLUMN IF NOT EXISTS "tenant_id" varchar(32) NULL;
 COMMENT ON COLUMN "base_department"."tenant_id" IS '租户ID';
 
 -- 角色表增加类型和租户ID
-ALTER TABLE "base_rbac_role" ADD COLUMN "type" integer NULL;
+ALTER TABLE "base_rbac_role" ADD COLUMN IF NOT EXISTS "type" integer NULL;
 COMMENT ON COLUMN "base_rbac_role"."type" IS '类型：1全局超管/2全局/3租户';
-ALTER TABLE "base_rbac_role" ADD COLUMN "tenant_id" varchar(32) NULL;
+ALTER TABLE "base_rbac_role" ADD COLUMN IF NOT EXISTS "tenant_id" varchar(32) NULL;
 COMMENT ON COLUMN "base_rbac_role"."tenant_id" IS '租户ID';
 
 -- 兼容历史角色数据：超管为全局超管，其余未绑定租户角色为全局角色
