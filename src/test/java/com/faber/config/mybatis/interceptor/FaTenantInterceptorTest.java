@@ -78,15 +78,17 @@ class FaTenantInterceptorTest {
         TenantContext.setTenantId("tenant-a");
         TestableTenantInterceptor interceptor = new TestableTenantInterceptor();
 
-        assertTrue(interceptor.rewrite("SELECT * FROM base_department WHERE name = '研发'")
-                .contains("tenant_id = 'tenant-a'"));
-        String insertSql = interceptor.rewrite("INSERT INTO base_department (id, name) VALUES ('1', '研发')");
-        assertTrue(insertSql.contains("tenant_id"));
-        assertTrue(insertSql.contains("'tenant-a'"));
-        assertTrue(interceptor.rewrite("UPDATE base_department SET name = '产品' WHERE id = '1'")
-                .contains("tenant_id = 'tenant-a'"));
-        assertTrue(interceptor.rewrite("DELETE FROM base_department WHERE id = '1'")
-                .contains("tenant_id = 'tenant-a'"));
+        for (String table : new String[]{"base_department", "base_notice"}) {
+            assertTrue(interceptor.rewrite("SELECT * FROM " + table + " WHERE name = '研发'")
+                    .contains("tenant_id = 'tenant-a'"));
+            String insertSql = interceptor.rewrite("INSERT INTO " + table + " (id, name) VALUES ('1', '研发')");
+            assertTrue(insertSql.contains("tenant_id"));
+            assertTrue(insertSql.contains("'tenant-a'"));
+            assertTrue(interceptor.rewrite("UPDATE " + table + " SET name = '产品' WHERE id = '1'")
+                    .contains("tenant_id = 'tenant-a'"));
+            assertTrue(interceptor.rewrite("DELETE FROM " + table + " WHERE id = '1'")
+                    .contains("tenant_id = 'tenant-a'"));
+        }
     }
 
     private static class TestableTenantInterceptor extends FaTenantInterceptor {

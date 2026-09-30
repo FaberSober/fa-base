@@ -6,7 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
-import com.faber.core.bean.BaseDelEntity;
+import com.faber.core.bean.BaseTnDelEntity;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 
@@ -20,9 +21,16 @@ import lombok.Data;
 @FaModalName(name = "BASE-通知与公告")
 @TableName("base_notice")
 @Data
-public class Notice extends BaseDelEntity {
+public class Notice extends BaseTnDelEntity {
 	private static final long serialVersionUID = 1L;
 	
+    /** 所属租户仅由服务端上下文赋值，禁止通过更新接口转移公告。 */
+    @Override
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    public String getTenantId() {
+        return super.getTenantId();
+    }
+
     @ExcelProperty("ID")
     @TableId(type = IdType.AUTO)
     private Integer id;
