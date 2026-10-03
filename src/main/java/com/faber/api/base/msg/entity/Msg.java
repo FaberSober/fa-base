@@ -2,7 +2,6 @@ package com.faber.api.base.msg.entity;
 
 import com.alibaba.excel.annotation.ExcelIgnore;
 import com.alibaba.excel.annotation.ExcelProperty;
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -12,7 +11,7 @@ import com.faber.api.base.msg.enums.MsgTypeEnum;
 import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
 import com.faber.core.annotation.SqlSearch;
-import com.faber.core.bean.BaseDelEntity;
+import com.faber.core.bean.BaseTnDelEntity;
 import lombok.Data;
 
 import java.util.Date;
@@ -28,7 +27,7 @@ import java.util.Date;
 @FaModalName(name = "系统-消息")
 @TableName("base_msg")
 @Data
-public class Msg extends BaseDelEntity {
+public class Msg extends BaseTnDelEntity {
 
     @ExcelProperty("ID")
     @TableId(type = IdType.AUTO)
@@ -47,11 +46,6 @@ public class Msg extends BaseDelEntity {
     @SqlEquals
     @ExcelProperty("接收用户ID")
     private String toUserId;
-
-    @SqlEquals
-    @ExcelProperty("租户ID")
-    @TableField(updateStrategy = FieldStrategy.NEVER)
-    private String tenantId;
 
     @SqlSearch
     @ExcelProperty("消息内容")
