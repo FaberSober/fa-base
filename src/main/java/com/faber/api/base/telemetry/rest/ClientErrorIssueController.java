@@ -30,11 +30,13 @@ public class ClientErrorIssueController extends BaseResHandler {
         this.issueBiz = issueBiz;
     }
 
+    @FaLogOpr(value = "分页查询异常 Issue", crud = LogCrudEnum.R)
     @PostMapping("/page")
     public TableRet<ClientErrorIssue> page(@RequestBody QueryParams query) {
         return issueBiz.selectPageByQuery(query);
     }
 
+    @FaLogOpr(value = "查询异常 Issue 详情", crud = LogCrudEnum.R)
     @GetMapping("/getDetail/{id}")
     public Ret<ClientErrorIssue> getDetail(@PathVariable Long id) {
         return ok(issueBiz.getDetailById(id));

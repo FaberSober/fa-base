@@ -3,6 +3,8 @@ package com.faber.api.base.telemetry.rest;
 import com.faber.api.base.telemetry.biz.StatEventBiz;
 import com.faber.api.base.telemetry.entity.StatEvent;
 import com.faber.core.annotation.FaLogBiz;
+import com.faber.core.annotation.FaLogOpr;
+import com.faber.core.enums.LogCrudEnum;
 import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
 import com.faber.core.vo.msg.TableRet;
@@ -26,11 +28,13 @@ public class StatEventController extends BaseResHandler {
         this.statEventBiz = statEventBiz;
     }
 
+    @FaLogOpr(value = "分页查询业务事件明细", crud = LogCrudEnum.R)
     @PostMapping("/page")
     public TableRet<StatEvent> page(@RequestBody QueryParams query) {
         return statEventBiz.selectPageByQuery(query);
     }
 
+    @FaLogOpr(value = "查询业务事件详情", crud = LogCrudEnum.R)
     @GetMapping("/getDetail/{id}")
     public Ret<StatEvent> getDetail(@PathVariable Long id) {
         return ok(statEventBiz.getById(id));
