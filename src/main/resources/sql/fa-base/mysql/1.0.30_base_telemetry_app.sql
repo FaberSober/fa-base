@@ -25,6 +25,19 @@ CREATE TABLE IF NOT EXISTS `base_telemetry_app` (
   UNIQUE KEY `uk_base_telemetry_app_code` (`app_code`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Telemetry 应用';
 
+-- 默认管理端 Telemetry AppKey，供 FA Admin WEB 客户端开箱上报
+INSERT INTO `base_telemetry_app` (
+  `app_key`, `app_code`, `app_name`, `client_type`, `enabled`, `remark`,
+  `crt_time`, `crt_user`, `crt_name`, `crt_host`, `upd_time`, `upd_user`, `upd_name`, `upd_host`, `deleted`
+)
+SELECT
+  'fa-admin-app-key', 'fa-admin-web', 'FA Admin 管理端', 'WEB', 1, '默认管理端遥测应用',
+  CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', NULL, NULL, NULL, NULL, 0
+WHERE NOT EXISTS (
+  SELECT 1 FROM `base_telemetry_app`
+  WHERE `app_key` = 'fa-admin-app-key' OR `app_code` = 'fa-admin-web'
+);
+
 CREATE TABLE IF NOT EXISTS `base_client_error_issue` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `app_id` bigint unsigned NOT NULL COMMENT 'Telemetry应用ID',
