@@ -10,9 +10,15 @@ import com.faber.core.constant.FaSetting;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.Date;
 import java.util.List;
 
@@ -25,6 +31,8 @@ import java.util.List;
  */
 @Service
 public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
+
+    private static final SecureRandom TRUST_RANDOM = new SecureRandom();
 
     @Resource
     private FaSetting faSetting;
@@ -103,6 +111,82 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
 
         if (entity.getId() == null) save(entity);
         else updateById(entity);
+    }
+
+    /**
+     * Enroll or renew the MobileX device trust after password validation, before creating the login session.
+     * Explicitly revoked devices remain blocked until a future verified recovery flow.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public String trustClientOnPasswordLogin(User user, String clientType, String clientInstanceId,
+                                             String model, String manufacturer, String os, String osVersion,
+                                             String presentedTrustToken) {
+        if (user == null || StrUtil.hasBlank(user.getId(), clientType, clientInstanceId)) {
+            throw new BuzzException("无法识别当前设备，请更新应用后重试");
+        }
+
+        List<UserDevice> matches = lambdaQuery()
+                .eq(UserDevice::getUserId, user.getId())
+                .eq(UserDevice::getClientType, clientType)
+                .eq(UserDevice::getDeviceId, clientInstanceId)
+                .list();
+        if (matches.size() > 1) {
+            throw new BuzzException("设备登记异常，请联系管理员");
+        }
+
+        UserDevice device = matches.isEmpty() ? null : matches.get(0);
+        if (device != null && device.getTrustRevokedAt() != null) {
+            throw new BuzzException("该设备已被设置为不信任，暂不允许通过密码登录");
+        }
+
+        Date now = new Date();
+        if (device == null) {
+            device = new UserDevice();
+            device.setUserId(user.getId());
+            device.setClientType(clientType);
+            device.setDeviceId(clientInstanceId);
+            device.setEnable(faSetting.getApp().isDeviceDefaultAllow());
+        }
+
+        String trustToken = presentedTrustToken;
+        if (!hasValidTrustToken(device, presentedTrustToken, now)) {
+            trustToken = createTrustToken();
+            device.setTrustTokenHash(hashTrustToken(trustToken));
+            device.setTrustedAt(now);
+            device.setTrustExpiresAt(null);
+        }
+        applyClientMetadata(device, model, manufacturer, os, osVersion);
+        device.setLastOnlineTime(now);
+        if (device.getId() == null) save(device);
+        else updateById(device);
+        return trustToken;
+    }
+
+    private boolean hasValidTrustToken(UserDevice device, String presentedTrustToken, Date now) {
+        if (device == null || StrUtil.isBlank(device.getTrustTokenHash()) || StrUtil.isBlank(presentedTrustToken)) {
+            return false;
+        }
+        Date expiresAt = device.getTrustExpiresAt();
+        if (expiresAt != null && !expiresAt.after(now)) return false;
+        byte[] expected = device.getTrustTokenHash().getBytes(StandardCharsets.UTF_8);
+        byte[] actual = hashTrustToken(presentedTrustToken).getBytes(StandardCharsets.UTF_8);
+        return MessageDigest.isEqual(expected, actual);
+    }
+
+    private String createTrustToken() {
+        byte[] bytes = new byte[32];
+        TRUST_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String hashTrustToken(String trustToken) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(trustToken.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (Exception e) {
+            throw new IllegalStateException("无法生成设备信任凭据", e);
+        }
     }
 
     public UserDevice getByDeviceId(String deviceId) {

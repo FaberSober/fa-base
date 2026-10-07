@@ -40,6 +40,7 @@ import jakarta.annotation.Resource;
 public class AuthBiz implements LogoutService {
 
     @Resource UserBiz userBiz;
+    @Resource SmsCodeBiz smsCodeBiz;
     @Resource UserTokenBiz userTokenBiz;
     @Resource UserDeviceBiz userDeviceBiz;
     @Resource LogLoginBiz logLoginBiz;
@@ -75,8 +76,27 @@ public class AuthBiz implements LogoutService {
     }
 
     public SaTokenInfo portalLogin(LoginReqVo loginReqVo) {
+        return portalLoginWithTrust(loginReqVo).session();
+    }
+
+    public PortalLoginResult portalLoginWithTrust(LoginReqVo loginReqVo) {
         User user = userBiz.validate(loginReqVo.getUsername(), loginReqVo.getPassword());
-        return login(user, "portal");
+        String presentedTrustToken = readHeader(currentRequest(), "FaDeviceTrustToken", 256);
+        LoginResult result = loginInternal(user, "portal", presentedTrustToken, true);
+        return new PortalLoginResult(result.session(), result.deviceTrustToken());
+    }
+
+    public PortalLoginResult portalLoginBySms(String phone, String verificationCode) {
+        if (!smsCodeBiz.consumeLoginCode(phone, verificationCode)) {
+            throw new BuzzException("手机号或验证码错误");
+        }
+
+        User user = userBiz.getUserByTel(phone);
+        if (user == null || !Boolean.TRUE.equals(user.getStatus())) {
+            throw new BuzzException("手机号或验证码错误");
+        }
+        LoginResult result = loginInternal(user, "portal", null, true);
+        return new PortalLoginResult(result.session(), result.deviceTrustToken());
     }
 
     public SaTokenInfo loginByToken(String apiToken) {
@@ -97,6 +117,11 @@ public class AuthBiz implements LogoutService {
      * @return
      */
     public SaTokenInfo login(User user, String source) {
+        return loginInternal(user, source, null, false).session();
+    }
+
+    private LoginResult loginInternal(User user, String source, String presentedTrustToken,
+                                      boolean enrollTrustedDevice) {
         // 将用户放入上下文
         BaseContextHandler.setUserId(user.getId());
         BaseContextHandler.setName(user.getName());
@@ -120,6 +145,18 @@ public class AuthBiz implements LogoutService {
         logLogin.setClientType(clientIdentity.clientType());
         logLogin.setDeviceId(clientIdentity.clientInstanceId());
 
+        String deviceTrustToken = null;
+        if (enrollTrustedDevice && "portal".equalsIgnoreCase(source)) {
+            if (!TelemetryClientTypeEnum.MOBILE.getValue().equals(clientIdentity.clientType())
+                    || StrUtil.isBlank(clientIdentity.clientInstanceId())) {
+                throw new BuzzException("无法识别当前设备，请更新应用后重试");
+            }
+            deviceTrustToken = userDeviceBiz.trustClientOnPasswordLogin(
+                    user, clientIdentity.clientType(), clientIdentity.clientInstanceId(),
+                    clientIdentity.deviceModel(), clientIdentity.deviceBrand(), deviceOs,
+                    clientIdentity.osVersion(), presentedTrustToken);
+        }
+
         // 获取IP地址
         IpAddr ipAddr = IpUtils.getIpAddrByApi(BaseContextHandler.getIp());
         if (ipAddr != null) {
@@ -130,7 +167,8 @@ public class AuthBiz implements LogoutService {
 
         logLoginBiz.save(logLogin);
 
-        if (clientIdentity.clientType() != null && clientIdentity.clientInstanceId() != null) {
+        if (!enrollTrustedDevice && clientIdentity.clientType() != null
+                && clientIdentity.clientInstanceId() != null) {
             try {
                 userDeviceBiz.registerClientOnLogin(user, clientIdentity.clientType(),
                         clientIdentity.clientInstanceId(), clientIdentity.deviceModel(),
@@ -149,7 +187,7 @@ public class AuthBiz implements LogoutService {
             onlineUserTracker.touch(tokenInfo.getTokenValue(), user, true,
                     clientIdentity.clientType(), clientIdentity.clientInstanceId());
         }
-        return tokenInfo;
+        return new LoginResult(tokenInfo, deviceTrustToken);
     }
 
     private ClientIdentity resolveClientIdentity(String source) {
@@ -180,6 +218,7 @@ public class AuthBiz implements LogoutService {
             if ("portal".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.MOBILE.getValue();
             else if ("web".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.WEB.getValue();
         }
+        if ("portal".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.MOBILE.getValue();
         return new ClientIdentity(clientType, clientInstanceId, deviceModel, deviceBrand, osName, osVersion);
     }
 
@@ -205,6 +244,10 @@ public class AuthBiz implements LogoutService {
             String osName,
             String osVersion
     ) {}
+
+    public record PortalLoginResult(SaTokenInfo session, String deviceTrustToken) {}
+
+    private record LoginResult(SaTokenInfo session, String deviceTrustToken) {}
 
     private void requireAdminAccess(User user) {
         if (!Boolean.TRUE.equals(user.getAdminEnabled())) {
