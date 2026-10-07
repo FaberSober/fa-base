@@ -1,6 +1,7 @@
 package com.faber.api.base.admin.entity;
 
 import com.alibaba.excel.annotation.ExcelProperty;
+import com.alibaba.excel.annotation.ExcelIgnore;
 import com.alibaba.excel.annotation.write.style.ColumnWidth;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -9,6 +10,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.faber.core.annotation.FaModalName;
 import com.faber.core.annotation.SqlEquals;
 import com.faber.core.bean.BaseDelEntity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import jakarta.validation.constraints.NotNull;
@@ -64,5 +66,22 @@ public class UserDevice extends BaseDelEntity {
 
     @ExcelProperty("最后在线时间")
     private Date lastOnlineTime;
+
+    /** 信任凭据仅存哈希，不允许经通用设备接口读写。 */
+    @JsonIgnore
+    @ExcelIgnore
+    private String trustTokenHash;
+
+    @JsonIgnore
+    @ExcelIgnore
+    private Date trustedAt;
+
+    @JsonIgnore
+    @ExcelIgnore
+    private Date trustExpiresAt;
+
+    @JsonIgnore
+    @ExcelIgnore
+    private Date trustRevokedAt;
 
 }

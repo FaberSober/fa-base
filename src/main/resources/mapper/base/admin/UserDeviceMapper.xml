@@ -3,4 +3,52 @@
 
 <mapper namespace="com.faber.api.base.admin.mapper.UserDeviceMapper">
 
+    <resultMap id="portalLoginDeviceRetVo" type="com.faber.api.portal.auth.vo.PortalLoginDeviceRetVo">
+        <id property="id" column="id"/>
+        <result property="displayName" column="display_name"/>
+        <result property="os" column="os"/>
+        <result property="osVersion" column="os_version"/>
+        <result property="firstLoginTime" column="first_login_time"/>
+        <result property="lastLoginTime" column="last_login_time"/>
+        <result property="current" column="is_current"/>
+        <result property="trustStatus" column="trust_status"/>
+    </resultMap>
+
+    <select id="selectPortalLoginDevices" resultMap="portalLoginDeviceRetVo">
+        SELECT d.id,
+               COALESCE(NULLIF(d.model, ''), NULLIF(d.manufacturer, ''), NULLIF(d.os, ''), '移动设备') AS display_name,
+               d.os,
+               d.os_version,
+               COALESCE(history.first_login_time, d.crt_time) AS first_login_time,
+               COALESCE(history.last_login_time, d.last_online_time) AS last_login_time,
+               CASE WHEN #{currentDeviceId} IS NOT NULL AND d.device_id = #{currentDeviceId}
+                    THEN TRUE ELSE FALSE END AS is_current,
+               CASE
+                   WHEN d.trust_token_hash IS NOT NULL
+                        AND d.trust_revoked_at IS NULL
+                        AND (d.trust_expires_at IS NULL OR d.trust_expires_at &gt; CURRENT_TIMESTAMP)
+                       THEN 'trusted'
+                   WHEN d.trust_revoked_at IS NOT NULL THEN 'revoked'
+                   WHEN d.trust_expires_at IS NOT NULL AND d.trust_expires_at &lt;= CURRENT_TIMESTAMP THEN 'expired'
+                   ELSE 'unverified'
+               END AS trust_status
+        FROM base_user_device d
+        LEFT JOIN (
+            SELECT device_id,
+                   MIN(crt_time) AS first_login_time,
+                   MAX(crt_time) AS last_login_time
+            FROM base_log_login
+            WHERE crt_user = #{userId}
+              AND client_type = #{clientType}
+              AND deleted = FALSE
+              AND device_id IS NOT NULL
+              AND device_id &lt;&gt; ''
+            GROUP BY device_id
+        ) history ON history.device_id = d.device_id
+        WHERE d.user_id = #{userId}
+          AND d.client_type = #{clientType}
+          AND d.deleted = FALSE
+        ORDER BY COALESCE(history.last_login_time, d.last_online_time) DESC, d.id DESC
+    </select>
+
 </mapper>

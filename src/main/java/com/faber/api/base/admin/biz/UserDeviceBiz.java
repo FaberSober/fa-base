@@ -4,6 +4,8 @@ import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserDevice;
 import com.faber.api.base.admin.mapper.UserDeviceMapper;
+import com.faber.api.base.telemetry.enums.TelemetryClientTypeEnum;
+import com.faber.api.portal.auth.vo.PortalLoginDeviceRetVo;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.web.biz.BaseBiz;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 
 /**
  * BASE-用户设备
@@ -78,7 +81,8 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
     }
 
     /** 登录成功后按用户、客户端类型和客户端实例 ID 维护设备登记。 */
-    public void registerClientOnLogin(User user, String clientType, String clientInstanceId, String os) {
+    public void registerClientOnLogin(User user, String clientType, String clientInstanceId,
+                                      String model, String manufacturer, String os, String osVersion) {
         if (user == null || StrUtil.hasBlank(user.getId(), clientType, clientInstanceId)) return;
 
         UserDevice entity = lambdaQuery()
@@ -94,7 +98,7 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
             entity.setDeviceId(clientInstanceId);
             entity.setEnable(faSetting.getApp().isDeviceDefaultAllow());
         }
-        if (StrUtil.isNotBlank(os)) entity.setOs(os);
+        applyClientMetadata(entity, model, manufacturer, os, osVersion);
         entity.setLastOnlineTime(now);
 
         if (entity.getId() == null) save(entity);
@@ -127,6 +131,67 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
                 .set(UserDevice::getLastOnlineTime, LocalDateTime.now())
                 .eq(UserDevice::getId, id)
                 .update();
+    }
+
+    /** 查询当前用户的移动端登录设备，不返回客户端实例 ID 或信任凭据。 */
+    public List<PortalLoginDeviceRetVo> listPortalLoginDevices(String currentDeviceId,
+                                                                String model, String manufacturer,
+                                                                String os, String osVersion) {
+        String userId = getCurrentUserId();
+        String normalizedDeviceId = normalizeDeviceHeader(currentDeviceId, 128);
+        refreshCurrentDeviceMetadata(
+                userId,
+                normalizedDeviceId,
+                normalizeDeviceHeader(model, 128),
+                normalizeDeviceHeader(manufacturer, 128),
+                normalizeDeviceHeader(os, 64),
+                normalizeDeviceHeader(osVersion, 64)
+        );
+        return baseMapper.selectPortalLoginDevices(
+                userId,
+                TelemetryClientTypeEnum.MOBILE.getValue(),
+                normalizedDeviceId
+        );
+    }
+
+    private String normalizeDeviceHeader(String value, int maxLength) {
+        String normalized = StrUtil.trim(value);
+        return StrUtil.isBlank(normalized) || normalized.length() > maxLength ? null : normalized;
+    }
+
+    private void refreshCurrentDeviceMetadata(String userId, String deviceId,
+                                              String model, String manufacturer, String os, String osVersion) {
+        if (StrUtil.isBlank(deviceId)) return;
+        UserDevice device = lambdaQuery()
+                .eq(UserDevice::getUserId, userId)
+                .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                .eq(UserDevice::getDeviceId, deviceId)
+                .one();
+        if (device != null && applyClientMetadata(device, model, manufacturer, os, osVersion)) {
+            updateById(device);
+        }
+    }
+
+    private boolean applyClientMetadata(UserDevice device, String model, String manufacturer,
+                                        String os, String osVersion) {
+        boolean changed = false;
+        if (StrUtil.isNotBlank(model) && !model.equals(device.getModel())) {
+            device.setModel(model);
+            changed = true;
+        }
+        if (StrUtil.isNotBlank(manufacturer) && !manufacturer.equals(device.getManufacturer())) {
+            device.setManufacturer(manufacturer);
+            changed = true;
+        }
+        if (StrUtil.isNotBlank(os) && !os.equals(device.getOs())) {
+            device.setOs(os);
+            changed = true;
+        }
+        if (StrUtil.isNotBlank(osVersion) && !osVersion.equals(device.getOsVersion())) {
+            device.setOsVersion(osVersion);
+            changed = true;
+        }
+        return changed;
     }
 
 }

@@ -111,7 +111,9 @@ public class AuthBiz implements LogoutService {
         // 解析agent字符串
         UserAgent ua = UserAgentUtil.parse(logLogin.getAgent());
         ClientIdentity clientIdentity = resolveClientIdentity(source);
-        logLogin.setOs(ua.getOs().toString());
+        String deviceOs = StrUtil.isNotBlank(clientIdentity.osName())
+                ? clientIdentity.osName() : ua.getOs().toString();
+        logLogin.setOs(deviceOs);
         logLogin.setBrowser(ua.getBrowser().toString());
         logLogin.setVersion(ua.getVersion());
         logLogin.setMobile(ua.isMobile());
@@ -131,7 +133,8 @@ public class AuthBiz implements LogoutService {
         if (clientIdentity.clientType() != null && clientIdentity.clientInstanceId() != null) {
             try {
                 userDeviceBiz.registerClientOnLogin(user, clientIdentity.clientType(),
-                        clientIdentity.clientInstanceId(), ua.getOs().toString());
+                        clientIdentity.clientInstanceId(), clientIdentity.deviceModel(),
+                        clientIdentity.deviceBrand(), deviceOs, clientIdentity.osVersion());
             } catch (Exception e) {
                 // 设备登记仅用于在线设备展示，不影响已通过认证的登录。
                 log.warn("登录设备登记失败 userId={} clientType={}",
@@ -152,6 +155,10 @@ public class AuthBiz implements LogoutService {
     private ClientIdentity resolveClientIdentity(String source) {
         HttpServletRequest request = currentRequest();
         String clientInstanceId = readHeader(request, "FaClientInstanceId", 128);
+        String deviceModel = readHeader(request, "FaDeviceModel", 128);
+        String deviceBrand = readHeader(request, "FaDeviceBrand", 128);
+        String osName = readHeader(request, "FaOsName", 64);
+        String osVersion = readHeader(request, "FaOsVersion", 64);
         String clientType = readHeader(request, TelemetryService.HEADER_CLIENT_TYPE, 16);
         if (clientType != null) {
             try {
@@ -173,7 +180,7 @@ public class AuthBiz implements LogoutService {
             if ("portal".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.MOBILE.getValue();
             else if ("web".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.WEB.getValue();
         }
-        return new ClientIdentity(clientType, clientInstanceId);
+        return new ClientIdentity(clientType, clientInstanceId, deviceModel, deviceBrand, osName, osVersion);
     }
 
     private HttpServletRequest currentRequest() {
@@ -190,7 +197,14 @@ public class AuthBiz implements LogoutService {
         return value;
     }
 
-    private record ClientIdentity(String clientType, String clientInstanceId) {}
+    private record ClientIdentity(
+            String clientType,
+            String clientInstanceId,
+            String deviceModel,
+            String deviceBrand,
+            String osName,
+            String osVersion
+    ) {}
 
     private void requireAdminAccess(User user) {
         if (!Boolean.TRUE.equals(user.getAdminEnabled())) {
