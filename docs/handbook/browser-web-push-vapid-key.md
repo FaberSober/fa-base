@@ -2,7 +2,7 @@
 
 ## 用途
 
-Web Push 使用一对 VAPID 密钥：浏览器订阅时使用公钥，服务端发送推送时使用私钥。VAPID 密钥与浏览器订阅返回的 `p256dh`、`auth` 密钥不同。当前项目的订阅接口读取 `fa.push.webpush.vapid-public-key`；后续接入服务端推送时，私钥应只保存在服务端环境或密钥管理服务中。
+Web Push 使用一对 VAPID 密钥：浏览器订阅时使用公钥，服务端发送推送时使用私钥。VAPID 密钥与浏览器订阅返回的 `p256dh`、`auth` 密钥不同。项目的订阅接口读取 `fa.push.webpush.vapid-public-key`，发送接口从服务端环境变量读取私钥。
 
 ## 生成密钥
 
@@ -40,10 +40,12 @@ fa:
       vapid-public-key: ${FA_PUSH_WEBPUSH_VAPID_PUBLIC_KEY:替换为生成的公钥}
 ```
 
-可将生成的公钥放在 `FA_PUSH_WEBPUSH_VAPID_PUBLIC_KEY` 环境变量中，或替换开发配置中的默认公钥。Windows PowerShell 当前终端设置示例：
+可将生成的公钥放在 `FA_PUSH_WEBPUSH_VAPID_PUBLIC_KEY` 环境变量中，或替换开发配置中的默认公钥。发送推送还需设置 `FA_PUSH_WEBPUSH_VAPID_PRIVATE_KEY` 和 `FA_PUSH_WEBPUSH_VAPID_SUBJECT`。Windows PowerShell 当前终端设置示例：
 
 ```powershell
 $env:FA_PUSH_WEBPUSH_VAPID_PUBLIC_KEY = "生成的公钥"
+$env:FA_PUSH_WEBPUSH_VAPID_PRIVATE_KEY = "生成的私钥"
+$env:FA_PUSH_WEBPUSH_VAPID_SUBJECT = "mailto:admin@example.com"
 ```
 
-设置后重启使用 `dev` 配置的后端。部署环境应通过环境变量或密钥管理服务配置公钥与私钥；不要把私钥加入仓库。更换公钥后，浏览器端需要重新订阅。
+设置后重启使用 `dev` 配置的后端。部署环境应通过环境变量或密钥管理服务配置公钥、私钥和有效联系地址；不要把私钥加入仓库。更换公钥后，浏览器端需要重新订阅。

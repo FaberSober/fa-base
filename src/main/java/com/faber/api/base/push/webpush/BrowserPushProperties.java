@@ -11,4 +11,10 @@ public class BrowserPushProperties {
 
     /** Public VAPID key exposed to authenticated browser clients. */
     private String vapidPublicKey = "";
+
+    /** Private VAPID key used only by the server to send push messages. */
+    private String vapidPrivateKey = "";
+
+    /** Contact URI included in VAPID authorization. */
+    private String vapidSubject = "";
 }

@@ -3,8 +3,10 @@ package com.faber.api.base.push.rest;
 import com.faber.api.base.push.biz.BrowserPushSubscriptionBiz;
 import com.faber.api.base.push.vo.req.BrowserPushSubscriptionEndpointReqVo;
 import com.faber.api.base.push.vo.req.BrowserPushSubscriptionReqVo;
+import com.faber.api.base.push.vo.req.BrowserPushTestSendReqVo;
 import com.faber.api.base.push.vo.ret.BrowserPushSubscriptionStatusRetVo;
 import com.faber.api.base.push.vo.ret.BrowserPushVapidPublicKeyRetVo;
+import com.faber.api.base.push.vo.ret.BrowserPushTestSendRetVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
@@ -43,5 +45,10 @@ public class BrowserPushAdminController extends BaseResHandler {
     public Ret<Void> unregister(@Valid @RequestBody BrowserPushSubscriptionEndpointReqVo reqVo) {
         browserPushSubscriptionBiz.unregisterCurrentUser(reqVo.getEndpoint());
         return ok();
+    }
+
+    @PostMapping("/test/send")
+    public Ret<BrowserPushTestSendRetVo> sendTest(@Valid @RequestBody BrowserPushTestSendReqVo reqVo) {
+        return ok(browserPushSubscriptionBiz.sendTestToCurrentUser(reqVo));
     }
 }
