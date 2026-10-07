@@ -63,7 +63,8 @@ public class BrowserPushSubscriptionBiz extends BaseBiz<BrowserPushSubscriptionM
         PushService pushService = createPushService();
         String payload = JSON.toJSONString(Map.of(
                 "title", reqVo.getTitle().trim(),
-                "body", reqVo.getBody().trim()
+                "body", reqVo.getBody().trim(),
+                "url", "/admin/demo/advance/browserNotification"
         ));
         int acceptedCount = 0;
         int failedCount = 0;
@@ -82,6 +83,12 @@ public class BrowserPushSubscriptionBiz extends BaseBiz<BrowserPushSubscriptionM
                 int statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode >= 200 && statusCode < 300) {
                     acceptedCount++;
+                } else if (statusCode == 404 || statusCode == 410) {
+                    remove(Wrappers.<BrowserPushSubscription>lambdaQuery()
+                            .eq(BrowserPushSubscription::getId, subscription.getId())
+                            .eq(BrowserPushSubscription::getUserId, subscription.getUserId())
+                            .eq(BrowserPushSubscription::getEndpointHash, subscription.getEndpointHash()));
+                    failedCount++;
                 } else {
                     failedCount++;
                 }
