@@ -90,6 +90,16 @@ public class TenantPermissionBiz extends BaseBiz<TenantPermissionMapper, TenantP
     }
 
     /**
+     * 为首次启动创建的默认租户开放当前平台全部可用权限。
+     */
+    public void initializeAllPermissions(String tenantId) {
+        if (!isTenantEnabled()) {
+            return;
+        }
+        initializePermissions(tenantId, getPlatformMenuIds());
+    }
+
+    /**
      * 校验一组权限点是否属于租户当前可用范围 C_t。
      */
     public void checkMenuIdsInTenant(String tenantId, Collection<Long> menuIds) {

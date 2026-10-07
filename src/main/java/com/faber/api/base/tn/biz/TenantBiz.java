@@ -10,6 +10,7 @@ import com.faber.api.base.tn.entity.TenantUser;
 import com.faber.api.base.tn.mapper.TenantMapper;
 import com.faber.api.base.tn.vo.req.TenantPermissionUpdateVo;
 import com.faber.api.base.tn.vo.req.TenantPanelOrderReq;
+import com.faber.core.constant.CommonConstants;
 import com.faber.core.config.redis.annotation.FaCacheClear;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.web.biz.BaseBiz;
@@ -107,6 +108,60 @@ public class TenantBiz extends BaseBiz<TenantMapper, Tenant> {
             syncTenantLifecycle(entity, true, menuIds);
         }
         return entity;
+    }
+
+    /**
+     * 确保系统默认租户存在。该初始化不受多租户开关影响。
+     */
+    @FaCacheClear(pre = "rbac:")
+    public Tenant ensureDefaultTenant() {
+        final String defaultTenantCode = "DEFAULT";
+        Tenant tenant = baseMapper.selectByCodeIgnoreLogic(defaultTenantCode);
+        if (tenant == null) {
+            tenant = new Tenant();
+            tenant.setCode(defaultTenantCode);
+            tenant.setName("默认租户");
+            tenant.setShortName("默认租户");
+            tenant.setStatus(true);
+            tenant.setSort(0);
+            tenant.setDescription("系统默认租户");
+            if (!super.save(tenant)) {
+                throw new BuzzException("系统默认租户创建失败");
+            }
+            return tenant;
+        }
+
+        if (Boolean.TRUE.equals(tenant.getDeleted())) {
+            tenant.setDeleted(false);
+            tenant.setStatus(true);
+            if (baseMapper.updateByIdIgnoreLogic(tenant) != 1) {
+                throw new BuzzException("系统默认租户恢复失败");
+            }
+        }
+        return tenant;
+    }
+
+    /**
+     * 初始化默认租户的权限范围、管理员角色和平台超级管理员关联。
+     */
+    @FaCacheClear(pre = "rbac:")
+    public void initializeDefaultTenantAccess(Tenant tenant) {
+        if (!isTenantEnabled() || tenant == null || StrUtil.isBlank(tenant.getId())) {
+            return;
+        }
+
+        tenantPermissionBiz.initializeAllPermissions(tenant.getId());
+        RbacRole tenantAdminRole = rbacRoleBiz.ensureTenantAdminRole(tenant.getId());
+        if (tenantAdminRole == null || tenantAdminRole.getId() == null) {
+            throw new BuzzException("默认租户管理员角色初始化失败");
+        }
+
+        rbacRoleMenuBiz.syncRoleMenus(
+                tenantAdminRole.getId(),
+                tenantPermissionBiz.getAllowedMenuIds(tenant.getId())
+        );
+        tenantUserBiz.ensureTenantAdmin(tenant.getId(), CommonConstants.SUPER_ADMIN_ID);
+        rbacUserRoleBiz.ensureUserRole(CommonConstants.SUPER_ADMIN_ID, tenantAdminRole.getId());
     }
 
     @FaCacheClear(pre = "rbac:")

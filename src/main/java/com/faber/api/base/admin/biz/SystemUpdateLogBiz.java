@@ -10,7 +10,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.faber.api.base.admin.entity.SystemUpdateLog;
 import com.faber.api.base.admin.mapper.SystemUpdateLogMapper;
 import com.faber.api.base.admin.vo.dto.FaSqlHeader;
-import com.faber.api.base.rbac.biz.RbacRoleMenuBiz;
 import com.faber.core.config.dbinit.DbInit;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.BuzzException;
@@ -55,7 +54,7 @@ import java.util.regex.Pattern;
 public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpdateLog> {
 
     @Resource DataSource dataSource;
-    @Resource RbacRoleMenuBiz rbacRoleMenuBiz;
+    @Resource SystemBootstrapBiz systemBootstrapBiz;
 
     public static final String SQL_SPLITTER = "-- ------------------------- info -------------------------";
     public static final int STATUS_SUCCESS = 1;
@@ -88,8 +87,9 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                 List<DbInit> dbInitList = ClassUtil.scanPackageBySuper("com.faber", DbInit.class)
                         .stream()
                         .map(clazz -> (DbInit) SpringUtil.getBean(clazz))
-                        .sorted(Comparator.comparing(DbInit::getOrder))
+                        .sorted(Comparator.comparing(DbInit::getOrder).thenComparing(DbInit::getNo))
                         .toList();
+                _logger.info("数据库初始化模块执行顺序：{}", dbInitList.stream().map(DbInit::getNo).toList());
                 boolean extendedLogChecked = false;
                 boolean extendedLogSupported = false;
                 for (DbInit dbInit : dbInitList) {
@@ -97,7 +97,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                     extendedLogChecked = true;
                 }
 
-                rbacRoleMenuBiz.initAdminRoleMenu();
+                systemBootstrapBiz.initializeAfterDbScripts();
             } finally {
                 if (lockAcquired) {
                     releaseDbInitLock(lockConnection, lockName, databaseType);

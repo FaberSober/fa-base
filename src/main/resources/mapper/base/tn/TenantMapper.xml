@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.faber.api.base.tn.mapper.TenantMapper">
+
+    <!-- 默认租户被逻辑删除后，启动初始化需要找回其唯一编码并恢复记录。 -->
+    <select id="selectByCodeIgnoreLogic" resultType="com.faber.api.base.tn.entity.Tenant">
+        SELECT *
+          FROM tn_tenant
+         WHERE code = #{code}
+         ORDER BY id
+         LIMIT 1
+    </select>
+
+</mapper>

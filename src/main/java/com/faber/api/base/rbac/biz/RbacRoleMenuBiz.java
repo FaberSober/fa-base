@@ -1,6 +1,7 @@
 package com.faber.api.base.rbac.biz;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.faber.api.base.rbac.entity.RbacMenu;
 import com.faber.api.base.rbac.entity.RbacRoleMenu;
 import com.faber.api.base.rbac.entity.RbacRole;
 import com.faber.api.base.rbac.mapper.RbacRoleMenuMapper;
@@ -338,14 +339,11 @@ public class RbacRoleMenuBiz extends BaseBiz<RbacRoleMenuMapper, RbacRoleMenu> {
      * 系统第一次启动时，初始化"超级管理员"角色的权限（赋全部权限）
      */
     public void initAdminRoleMenu() {
-        // 如果角色权限表已经有数据，则不做初始化
-        if (this.count() > 0) return;
-
-        List<RbacRoleMenu> roleMenuList = rbacMenuBiz.list().stream().map(i -> {
-            return new RbacRoleMenu(null, 1L, i.getId(), false);
-        }).collect(Collectors.toList());
-
-        super.saveBatch(roleMenuList);
+        List<Long> menuIds = rbacMenuBiz.list().stream()
+                .map(RbacMenu::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        ensureRoleMenus(1L, menuIds);
     }
 
     private RbacRoleMenu getExisting(Serializable id) {
