@@ -14,6 +14,8 @@ import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,13 +44,20 @@ public class PortalAccountController extends BaseResHandler {
     @LogNoRet
     @GetMapping("/devices")
     public Ret<List<PortalLoginDeviceRetVo>> devices(
-            @RequestHeader(value = "FaClientInstanceId", required = false) String currentDeviceId,
             @RequestHeader(value = "FaDeviceModel", required = false) String deviceModel,
             @RequestHeader(value = "FaDeviceBrand", required = false) String deviceBrand,
             @RequestHeader(value = "FaOsName", required = false) String osName,
             @RequestHeader(value = "FaOsVersion", required = false) String osVersion
     ) {
         return ok(userDeviceBiz.listPortalLoginDevices(
-                currentDeviceId, deviceModel, deviceBrand, osName, osVersion));
+                deviceModel, deviceBrand, osName, osVersion));
+    }
+
+    @FaLogOpr(value = "设为不信任", crud = LogCrudEnum.U)
+    @LogNoRet
+    @PostMapping("/devices/{deviceId}/revoke-trust")
+    public Ret<Void> revokeDeviceTrust(@PathVariable Integer deviceId) {
+        userDeviceBiz.revokePortalDeviceTrust(deviceId);
+        return ok();
     }
 }

@@ -1,6 +1,7 @@
 package com.faber.api.base.admin.biz;
 
 import cn.dev33.satoken.stp.SaTokenInfo;
+import cn.dev33.satoken.stp.SaLoginModel;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.useragent.UserAgent;
@@ -31,6 +32,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Locale;
+import java.util.UUID;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
@@ -182,7 +184,16 @@ public class AuthBiz implements LogoutService {
         }
 
         // 使用sa-token登录框架
-        StpUtil.login(user.getId(), source);
+        if (trustMobileDevice) {
+            // Global is-share=true must not let different App devices overwrite one Token-Session binding.
+            StpUtil.login(user.getId(), new SaLoginModel().setDevice(source).setToken(UUID.randomUUID().toString()));
+        } else {
+            StpUtil.login(user.getId(), source);
+        }
+        if (trustMobileDevice) {
+            userDeviceBiz.bindCurrentMobileDeviceSession(
+                    clientIdentity.clientType(), clientIdentity.clientInstanceId());
+        }
         SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
         if ("web".equals(source)) {
             onlineUserTracker.touch(tokenInfo.getTokenValue(), user, true,

@@ -1,5 +1,7 @@
 package com.faber.api.base.admin.biz;
 
+import cn.dev33.satoken.session.SaSession;
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserDevice;
@@ -8,6 +10,7 @@ import com.faber.api.base.telemetry.enums.TelemetryClientTypeEnum;
 import com.faber.api.portal.auth.vo.PortalLoginDeviceRetVo;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.exception.BuzzException;
+import com.faber.core.exception.auth.UserTokenException;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,10 @@ import java.util.List;
 public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
 
     private static final SecureRandom TRUST_RANDOM = new SecureRandom();
+    private static final String TOKEN_SESSION_CLIENT_TYPE = "fa.device-trust.client-type";
+    private static final String TOKEN_SESSION_CLIENT_INSTANCE_ID = "fa.device-trust.client-instance-id";
+    private static final String TOKEN_SESSION_BINDING_VERSION = "fa.device-trust.binding-version";
+    private static final String DEVICE_BINDING_VERSION = "2";
 
     @Resource
     private FaSetting faSetting;
@@ -162,6 +169,152 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
         return trustToken;
     }
 
+    /** Bind a newly created MobileX login session to its app installation. */
+    public void bindCurrentMobileDeviceSession(String clientType, String clientInstanceId) {
+        if (!TelemetryClientTypeEnum.MOBILE.getValue().equals(clientType)
+                || StrUtil.isBlank(clientInstanceId)) return;
+        String token = StpUtil.getTokenValue();
+        if (StrUtil.isBlank(token)) return;
+        SaSession tokenSession = StpUtil.getTokenSessionByToken(token);
+        if (tokenSession == null) return;
+        Object loginId = StpUtil.getLoginIdByToken(token);
+        if (loginId == null) rejectMobileSession(token, "登录会话已失效，请重新登录");
+        UserDevice device = findMobileClientDevice(String.valueOf(loginId), clientInstanceId);
+        if (device == null || device.getTrustRevokedAt() != null) {
+            rejectMobileSession(token, "当前设备已被设置为不信任，请重新登录");
+        }
+        tokenSession.set(TOKEN_SESSION_CLIENT_TYPE, clientType);
+        tokenSession.set(TOKEN_SESSION_CLIENT_INSTANCE_ID, clientInstanceId);
+        tokenSession.set(TOKEN_SESSION_BINDING_VERSION, DEVICE_BINDING_VERSION);
+    }
+
+    /** Reject legacy shared App tokens and validate the device bound at login. */
+    public void validateMobileDeviceSession(String requestClientType, String requestClientInstanceId) {
+        String token = StpUtil.getTokenValue();
+        if (StrUtil.isBlank(token) || !"portal".equals(StpUtil.getLoginDeviceByToken(token))) return;
+        Object loginId = StpUtil.getLoginIdByToken(token);
+        if (loginId == null) return;
+
+        SaSession tokenSession = StpUtil.getTokenSessionByToken(token);
+        if (tokenSession == null) return;
+        String boundClientType = sessionString(tokenSession.get(TOKEN_SESSION_CLIENT_TYPE));
+        String boundClientInstanceId = sessionString(tokenSession.get(TOKEN_SESSION_CLIENT_INSTANCE_ID));
+        String requestType = StrUtil.trimToNull(requestClientType);
+        String requestDeviceId = normalizeDeviceHeader(requestClientInstanceId, 128);
+
+        if (!TelemetryClientTypeEnum.MOBILE.getValue().equalsIgnoreCase(boundClientType)
+                && !TelemetryClientTypeEnum.MOBILE.getValue().equalsIgnoreCase(requestType)) return;
+        if (!DEVICE_BINDING_VERSION.equals(sessionString(tokenSession.get(TOKEN_SESSION_BINDING_VERSION)))) {
+            rejectMobileSession(token, "登录设备管理已更新，请重新登录");
+        }
+
+        if (TelemetryClientTypeEnum.MOBILE.getValue().equalsIgnoreCase(boundClientType)) {
+            if (StrUtil.isBlank(boundClientInstanceId)) {
+                rejectMobileSession(token, "登录会话设备信息不完整，请重新登录");
+            }
+            if ((StrUtil.isNotBlank(requestType)
+                    && !TelemetryClientTypeEnum.MOBILE.getValue().equalsIgnoreCase(requestType))
+                    || (StrUtil.isNotBlank(requestDeviceId) && !boundClientInstanceId.equals(requestDeviceId))) {
+                // An inconsistent request must not invalidate another device's legitimate token.
+                throw new UserTokenException("登录会话与当前设备不匹配，请重新登录");
+            }
+            UserDevice boundDevice = findMobileClientDevice(String.valueOf(loginId), boundClientInstanceId);
+            if (boundDevice == null) rejectMobileSession(token, "当前设备登记已失效，请重新登录");
+            if (boundDevice.getTrustRevokedAt() != null) {
+                rejectMobileSession(token, "当前设备已被设置为不信任，请重新登录");
+            }
+            return;
+        } else {
+            rejectMobileSession(token, "登录会话设备信息不完整，请重新登录");
+        }
+    }
+
+    /** Revoke one of the current user's trusted MobileX devices and its known sessions. */
+    public void revokePortalDeviceTrust(Integer deviceRecordId) {
+        if (deviceRecordId == null || deviceRecordId <= 0) throw new BuzzException("设备参数无效");
+        String userId = getCurrentUserId();
+        UserDevice device = lambdaQuery()
+                .eq(UserDevice::getId, deviceRecordId)
+                .eq(UserDevice::getUserId, userId)
+                .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                .one();
+        if (device == null) throw new BuzzException("设备不存在或无权操作");
+        String currentDeviceId = getCurrentPortalMobileDeviceId();
+        if (StrUtil.isNotBlank(currentDeviceId) && currentDeviceId.equals(device.getDeviceId())) {
+            throw new BuzzException("当前登录设备不能设为不信任，请使用其他设备操作");
+        }
+
+        if (device.getTrustRevokedAt() == null) {
+            Date now = new Date();
+            if (StrUtil.isBlank(device.getTrustTokenHash())
+                    || (device.getTrustExpiresAt() != null && !device.getTrustExpiresAt().after(now))) {
+                throw new BuzzException("设备当前不是可信状态，请刷新设备列表");
+            }
+            boolean updated = lambdaUpdate()
+                    .set(UserDevice::getTrustTokenHash, (String) null)
+                    .set(UserDevice::getTrustRevokedAt, now)
+                    .eq(UserDevice::getId, deviceRecordId)
+                    .eq(UserDevice::getUserId, userId)
+                    .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                    .isNull(UserDevice::getTrustRevokedAt)
+                    .update();
+            if (!updated) {
+                UserDevice latest = lambdaQuery()
+                        .eq(UserDevice::getId, deviceRecordId)
+                        .eq(UserDevice::getUserId, userId)
+                        .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                        .one();
+                if (latest == null || latest.getTrustRevokedAt() == null) {
+                    throw new BuzzException("设备状态已变化，请刷新设备列表");
+                }
+            }
+        }
+
+        kickoutPortalDeviceSessions(userId, device.getDeviceId());
+    }
+
+    private void kickoutPortalDeviceSessions(String userId, String deviceId) {
+        for (String token : StpUtil.getTokenValueListByLoginId(userId, "portal")) {
+            SaSession tokenSession = StpUtil.getTokenSessionByToken(token);
+            if (tokenSession == null) continue;
+            String clientType = sessionString(tokenSession.get(TOKEN_SESSION_CLIENT_TYPE));
+            String clientInstanceId = sessionString(tokenSession.get(TOKEN_SESSION_CLIENT_INSTANCE_ID));
+            if (TelemetryClientTypeEnum.MOBILE.getValue().equals(clientType)
+                    && deviceId.equals(clientInstanceId)) {
+                StpUtil.kickoutByTokenValue(token);
+            }
+        }
+    }
+
+    private UserDevice findMobileClientDevice(String userId, String clientInstanceId) {
+        List<UserDevice> matches = lambdaQuery()
+                .eq(UserDevice::getUserId, userId)
+                .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                .eq(UserDevice::getDeviceId, clientInstanceId)
+                .list();
+        if (matches.size() > 1) throw new UserTokenException("设备登记异常，请重新登录");
+        return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    private String sessionString(Object value) {
+        return value instanceof String ? (String) value : null;
+    }
+
+    private String getCurrentPortalMobileDeviceId() {
+        String token = StpUtil.getTokenValue();
+        if (StrUtil.isBlank(token) || !"portal".equals(StpUtil.getLoginDeviceByToken(token))) return null;
+        SaSession tokenSession = StpUtil.getTokenSessionByToken(token);
+        if (tokenSession == null
+                || !TelemetryClientTypeEnum.MOBILE.getValue()
+                    .equals(sessionString(tokenSession.get(TOKEN_SESSION_CLIENT_TYPE)))) return null;
+        return sessionString(tokenSession.get(TOKEN_SESSION_CLIENT_INSTANCE_ID));
+    }
+
+    private void rejectMobileSession(String token, String message) {
+        StpUtil.kickoutByTokenValue(token);
+        throw new UserTokenException(message);
+    }
+
     private boolean hasValidTrustToken(UserDevice device, String presentedTrustToken, Date now) {
         if (device == null || StrUtil.isBlank(device.getTrustTokenHash()) || StrUtil.isBlank(presentedTrustToken)) {
             return false;
@@ -218,11 +371,10 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
     }
 
     /** 查询当前用户的移动端登录设备，不返回客户端实例 ID 或信任凭据。 */
-    public List<PortalLoginDeviceRetVo> listPortalLoginDevices(String currentDeviceId,
-                                                                String model, String manufacturer,
+    public List<PortalLoginDeviceRetVo> listPortalLoginDevices(String model, String manufacturer,
                                                                 String os, String osVersion) {
         String userId = getCurrentUserId();
-        String normalizedDeviceId = normalizeDeviceHeader(currentDeviceId, 128);
+        String normalizedDeviceId = normalizeDeviceHeader(getCurrentPortalMobileDeviceId(), 128);
         refreshCurrentDeviceMetadata(
                 userId,
                 normalizedDeviceId,
