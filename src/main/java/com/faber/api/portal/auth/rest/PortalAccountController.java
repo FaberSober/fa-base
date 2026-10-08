@@ -60,4 +60,12 @@ public class PortalAccountController extends BaseResHandler {
         userDeviceBiz.revokePortalDeviceTrust(deviceId);
         return ok();
     }
+
+    @FaLogOpr(value = "恢复设备信任", crud = LogCrudEnum.U)
+    @LogNoRet
+    @PostMapping("/devices/{deviceId}/restore-trust")
+    public Ret<Void> restoreDeviceTrust(@PathVariable Integer deviceId) {
+        userDeviceBiz.restorePortalDeviceTrust(deviceId);
+        return ok();
+    }
 }

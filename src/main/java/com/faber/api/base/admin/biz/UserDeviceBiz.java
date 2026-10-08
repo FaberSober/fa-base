@@ -273,6 +273,44 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
         kickoutPortalDeviceSessions(userId, device.getDeviceId());
     }
 
+    /** Restore a revoked device from another trusted MobileX session; no login session is issued. */
+    public void restorePortalDeviceTrust(Integer deviceRecordId) {
+        if (deviceRecordId == null || deviceRecordId <= 0) throw new BuzzException("设备参数无效");
+        String userId = getCurrentUserId();
+        String currentDeviceId = getCurrentPortalMobileDeviceId();
+        UserDevice currentDevice = StrUtil.isBlank(currentDeviceId)
+                ? null : findMobileClientDevice(userId, currentDeviceId);
+        Date now = new Date();
+        if (currentDevice == null || currentDevice.getTrustRevokedAt() != null
+                || StrUtil.isBlank(currentDevice.getTrustTokenHash())
+                || (currentDevice.getTrustExpiresAt() != null && !currentDevice.getTrustExpiresAt().after(now))) {
+            throw new BuzzException("请在已登录的可信设备上恢复信任");
+        }
+        UserDevice target = lambdaQuery()
+                .eq(UserDevice::getId, deviceRecordId)
+                .eq(UserDevice::getUserId, userId)
+                .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                .one();
+        if (target == null) throw new BuzzException("设备不存在或无权操作");
+        if (currentDeviceId.equals(target.getDeviceId()) || target.getTrustRevokedAt() == null) {
+            throw new BuzzException("仅可恢复其他不信任设备，请刷新设备列表");
+        }
+
+        // Remove any old sessions before lifting the ban, so recovery cannot revive them.
+        kickoutPortalDeviceSessions(userId, target.getDeviceId());
+        boolean updated = lambdaUpdate()
+                .set(UserDevice::getTrustRevokedAt, (Date) null)
+                .set(UserDevice::getTrustTokenHash, hashTrustToken(createTrustToken()))
+                .set(UserDevice::getTrustedAt, now)
+                .set(UserDevice::getTrustExpiresAt, (Date) null)
+                .eq(UserDevice::getId, deviceRecordId)
+                .eq(UserDevice::getUserId, userId)
+                .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                .eq(UserDevice::getTrustRevokedAt, target.getTrustRevokedAt())
+                .update();
+        if (!updated) throw new BuzzException("设备状态已变化，请刷新设备列表");
+    }
+
     private void kickoutPortalDeviceSessions(String userId, String deviceId) {
         for (String token : StpUtil.getTokenValueListByLoginId(userId, "portal")) {
             SaSession tokenSession = StpUtil.getTokenSessionByToken(token);
