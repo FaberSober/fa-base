@@ -146,9 +146,10 @@ public class AuthBiz implements LogoutService {
         logLogin.setDeviceId(clientIdentity.clientInstanceId());
 
         String deviceTrustToken = null;
-        if (enrollTrustedDevice && "portal".equalsIgnoreCase(source)) {
-            if (!TelemetryClientTypeEnum.MOBILE.getValue().equals(clientIdentity.clientType())
-                    || StrUtil.isBlank(clientIdentity.clientInstanceId())) {
+        boolean trustMobileDevice = enrollTrustedDevice && "portal".equalsIgnoreCase(source)
+                && TelemetryClientTypeEnum.MOBILE.getValue().equals(clientIdentity.clientType());
+        if (trustMobileDevice) {
+            if (StrUtil.isBlank(clientIdentity.clientInstanceId())) {
                 throw new BuzzException("无法识别当前设备，请更新应用后重试");
             }
             deviceTrustToken = userDeviceBiz.trustClientOnPasswordLogin(
@@ -167,7 +168,7 @@ public class AuthBiz implements LogoutService {
 
         logLoginBiz.save(logLogin);
 
-        if (!enrollTrustedDevice && clientIdentity.clientType() != null
+        if (!trustMobileDevice && clientIdentity.clientType() != null
                 && clientIdentity.clientInstanceId() != null) {
             try {
                 userDeviceBiz.registerClientOnLogin(user, clientIdentity.clientType(),
@@ -215,10 +216,10 @@ public class AuthBiz implements LogoutService {
             }
         }
         if (clientType == null) {
-            if ("portal".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.MOBILE.getValue();
-            else if ("web".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.WEB.getValue();
+            if ("portal".equalsIgnoreCase(source) || "web".equalsIgnoreCase(source)) {
+                clientType = TelemetryClientTypeEnum.WEB.getValue();
+            }
         }
-        if ("portal".equalsIgnoreCase(source)) clientType = TelemetryClientTypeEnum.MOBILE.getValue();
         return new ClientIdentity(clientType, clientInstanceId, deviceModel, deviceBrand, osName, osVersion);
     }
 
