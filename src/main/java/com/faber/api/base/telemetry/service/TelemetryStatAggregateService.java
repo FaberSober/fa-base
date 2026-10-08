@@ -3,7 +3,6 @@ package com.faber.api.base.telemetry.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.faber.api.base.telemetry.entity.StatDaily;
 import com.faber.api.base.telemetry.mapper.StatDailyMapper;
-import com.faber.core.config.scheduler.SchedulerStartupGate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,21 +19,17 @@ public class TelemetryStatAggregateService {
     private static final ZoneId ZONE_ID = ZoneId.systemDefault();
 
     private final StatDailyMapper statDailyMapper;
-    private final SchedulerStartupGate schedulerStartupGate;
 
     public TelemetryStatAggregateService(
-            StatDailyMapper statDailyMapper,
-            SchedulerStartupGate schedulerStartupGate
+            StatDailyMapper statDailyMapper
     ) {
         this.statDailyMapper = statDailyMapper;
-        this.schedulerStartupGate = schedulerStartupGate;
     }
 
     /** 每日凌晨聚合前一日。 */
     @Scheduled(cron = "0 10 0 * * ?")
     @Transactional(rollbackFor = Exception.class)
     public void aggregatePreviousDay() {
-        if (!schedulerStartupGate.isReady()) return;
         aggregate(LocalDate.now(ZONE_ID).minusDays(1));
     }
 

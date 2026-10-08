@@ -6,7 +6,6 @@ import com.faber.api.base.telemetry.entity.ClientErrorEvent;
 import com.faber.api.base.telemetry.entity.StatEvent;
 import com.faber.api.base.telemetry.mapper.ClientErrorEventMapper;
 import com.faber.api.base.telemetry.mapper.StatEventMapper;
-import com.faber.core.config.scheduler.SchedulerStartupGate;
 import com.faber.core.vo.config.FaConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,25 +25,20 @@ public class TelemetryRetentionService {
     private final ConfigSysBiz configSysBiz;
     private final ClientErrorEventMapper clientErrorEventMapper;
     private final StatEventMapper statEventMapper;
-    private final SchedulerStartupGate schedulerStartupGate;
 
     public TelemetryRetentionService(
             ConfigSysBiz configSysBiz,
             ClientErrorEventMapper clientErrorEventMapper,
-            StatEventMapper statEventMapper,
-            SchedulerStartupGate schedulerStartupGate
+            StatEventMapper statEventMapper
     ) {
         this.configSysBiz = configSysBiz;
         this.clientErrorEventMapper = clientErrorEventMapper;
         this.statEventMapper = statEventMapper;
-        this.schedulerStartupGate = schedulerStartupGate;
     }
 
     /** 每日聚合结束后清理到期原始明细。 */
     @Scheduled(cron = "0 30 0 * * ?")
     public void cleanExpiredEvents() {
-        if (!schedulerStartupGate.isReady()) return;
-
         FaConfig config = configSysBiz.getConfig();
         cleanErrorEvents(config.getTelemetryErrorEventRetentionDays());
         cleanStatEvents(config.getTelemetryStatEventRetentionDays());
