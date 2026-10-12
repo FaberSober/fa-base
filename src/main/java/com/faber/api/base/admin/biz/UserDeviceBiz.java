@@ -311,6 +311,39 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
         if (!updated) throw new BuzzException("设备状态已变化，请刷新设备列表");
     }
 
+    /** Soft-delete a MobileX device and invalidate its credentials and bound sessions. */
+    public void deletePortalLoginDevice(Integer deviceRecordId) {
+        if (deviceRecordId == null || deviceRecordId <= 0) throw new BuzzException("设备参数无效");
+        String userId = getCurrentUserId();
+        String currentDeviceId = getCurrentPortalMobileDeviceId();
+        UserDevice currentDevice = StrUtil.isBlank(currentDeviceId)
+                ? null : findMobileClientDevice(userId, currentDeviceId);
+        Date now = new Date();
+        if (currentDevice == null || currentDevice.getTrustRevokedAt() != null
+                || StrUtil.isBlank(currentDevice.getTrustTokenHash())
+                || (currentDevice.getTrustExpiresAt() != null && !currentDevice.getTrustExpiresAt().after(now))) {
+            throw new BuzzException("请在已登录的可信设备上删除设备");
+        }
+        UserDevice target = lambdaQuery()
+                .eq(UserDevice::getId, deviceRecordId)
+                .eq(UserDevice::getUserId, userId)
+                .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                .one();
+        if (target == null) throw new BuzzException("设备不存在或无权操作");
+        boolean updated = lambdaUpdate()
+                .set(UserDevice::getTrustTokenHash, (String) null)
+                .set(UserDevice::getTrustedAt, (Date) null)
+                .set(UserDevice::getTrustExpiresAt, (Date) null)
+                .set(UserDevice::getTrustRevokedAt, (Date) null)
+                .set(UserDevice::getDeleted, true)
+                .eq(UserDevice::getId, deviceRecordId)
+                .eq(UserDevice::getUserId, userId)
+                .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                .update();
+        if (!updated) throw new BuzzException("设备状态已变化，请刷新设备列表");
+        kickoutPortalDeviceSessions(userId, target.getDeviceId());
+    }
+
     private void kickoutPortalDeviceSessions(String userId, String deviceId) {
         for (String token : StpUtil.getTokenValueListByLoginId(userId, "portal")) {
             SaSession tokenSession = StpUtil.getTokenSessionByToken(token);

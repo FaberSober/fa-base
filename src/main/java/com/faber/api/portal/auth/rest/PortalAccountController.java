@@ -61,6 +61,14 @@ public class PortalAccountController extends BaseResHandler {
         return ok();
     }
 
+    @FaLogOpr(value = "删除本人登录设备", crud = LogCrudEnum.D)
+    @LogNoRet
+    @PostMapping("/devices/{deviceId}/delete")
+    public Ret<Void> deleteDevice(@PathVariable Integer deviceId) {
+        userDeviceBiz.deletePortalLoginDevice(deviceId);
+        return ok();
+    }
+
     @FaLogOpr(value = "恢复设备信任", crud = LogCrudEnum.U)
     @LogNoRet
     @PostMapping("/devices/{deviceId}/restore-trust")
