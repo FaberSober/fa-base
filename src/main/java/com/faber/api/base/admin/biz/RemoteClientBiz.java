@@ -135,7 +135,7 @@ public class RemoteClientBiz {
 
     public void requireAccess(String userId, String token) {
         if (StrUtil.isBlank(userId) || !userId.equals(StpUtil.getLoginIdByToken(token))) {
-            throw new UserNoPermissionException("无在线客户端查看权限");
+            throw new UserNoPermissionException("无在线调试查看权限");
         }
         String device = StpUtil.getLoginDeviceByToken(token);
         if (StrUtil.isBlank(device)) {
@@ -144,7 +144,7 @@ public class RemoteClientBiz {
         if (!"web".equals(device)
                 || (!CommonConstants.SUPER_ADMIN_ID.equals(userId)
                     && roleMapper.countPlatformPermission(userId, VIEW_PERMISSION) == 0)) {
-            throw new UserNoPermissionException("无在线客户端查看权限");
+            throw new UserNoPermissionException("无在线调试查看权限");
         }
     }
 }

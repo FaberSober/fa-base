@@ -2,7 +2,7 @@ package com.faber.api.base.admin.vo.ret;
 
 import lombok.Data;
 
-/** 按用户聚合的当前在线客户端数量。 */
+/** 按用户聚合的当前在线调试数量。 */
 @Data
 public class OnlineUserPresenceSummaryVo {
     private String userId;

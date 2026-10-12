@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@FaLogBiz("在线客户端")
+@FaLogBiz("在线调试")
 @RestController
 @RequestMapping("/api/base/admin/remoteClient")
 public class RemoteClientController extends BaseResHandler {
@@ -24,7 +24,7 @@ public class RemoteClientController extends BaseResHandler {
     private RemoteClientBiz remoteClientBiz;
 
     @LogNoRet
-    @FaLogOpr(value = "查询在线客户端", crud = LogCrudEnum.R)
+    @FaLogOpr(value = "查询在线调试", crud = LogCrudEnum.R)
     @PostMapping("/page")
     public TableRet<RemoteClientVo> page(@RequestBody BasePageQuery<RemoteClientQueryVo> params) {
         return remoteClientBiz.page(params);

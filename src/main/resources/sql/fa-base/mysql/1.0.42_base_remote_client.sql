@@ -1,10 +1,10 @@
 -- ------------------------- info -------------------------
 -- @@ver: 1_000_042
--- @@info: 增加在线客户端菜单与查看权限
+-- @@info: 增加在线调试菜单与查看权限
 -- ------------------------- info -------------------------
 
 INSERT INTO `base_rbac_menu` (`id`, `parent_id`, `scope`, `name`, `sort`, `level`, `icon`, `status`, `link_type`, `link_url`, `crt_time`, `crt_user`, `crt_name`, `crt_host`, `deleted`)
-SELECT 12040600, 12040000, 1, '在线客户端', 5, 1, 'mdi:cellphone-link', 1, 1,
+SELECT 12040600, 12040000, 1, '在线调试', 5, 1, 'mdi:cellphone-link', 1, 1,
        '/admin/system/monitor/remoteClient', CURRENT_TIMESTAMP, '1', '超级管理员', '127.0.0.1', 0
 WHERE NOT EXISTS (SELECT 1 FROM `base_rbac_menu` WHERE `id` = 12040600);
 
