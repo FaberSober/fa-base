@@ -60,6 +60,16 @@ public class TenantUser extends BaseDelEntity {
     private String tenantName;
 
     @TableField(exist = false)
+    @ExcelProperty("租户图标")
+    private String tenantIcon;
+
+    @TableField(exist = false)
+    private Boolean isDefault;
+
+    @TableField(exist = false)
+    private Boolean isSuperAdmin;
+
+    @TableField(exist = false)
     @ExcelProperty("用户名称")
     private String userName;
 

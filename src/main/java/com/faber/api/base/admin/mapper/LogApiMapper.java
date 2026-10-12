@@ -1,9 +1,14 @@
 package com.faber.api.base.admin.mapper;
 
 import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.toolkit.Constants;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.faber.core.config.mybatis.base.FaBaseMapper;
 import com.faber.api.base.admin.entity.LogApi;
-import io.lettuce.core.dynamic.annotation.Param;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 public interface LogApiMapper extends FaBaseMapper<LogApi> {
 
@@ -11,11 +16,10 @@ public interface LogApiMapper extends FaBaseMapper<LogApi> {
     @InterceptorIgnore(blockAttack = "true")
     int deleteAll();
 
-    /**
-     * 删除超过数量的日志
-     * @param minId 日志ID小于此ID的进行删除
-     * @return
-     */
-    int deleteOverSize(@Param("minId") Long minId);
+    Page<LogApi> selectPageFromTables(
+            Page<LogApi> page,
+            @Param("tables") List<String> tables,
+            @Param(Constants.WRAPPER) Wrapper<LogApi> wrapper
+    );
 
 }

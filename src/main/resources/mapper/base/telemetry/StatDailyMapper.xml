@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.faber.api.base.telemetry.mapper.StatDailyMapper">
+
+    <select id="selectAggregates" resultType="com.faber.api.base.telemetry.entity.StatDaily">
+        SELECT app_id, client_type, environment, event_type, event_code, module,
+               COUNT(*) AS pv,
+               COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS uv,
+               SUM(CASE WHEN result = 'SUCCESS' THEN 1 ELSE 0 END) AS success_count,
+               SUM(CASE WHEN result = 'FAIL' THEN 1 ELSE 0 END) AS fail_count,
+               AVG(duration) AS avg_duration
+          FROM base_stat_event
+         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         GROUP BY app_id, client_type, environment, event_type, event_code, module
+    </select>
+</mapper>

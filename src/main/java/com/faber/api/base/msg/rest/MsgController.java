@@ -3,6 +3,7 @@ package com.faber.api.base.msg.rest;
 import com.faber.api.base.msg.biz.MsgBiz;
 import com.faber.api.base.msg.entity.Msg;
 import com.faber.api.base.msg.vo.MsgStatisticVO;
+import com.faber.api.base.msg.vo.MsgTenantStatisticVO;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.vo.msg.Ret;
@@ -28,6 +29,12 @@ public class MsgController extends BaseController<MsgBiz, Msg, Long> {
     public Ret<MsgStatisticVO> countMine() {
         MsgStatisticVO data = baseBiz.countMine();
         return ok(data);
+    }
+
+    @FaLogOpr("按租户统计未读数量")
+    @GetMapping("/countMineByTenant")
+    public Ret<MsgTenantStatisticVO> countMineByTenant() {
+        return ok(baseBiz.countMineByTenant());
     }
 
     @FaLogOpr("个人分页查询")

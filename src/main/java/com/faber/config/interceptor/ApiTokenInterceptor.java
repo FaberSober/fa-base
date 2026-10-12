@@ -3,11 +3,14 @@ package com.faber.config.interceptor;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.api.base.admin.entity.User;
+import com.faber.config.auth.TenantContextResolver;
 import com.faber.config.utils.user.UserCheckUtil;
 import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,13 +20,19 @@ import jakarta.servlet.http.HttpServletResponse;
  * 1. 过滤request#header的jwt token授权字段：Authorization
  */
 @Slf4j
+@Component
 public class ApiTokenInterceptor extends AbstractInterceptor {
 
     @Autowired
     private UserBiz userBiz;
 
+    @Autowired
+    private TenantContextResolver tenantContextResolver;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        TenantContext.clear();
+
         // 配置该注解，说明不进行用户拦截
         IgnoreUserToken annotation = super.getMethodAnno(handler, IgnoreUserToken.class);
         if (annotation != null) {
@@ -45,6 +54,7 @@ public class ApiTokenInterceptor extends AbstractInterceptor {
         BaseContextHandler.setUsername(user.getUsername());
         BaseContextHandler.setName(user.getName());
         BaseContextHandler.setUserId(user.getId() + "");
+        tenantContextResolver.resolve(request, user.getId());
         return super.preHandle(request, response, handler);
     }
 

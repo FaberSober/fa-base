@@ -86,6 +86,11 @@ public class User extends BaseDelEntity {
     @ExcelProperty("账户有效")
     private Boolean status;
 
+    @NotNull
+    @SqlEquals
+    @ExcelProperty("允许访问后台")
+    private Boolean adminEnabled;
+
     @ExcelProperty("角色名称")
     private String roleNames;
 

@@ -1,6 +1,5 @@
 package com.faber.api.base.admin.socket;
 
-import cn.hutool.core.collection.ConcurrentHashSet;
 import cn.hutool.json.JSONObject;
 import com.faber.config.websocket.WsBaseService;
 import com.faber.config.websocket.WsClientInfoEntity;
@@ -13,7 +12,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
-import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
 @Slf4j
@@ -22,27 +22,33 @@ import java.util.concurrent.Executor;
 public class LogWebSocketImpl implements WsBaseService, CommandLineRunner {
     public static final String TYPE = "WebSocketLogMonitor";
 
-    private static final Set<WsClientInfoEntity> uavWebSocketInfoSet = new ConcurrentHashSet<>();
+    private static final Map<String, WsClientInfoEntity> webSocketSessionMap = new ConcurrentHashMap<>();
 
     @Autowired Executor executor;
 
     @Override
     public void onMessage(WsClientInfoEntity entity, JSONObject msg) {
         String action = msg.getStr("action");
+        String sessionId = entity.getSession().getId();
         switch (action) {
             case "start": {
-                uavWebSocketInfoSet.add(entity);
+                webSocketSessionMap.put(sessionId, entity);
             }
             break;
             case "stop": {
-                uavWebSocketInfoSet.remove(entity);
+                webSocketSessionMap.remove(sessionId, entity);
             }
             break;
         }
     }
 
+    @Override
+    public void onClose(WsClientInfoEntity entity) {
+        webSocketSessionMap.remove(entity.getSession().getId(), entity);
+    }
+
     public static void sendInfo(LoggerMessage loggerMessage) {
-        for (WsClientInfoEntity client : uavWebSocketInfoSet) {
+        for (WsClientInfoEntity client : webSocketSessionMap.values()) {
             client.sendMessage(TYPE, loggerMessage);
         }
     }

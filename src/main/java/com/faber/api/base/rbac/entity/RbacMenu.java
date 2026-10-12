@@ -1,5 +1,6 @@
 package com.faber.api.base.rbac.entity;
 
+import com.alibaba.excel.annotation.ExcelIgnore;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -14,6 +15,7 @@ import lombok.Data;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Null;
+import jakarta.validation.constraints.Size;
 
 
 /**
@@ -35,6 +37,10 @@ public class RbacMenu extends BaseDelEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    @ExcelIgnore
+    @Size(max = 64)
+    private String configKey;
+
     @NotNull
     @SqlTreeParentId
     @SqlEquals
@@ -52,6 +58,9 @@ public class RbacMenu extends BaseDelEntity {
 
     @ExcelProperty("模块：1-web/2-app")
     private RbacMenuScopeEnum scope;
+
+    @ExcelProperty("租户必选权限")
+    private Boolean tenantRequired;
 
     @NotNull
     @ExcelProperty("菜单等级：0-模块/1-菜单/9-按钮")

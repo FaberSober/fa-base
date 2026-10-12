@@ -3,18 +3,22 @@ package com.faber.config.interceptor;
 import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
-import com.faber.api.base.tn.biz.TenantUserBiz;
+import com.faber.api.base.telemetry.service.TelemetryService;
+import com.faber.config.auth.OnlineUserTracker;
+import com.faber.config.auth.TenantContextResolver;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
-import com.faber.core.constant.CommonConstants;
 import com.faber.core.constant.FaSetting;
-import com.faber.core.context.BaseContextHandler;
+import com.faber.core.context.TenantContext;
 import com.faber.core.exception.auth.UserTokenException;
+import com.faber.core.exception.auth.UserNoPermissionException;
+import com.faber.core.vo.msg.BaseRet;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -39,13 +43,31 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
     private UserTokenBiz userTokenBiz;
 
     @Resource
-    private TenantUserBiz tenantUserBiz;
+    private OnlineUserTracker onlineUserTracker;
+
+    @Resource
+    private TenantContextResolver tenantContextResolver;
 
     @Resource
     private FaSetting faSetting;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        try {
+            return doPreHandle(request, response, handler);
+        } catch (UserTokenException e) {
+            log.warn("用户认证失败：{}", e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(JSONUtil.toJsonStr(new BaseRet(e.getStatus(), e.getMessage())));
+            return false;
+        }
+    }
+
+    private boolean doPreHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        TenantContext.clear();
+
         // 配置该注解，说明在上下文中注入当前操作用户为admin
         AdminOpr adminOpr = getMethodAnno(handler, AdminOpr.class);
         if (adminOpr != null) {
@@ -60,12 +82,12 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
             return super.preHandle(request, response, handler);
         }
 
-        // type 1: 读取API信息
+        // type 1: 读取API信息 —— 携带 API token 头才走 API 认证；网页 jwt 调用回退到下方逻辑
         ApiToken apiToken = getMethodAnno(handler, ApiToken.class);
-        if (apiToken != null) {
+        if (apiToken != null && StrUtil.isNotEmpty(request.getHeader(faSetting.getApi().getTokenApiHeader()))) {
             User user = userBiz.getUserFromApiToken();
             userBiz.setUserLogin(user, "api");
-            this.resolveUserTenant(request, user.getId());
+            tenantContextResolver.resolve(request, user.getId());
             return super.preHandle(request, response, handler);
         }
 
@@ -80,11 +102,12 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         try {
             userId = StpUtil.getLoginIdAsString();
         } catch (Exception e) {
-            // 这里不处理异常，是为了简化可以同时兼容api token调用的形式，简化了操作，但是有安全性的问题。如果项目安全要求较高，可以自行修改抛出异常
-            if (e instanceof UserTokenException || e instanceof NotLoginException) {
+            if (e instanceof NotLoginException notLogin && NotLoginException.KICK_OUT.equals(notLogin.getType())) {
+                throw new UserTokenException("您已被管理员强制下线，请重新登录！");
+            }
+            // 这里先尝试使用API Token，最终是否认证失败由后续的userId判断统一记录。
+            if (!(e instanceof UserTokenException || e instanceof NotLoginException)) {
                 log.warn(e.getMessage());
-            } else {
-                log.error(e.getMessage(), e);
             }
 
             // 尝试ApiToken登录
@@ -99,27 +122,29 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         }
 
         // 用户登录状态设置
-        userBiz.setUserLogin(userId);
-        this.resolveUserTenant(request, userId);
+        User user = userBiz.getById(userId);
+        // token 解析成功但账户已不存在或被冻结，本质仍是登录态失效，统一抛 UserTokenException(401) 触发前端跳转登录页
+        if (user == null || !Boolean.TRUE.equals(user.getStatus())) {
+            throw new UserTokenException("账户不存在或被冻结，请重新登录");
+        }
+        userBiz.setUserLogin(user);
+        requireApplicationAccess(request.getRequestURI(), user);
+        tenantContextResolver.resolve(request, userId);
+
+        onlineUserTracker.touch(token, user, false,
+                request.getHeader(TelemetryService.HEADER_CLIENT_TYPE), request.getHeader("FaClientInstanceId"));
 
         return super.preHandle(request, response, handler);
     }
 
-    private void resolveUserTenant(HttpServletRequest request, String userId) {
-        if (faSetting.getTenant() == null || !faSetting.getTenant().isEnabled()) {
-            BaseContextHandler.setTenantId(null);
-            return;
+    static void requireApplicationAccess(String requestUri, User user) {
+        if (requiresAdminAccess(requestUri) && !Boolean.TRUE.equals(user.getAdminEnabled())) {
+            throw new UserNoPermissionException("当前账号未开通后台访问权限");
         }
+    }
 
-        String tenantId = request.getHeader(CommonConstants.FA_TN_TENANT_ID);
-        if (StrUtil.isNotBlank(tenantId)) {
-            if (!tenantUserBiz.hasUserTenant(userId, tenantId)) {
-                throw new UserTokenException("当前账户无权访问该租户");
-            }
-        } else {
-            tenantId = tenantUserBiz.getDefaultTenantId(userId);
-        }
-        BaseContextHandler.setTenantId(tenantId);
+    static boolean requiresAdminAccess(String requestUri) {
+        return !(requestUri.equals("/api/portal") || requestUri.startsWith("/api/portal/"));
     }
 
     @Override

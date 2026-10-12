@@ -30,4 +30,14 @@ public class FaSqlHeader implements Serializable {
      */
     private String sql;
 
+    /**
+     * SQL资源文件名
+     */
+    private String fileName;
+
+    /**
+     * SQL内容SHA-256
+     */
+    private String checksum;
+
 }

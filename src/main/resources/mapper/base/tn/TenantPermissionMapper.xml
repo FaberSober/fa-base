@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.faber.api.base.tn.mapper.TenantPermissionMapper">
+
+    <!-- 恢复逻辑删除的权限关系时，需要识别历史记录，避免违反租户权限唯一约束。 -->
+    <select id="selectByTenantIdAndMenuIdIgnoreLogic"
+            resultType="com.faber.api.base.tn.entity.TenantPermission">
+        SELECT id,
+               tenant_id,
+               menu_id,
+               crt_time,
+               crt_user,
+               crt_name,
+               crt_host,
+               upd_time,
+               upd_user,
+               upd_name,
+               upd_host,
+               deleted
+          FROM tn_tenant_permission
+         WHERE tenant_id = #{tenantId}
+           AND menu_id = #{menuId}
+    </select>
+
+</mapper>

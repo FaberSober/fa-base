@@ -61,6 +61,9 @@ public class MsgHelperImpl implements MsgHelper {
 
             msg.setType(msgSendConfig.getType());
 
+            msgSendConfig.beforeSave(msg);
+            msgBiz.save(msg);
+
             // 发送模板短信
             if (msgSendConfig.isSendSms()) {
                 try {
@@ -73,9 +76,40 @@ public class MsgHelperImpl implements MsgHelper {
             // send through websocket
             WsHolder.sendMessage(toUserId, "PLAIN_MSG", msg);
 
-            msgSendConfig.beforeSave(msg);
-            msgBiz.save(msg);
         }
+    }
+
+    @Override
+    public <T extends MsgSendConfig> void sendSysMsg(String fromUserId, List<String> toUserIds, T msgSendConfig) {
+        if (toUserIds == null || toUserIds.size() == 0) return;
+        this.sendSysMsg(fromUserId, toUserIds.toArray(new String[0]), msgSendConfig);
+    }
+
+    @Override
+    public <T extends MsgSendConfig> void sendSysMsgAsync(String fromUserId, String toUserId, T msgSendConfig) {
+        Map<String, Object> holder = BaseContextHandler.getHoldMap();
+        executor.execute(() -> {
+            BaseContextHandler.setHoldMap(holder);
+            this.sendSysMsg(fromUserId, toUserId, msgSendConfig);
+        });
+    }
+
+    @Override
+    public <T extends MsgSendConfig> void sendSysMsgAsync(String fromUserId, String[] toUserIds, T msgSendConfig) {
+        Map<String, Object> holder = BaseContextHandler.getHoldMap();
+        executor.execute(() -> {
+            BaseContextHandler.setHoldMap(holder);
+            this.sendSysMsg(fromUserId, toUserIds, msgSendConfig);
+        });
+    }
+
+    @Override
+    public <T extends MsgSendConfig> void sendSysMsgAsync(String fromUserId, List<String> toUserIds, T msgSendConfig) {
+        Map<String, Object> holder = BaseContextHandler.getHoldMap();
+        executor.execute(() -> {
+            BaseContextHandler.setHoldMap(holder);
+            this.sendSysMsg(fromUserId, toUserIds, msgSendConfig);
+        });
     }
 
     @Override

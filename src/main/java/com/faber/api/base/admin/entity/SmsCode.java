@@ -23,6 +23,9 @@ import java.util.Date;
 public class SmsCode implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    public static final String PURPOSE_GENERAL = "GENERAL";
+    public static final String PURPOSE_LOGIN = "LOGIN";
+
     @TableId(type = IdType.AUTO)
     @SqlTreeId
     private Integer id;
@@ -34,6 +37,12 @@ public class SmsCode implements Serializable {
     @SqlEquals
     @ExcelProperty("短信验证码")
     private String code;
+
+    private String purpose;
+
+    private Boolean consumed;
+
+    private Integer failedAttempts;
 
     @ExcelProperty("创建时间")
     private Date crtTime;

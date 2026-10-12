@@ -1,0 +1,88 @@
+package com.faber.api.base.admin.rest;
+
+import com.faber.api.base.admin.biz.OnlineUserBiz;
+import com.faber.api.base.admin.vo.query.OnlineUserKickoutVo;
+import com.faber.api.base.admin.vo.query.OnlineUserKickoutUserVo;
+import com.faber.api.base.admin.vo.query.OnlineUserPresenceQueryVo;
+import com.faber.api.base.admin.vo.query.OnlineUserQueryVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserPresenceDeviceVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserPresenceSummaryVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserSessionUserVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserStatsVo;
+import com.faber.api.base.admin.vo.ret.OnlineUserVo;
+import com.faber.core.annotation.FaLogBiz;
+import com.faber.core.annotation.FaLogOpr;
+import com.faber.core.annotation.LogNoRet;
+import com.faber.core.enums.LogCrudEnum;
+import com.faber.core.utils.BaseResHandler;
+import com.faber.core.vo.msg.Ret;
+import com.faber.core.vo.msg.TableRet;
+import com.faber.core.vo.query.BasePageQuery;
+import jakarta.annotation.Resource;
+import jakarta.validation.Valid;
+import java.util.List;
+import org.springframework.web.bind.annotation.*;
+
+@FaLogBiz("在线用户")
+@RestController
+@RequestMapping("/api/base/admin/onlineUser")
+public class OnlineUserController extends BaseResHandler {
+    @Resource
+    private OnlineUserBiz onlineUserBiz;
+
+    @LogNoRet
+    @FaLogOpr(value = "查询后台在线会话", crud = LogCrudEnum.R)
+    @PostMapping("/page")
+    public TableRet<OnlineUserVo> page(@RequestBody BasePageQuery<OnlineUserQueryVo> params) {
+        return onlineUserBiz.page(params);
+    }
+
+    @LogNoRet
+    @FaLogOpr(value = "查询在线用户设备汇总", crud = LogCrudEnum.R)
+    @PostMapping("/presence/page")
+    public TableRet<OnlineUserPresenceSummaryVo> presencePage(
+            @RequestBody BasePageQuery<OnlineUserPresenceQueryVo> params) {
+        return onlineUserBiz.presencePage(params);
+    }
+
+    @LogNoRet
+    @FaLogOpr(value = "查询有效后台登录账号", crud = LogCrudEnum.R)
+    @PostMapping("/session/user/page")
+    public TableRet<OnlineUserSessionUserVo> sessionUserPage(
+            @RequestBody BasePageQuery<OnlineUserPresenceQueryVo> params) {
+        return onlineUserBiz.sessionUserPage(params);
+    }
+
+    @LogNoRet
+    @FaLogOpr(value = "查询账号后台登录会话", crud = LogCrudEnum.R)
+    @GetMapping("/session/user/{userId}")
+    public Ret<List<OnlineUserVo>> userSessions(@PathVariable("userId") String userId) {
+        return ok(onlineUserBiz.userSessions(userId));
+    }
+
+    @LogNoRet
+    @FaLogOpr(value = "查询用户在线设备明细", crud = LogCrudEnum.R)
+    @GetMapping("/presence/{userId}/devices")
+    public Ret<List<OnlineUserPresenceDeviceVo>> presenceDevices(@PathVariable("userId") String userId) {
+        return ok(onlineUserBiz.presenceDevices(userId));
+    }
+
+    @LogNoRet
+    @FaLogOpr(value = "在线会话统计", crud = LogCrudEnum.R)
+    @GetMapping("/stats")
+    public Ret<OnlineUserStatsVo> stats() {
+        return ok(onlineUserBiz.stats());
+    }
+
+    @FaLogOpr(value = "强制下线后台会话", crud = LogCrudEnum.U)
+    @PostMapping("/kickout")
+    public Ret<Integer> kickout(@Valid @RequestBody OnlineUserKickoutVo params) {
+        return ok(onlineUserBiz.kickout(params));
+    }
+
+    @FaLogOpr(value = "按用户强制下线后台会话", crud = LogCrudEnum.U)
+    @PostMapping("/kickoutUser")
+    public Ret<Integer> kickoutUser(@Valid @RequestBody OnlineUserKickoutUserVo params) {
+        return ok(onlineUserBiz.kickoutUserSessions(params.getUserId()));
+    }
+}

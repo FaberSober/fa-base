@@ -13,8 +13,11 @@ import org.redisson.api.RList;
 import org.redisson.api.RMap;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RSet;
+import org.redisson.api.RStream;
 import org.redisson.api.RType;
 import org.redisson.api.RedissonClient;
+import org.redisson.api.StreamGroup;
+import org.redisson.api.StreamMessageId;
 import org.redisson.client.codec.ByteArrayCodec;
 import org.redisson.client.protocol.ScoredEntry;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +31,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -36,6 +40,7 @@ public class RedisBiz {
 
     private static final int MAX_LIST_LIMIT = 1000;
     private static final int PREVIEW_TEXT_LIMIT = 120;
+    private static final int STREAM_PREVIEW_LIMIT = 200;
 
     @Resource
     private RedissonClient redisson;
@@ -100,6 +105,7 @@ public class RedisBiz {
             case LIST -> fillListDetail(detail, redisKey);
             case SET -> fillSetDetail(detail, redisKey);
             case ZSET -> fillZsetDetail(detail, redisKey);
+            case STREAM -> fillStreamDetail(detail, redisKey);
             default -> {
                 detail.setSize(0);
                 detail.setValueText("当前类型暂不支持预览");
@@ -203,6 +209,40 @@ public class RedisBiz {
         }
     }
 
+    private void fillStreamDetail(RedisKeyDetailVo detail, String key) {
+        RStream<Object, Object> stream = redisson.getStream(key, ByteArrayCodec.INSTANCE);
+        detail.setSize(safeInt(stream.size()));
+        detail.setStreamEntries(new ArrayList<>());
+
+        Map<StreamMessageId, Map<Object, Object>> data = stream.rangeReversed(
+                STREAM_PREVIEW_LIMIT,
+                StreamMessageId.MAX,
+                StreamMessageId.MIN
+        );
+        for (Map.Entry<StreamMessageId, Map<Object, Object>> entry : data.entrySet()) {
+            RedisKeyDetailVo.StreamEntry item = new RedisKeyDetailVo.StreamEntry();
+            item.setId(entry.getKey().toString());
+            item.setTimestamp(entry.getKey().getId0());
+            item.setFields(new LinkedHashMap<>());
+            for (Map.Entry<Object, Object> field : entry.getValue().entrySet()) {
+                item.getFields().put(formatRawValue(field.getKey()), formatRawValue(field.getValue()));
+            }
+            detail.getStreamEntries().add(item);
+        }
+
+        detail.setConsumerGroups(new ArrayList<>());
+        for (StreamGroup group : stream.listGroups()) {
+            RedisKeyDetailVo.ConsumerGroup item = new RedisKeyDetailVo.ConsumerGroup();
+            item.setName(group.getName());
+            item.setConsumers(group.getConsumers());
+            item.setPending(group.getPending());
+            item.setLastDeliveredId(group.getLastDeliveredId() == null ? null : group.getLastDeliveredId().toString());
+            item.setEntriesRead(group.getEntriesRead());
+            item.setLag(group.getLag());
+            detail.getConsumerGroups().add(item);
+        }
+    }
+
     private Integer getSize(String key, RType redisType) {
         if (redisType == null) {
             return 0;
@@ -216,6 +256,7 @@ public class RedisBiz {
             case LIST -> redisson.getList(key).size();
             case SET -> redisson.getSet(key).size();
             case ZSET -> redisson.getScoredSortedSet(key).size();
+            case STREAM -> safeInt(redisson.getStream(key).size());
             default -> 0;
         };
     }
@@ -246,6 +287,10 @@ public class RedisBiz {
                         preview.add(abbreviate(formatRawValue(entry.getValue())) + "(" + entry.getScore() + ")");
                     }
                     yield "有序集合 " + redisson.getScoredSortedSet(key).size() + " 项 | " + abbreviate(String.join(", ", preview));
+                }
+                case STREAM -> {
+                    RStream<Object, Object> stream = redisson.getStream(key, ByteArrayCodec.INSTANCE);
+                    yield "消息 " + stream.size() + " 条 | 消费组 " + stream.listGroups().size() + " 个";
                 }
                 default -> "暂不支持预览";
             };
@@ -307,6 +352,10 @@ public class RedisBiz {
             return bytes.length;
         }
         return rawValue == null ? 0 : formatRawValue(rawValue).length();
+    }
+
+    private int safeInt(long value) {
+        return value > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) value;
     }
 
     private String formatBytes(byte[] bytes) {

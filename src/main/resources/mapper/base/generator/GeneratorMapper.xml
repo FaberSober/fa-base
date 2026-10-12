@@ -4,14 +4,49 @@
 <mapper namespace="com.faber.api.base.generator.mapper.GeneratorMapper">
 
     <select id="queryTable" parameterType="com.faber.api.base.generator.vo.req.TableQueryVo" resultType="com.faber.api.base.generator.vo.ret.TableVo">
-        select t.table_name, t.engine, t.table_comment, t.create_time
+        select t.table_name,
+        <choose>
+            <when test="_databaseId == 'postgre'">
+                null as engine,
+                (
+                    select obj_description(c.oid, 'pg_class')
+                    from pg_catalog.pg_class c
+                    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+                    where n.nspname = t.table_schema
+                      and c.relname = t.table_name
+                ) as table_comment,
+                null::timestamp as create_time
+            </when>
+            <otherwise>
+                t.engine, t.table_comment, t.create_time
+            </otherwise>
+        </choose>
         from information_schema.tables t
-        where t.table_schema = (select database())
+        where t.table_schema =
+        <choose>
+            <when test="_databaseId == 'postgre'">current_schema()</when>
+            <otherwise>(select database())</otherwise>
+        </choose>
         <if test="query.tableName != null and query.tableName.trim() != ''">
             and t.table_name like concat('%', #{query.tableName}, '%')
         </if>
         <if test="query.tableComment != null and query.tableComment.trim() != ''">
-            and t.table_comment like concat('%', #{tableComment}, '%')
+            <choose>
+                <when test="_databaseId == 'postgre'">
+                    and coalesce(
+                        (
+                            select obj_description(c.oid, 'pg_class')
+                            from pg_catalog.pg_class c
+                            join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+                            where n.nspname = t.table_schema
+                              and c.relname = t.table_name
+                        ), ''
+                    ) like concat('%', #{query.tableComment}, '%')
+                </when>
+                <otherwise>
+                    and t.table_comment like concat('%', #{query.tableComment}, '%')
+                </otherwise>
+            </choose>
         </if>
         <if test="sorter != null and sorter != ''">
             ORDER BY ${sorter}
@@ -19,18 +54,82 @@
     </select>
 
     <select id="getTableByName" parameterType="map" resultType="com.faber.api.base.generator.vo.ret.TableVo">
-        select table_name, engine, table_comment, create_time
-        from information_schema.tables
-        where table_schema = (select database())
-          and table_name = #{tableName}
+        select t.table_name,
+        <choose>
+            <when test="_databaseId == 'postgre'">
+                null as engine,
+                (
+                    select obj_description(c.oid, 'pg_class')
+                    from pg_catalog.pg_class c
+                    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+                    where n.nspname = t.table_schema
+                      and c.relname = t.table_name
+                ) as table_comment,
+                null::timestamp as create_time
+            </when>
+            <otherwise>
+                t.engine, t.table_comment, t.create_time
+            </otherwise>
+        </choose>
+        from information_schema.tables t
+        where t.table_schema =
+        <choose>
+            <when test="_databaseId == 'postgre'">current_schema()</when>
+            <otherwise>(select database())</otherwise>
+        </choose>
+          and t.table_name = #{tableName}
     </select>
 
     <select id="queryColumns" parameterType="map" resultType="com.faber.api.base.generator.vo.ret.ColumnVo">
-        select column_name, data_type, column_type, column_comment, column_key, extra
-        from information_schema.columns
-        where table_name = #{tableName}
-          and table_schema = (select database())
-        order by ordinal_position
+        <choose>
+            <when test="_databaseId == 'postgre'">
+                select c.column_name,
+                       c.data_type,
+                       (
+                           select format_type(a.atttypid, a.atttypmod)
+                           from pg_catalog.pg_attribute a
+                           join pg_catalog.pg_class pc on pc.oid = a.attrelid
+                           join pg_catalog.pg_namespace pn on pn.oid = pc.relnamespace
+                           where pn.nspname = c.table_schema
+                             and pc.relname = c.table_name
+                             and a.attname = c.column_name
+                             and a.attnum > 0
+                             and not a.attisdropped
+                       ) as column_type,
+                       (
+                           select col_description(pc.oid, c.ordinal_position)
+                           from pg_catalog.pg_class pc
+                           join pg_catalog.pg_namespace pn on pn.oid = pc.relnamespace
+                           where pn.nspname = c.table_schema
+                             and pc.relname = c.table_name
+                       ) as column_comment,
+                       case when exists (
+                           select 1
+                           from information_schema.table_constraints tc
+                           join information_schema.key_column_usage kcu
+                             on kcu.constraint_schema = tc.constraint_schema
+                            and kcu.constraint_name = tc.constraint_name
+                            and kcu.table_schema = tc.table_schema
+                            and kcu.table_name = tc.table_name
+                           where tc.constraint_type = 'PRIMARY KEY'
+                             and tc.table_schema = c.table_schema
+                             and tc.table_name = c.table_name
+                             and kcu.column_name = c.column_name
+                       ) then 'PRI' else '' end as column_key,
+                       case when c.column_default like 'nextval(%' then 'auto_increment' else '' end as extra
+                from information_schema.columns c
+                where c.table_name = #{tableName}
+                  and c.table_schema = current_schema()
+                order by c.ordinal_position
+            </when>
+            <otherwise>
+                select column_name, data_type, column_type, column_comment, column_key, extra
+                from information_schema.columns
+                where table_name = #{tableName}
+                  and table_schema = (select database())
+                order by ordinal_position
+            </otherwise>
+        </choose>
     </select>
 
 </mapper>

@@ -3,8 +3,11 @@ package com.faber.api.base.admin.rest;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.vo.query.*;
+import com.faber.api.base.admin.vo.ret.UserImportPreviewVo;
+import com.faber.api.base.admin.vo.ret.UserImportResultVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
+import com.faber.core.annotation.LogNoRet;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
@@ -17,12 +20,52 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.util.Map;
 
 @FaLogBiz("用户")
 @RestController
 @RequestMapping("/api/base/admin/user")
 public class UserController extends BaseController<UserBiz, User, String> {
+
+    @Override
+    @FaLogOpr(value = "导出Excel", crud = LogCrudEnum.R)
+    @LogNoRet
+    @RequestMapping(value = "/exportExcel", method = RequestMethod.POST)
+    @ResponseBody
+    public void exportExcel(@RequestBody QueryParams query) throws IOException {
+        baseBiz.exportExcel(query);
+    }
+
+    @FaLogOpr(value = "超级用户导出Excel", crud = LogCrudEnum.R)
+    @LogNoRet
+    @RequestMapping(value = "/exportExcelSuper", method = RequestMethod.POST)
+    @ResponseBody
+    public void exportExcelSuper(@RequestBody QueryParams query) throws IOException {
+        baseBiz.exportExcelSuper(query);
+    }
+
+    @FaLogOpr(value = "下载用户导入模板", crud = LogCrudEnum.R)
+    @LogNoRet
+    @PostMapping("/import/template")
+    @ResponseBody
+    public void exportUserImportTemplate() throws IOException {
+        baseBiz.exportUserImportTemplate();
+    }
+
+    @FaLogOpr(value = "预览用户导入", crud = LogCrudEnum.R)
+    @PostMapping("/import/preview")
+    @ResponseBody
+    public Ret<UserImportPreviewVo> previewUserImport(@Valid @RequestBody UserImportReqVo request) {
+        return ok(baseBiz.previewUserImport(request));
+    }
+
+    @FaLogOpr(value = "提交用户导入", crud = LogCrudEnum.C)
+    @PostMapping("/import/commit")
+    @ResponseBody
+    public Ret<UserImportResultVo> commitUserImport(@Valid @RequestBody UserImportReqVo request) {
+        return ok(baseBiz.commitUserImport(request));
+    }
 
     @FaLogOpr(value = "超级用户分页查询", crud = LogCrudEnum.R)
     @RequestMapping(value = "/pageSuper", method = RequestMethod.POST)

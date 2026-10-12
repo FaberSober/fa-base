@@ -1,6 +1,7 @@
 package com.faber.api.base.admin.biz;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.faber.api.base.admin.entity.ConfigSys;
 import com.faber.api.base.admin.mapper.ConfigSysMapper;
 import com.faber.api.base.admin.vo.ret.SystemConfigPo;
@@ -43,7 +44,8 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
     }
 
     public ConfigSys getOne() {
-        ConfigSys configSys = lambdaQuery().orderByDesc(ConfigSys::getId).last("limit 1").one();
+        ConfigSys configSys = lambdaQuery().orderByDesc(ConfigSys::getId)
+                .page(new Page<>(1, 1)).getRecords().stream().findFirst().orElse(null);
         if (configSys == null) {
             configSys = new ConfigSys();
 
@@ -82,7 +84,7 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
         po.setSocketUrl(faSetting.getUrl().getSocketUrl());
         po.setKkFileViewUrl(faSetting.getUrl().getKkFileView());
         po.setOffline(faSetting.getConfig().getOffline());
-        po.setTenantEnabled(faSetting.getTenant() != null && faSetting.getTenant().isEnabled());
+        po.setTenantEnabled(faSetting.isTenantEnabled());
 
         return po;
     }

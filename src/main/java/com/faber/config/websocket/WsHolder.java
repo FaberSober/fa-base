@@ -7,10 +7,12 @@ import com.faber.core.annotation.FaWsService;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.enums.WsTypeEnum;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.RedissonShutdownException;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 @Slf4j
 public class WsHolder {
@@ -50,6 +52,44 @@ public class WsHolder {
         }
         for (WsBaseService impl : list) {
             impl.onMessage(entity, msg);
+        }
+    }
+
+    public static void processOpen(WsClientInfoEntity entity) {
+        processLifecycle(entity, "连接建立", service -> service.onOpen(entity));
+    }
+
+    public static void processHeartbeat(WsClientInfoEntity entity) {
+        processLifecycle(entity, "心跳", service -> service.onHeartbeat(entity));
+    }
+
+    private static void processLifecycle(WsClientInfoEntity entity, String action, Consumer<WsBaseService> callback) {
+        String sessionId = entity.getSession() == null ? null : entity.getSession().getId();
+        String userId = entity.getUser() == null ? null : entity.getUser().getId();
+        for (List<WsBaseService> services : SERVICE_MAP.values()) {
+            for (WsBaseService service : services) {
+                try {
+                    callback.accept(service);
+                } catch (Exception e) {
+                    log.error("WebSocket {}生命周期回调失败 userId={} sessionId={}", action, userId, sessionId, e);
+                }
+            }
+        }
+    }
+
+    public static void processClose(WsClientInfoEntity entity) {
+        for (List<WsBaseService> services : SERVICE_MAP.values()) {
+            for (WsBaseService service : services) {
+                try {
+                    service.onClose(entity);
+                } catch (Exception e) {
+                    if (e instanceof RedissonShutdownException) {
+                        log.warn("WebSocket 断开清理失败: {}", e.getMessage());
+                    } else {
+                        log.error("WebSocket 断开清理失败: {}", e.getMessage(), e);
+                    }
+                }
+            }
         }
     }
 
@@ -111,6 +151,14 @@ public class WsHolder {
     public static void sendMessageToToken(String token, String type, String channel, Object msg) {
         try {
             WsChatEndpoint.sendMessageToToken(token, type, channel, msg);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+    }
+
+    public static void sendMessageToSession(String sessionId, String type, String channel, Object msg) {
+        try {
+            WsChatEndpoint.sendMessageToSession(sessionId, type, channel, msg);
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }

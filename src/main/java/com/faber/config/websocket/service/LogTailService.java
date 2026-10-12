@@ -25,9 +25,9 @@ public class LogTailService implements WsBaseService {
     @Resource
     private LogApiBiz logApiBiz;
 
-    // key: token, value: filePath
+    // key: WebSocket session ID, value: filePath
     private final Map<String, String> tailMap = new ConcurrentHashMap<>();
-    // key: token, value: last position
+    // key: WebSocket session ID, value: last position
     private final Map<String, Long> posMap = new ConcurrentHashMap<>();
 
     @Override
@@ -38,26 +38,35 @@ public class LogTailService implements WsBaseService {
         if ("start".equals(action)) {
             File file = new File("./log", filePath);
             if (file.exists() && file.isFile()) {
-                tailMap.put(entity.getToken(), filePath);
-                posMap.put(entity.getToken(), file.length());
+                String sessionId = entity.getSession().getId();
+                tailMap.put(sessionId, filePath);
+                posMap.put(sessionId, file.length());
                 log.info("Start tailing log: {} for user: {}", filePath, entity.getUser().getUsername());
             }
         } else if ("stop".equals(action)) {
-            tailMap.remove(entity.getToken());
-            posMap.remove(entity.getToken());
+            String sessionId = entity.getSession().getId();
+            tailMap.remove(sessionId);
+            posMap.remove(sessionId);
             log.info("Stop tailing log for user: {}", entity.getUser().getUsername());
         }
+    }
+
+    @Override
+    public void onClose(WsClientInfoEntity entity) {
+        String sessionId = entity.getSession().getId();
+        tailMap.remove(sessionId);
+        posMap.remove(sessionId);
     }
 
     @Scheduled(fixedDelay = 1000)
     public void tailLogs() {
         if (tailMap.isEmpty()) return;
 
-        tailMap.forEach((token, filePath) -> {
+        tailMap.forEach((sessionId, filePath) -> {
             File file = new File("./log", filePath);
             if (!file.exists() || !file.isFile()) return;
 
-            long lastPos = posMap.getOrDefault(token, 0L);
+            long lastPos = posMap.getOrDefault(sessionId, 0L);
             long length = file.length();
 
             if (length > lastPos) {
@@ -67,15 +76,15 @@ public class LogTailService implements WsBaseService {
                     while ((line = raf.readLine()) != null) {
                         // raf.readLine() uses ISO-8859-1, convert to UTF-8
                         line = new String(line.getBytes("ISO-8859-1"), "UTF-8");
-                        WsHolder.sendMessageToToken(token, "log-tail", filePath, line);
+                        WsHolder.sendMessageToSession(sessionId, "log-tail", filePath, line);
                     }
-                    posMap.put(token, raf.getFilePointer());
+                    posMap.put(sessionId, raf.getFilePointer());
                 } catch (IOException e) {
                     log.error("Error tailing log file: " + filePath, e);
                 }
             } else if (length < lastPos) {
                 // File truncated
-                posMap.put(token, length);
+                posMap.put(sessionId, length);
             }
         });
     }

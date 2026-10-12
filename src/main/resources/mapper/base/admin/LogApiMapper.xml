@@ -4,13 +4,15 @@
 <mapper namespace="com.faber.api.base.admin.mapper.LogApiMapper" >
 
     <delete id="deleteAll">
-        delete from base_log_api LIMIT 1000
+        DELETE FROM base_log_api
     </delete>
 
-    <delete id="deleteOverSize" parameterType="map">
-        DELETE FROM base_log_api
-        WHERE id &lt;= #{minId}
-        LIMIT 1000
-    </delete>
+    <select id="selectPageFromTables" resultType="com.faber.api.base.admin.entity.LogApi">
+        SELECT * FROM (
+            <foreach collection="tables" item="table" separator=" UNION ALL ">
+                SELECT * FROM ${table}
+            </foreach>
+        ) archive_log ${ew.customSqlSegment}
+    </select>
 
 </mapper>

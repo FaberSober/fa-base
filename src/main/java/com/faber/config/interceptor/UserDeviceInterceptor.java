@@ -3,6 +3,8 @@ package com.faber.config.interceptor;
 import cn.hutool.core.util.StrUtil;
 import com.faber.api.base.admin.biz.UserDeviceBiz;
 import com.faber.api.base.admin.entity.UserDevice;
+import com.faber.api.base.telemetry.enums.TelemetryClientTypeEnum;
+import com.faber.api.base.telemetry.service.TelemetryService;
 import com.faber.core.config.annotation.IgnoreUserDevice;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.constant.CommonConstants;
@@ -29,6 +31,13 @@ public class UserDeviceInterceptor extends AbstractInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        String from = request.getHeader(CommonConstants.FA_FROM);
+        String clientType = request.getHeader(TelemetryService.HEADER_CLIENT_TYPE);
+        if (StrUtil.isBlank(clientType) && CommonConstants.FaFrom.FaApp.equals(from)) {
+            clientType = TelemetryClientTypeEnum.MOBILE.getValue();
+        }
+        userDeviceBiz.validateMobileDeviceSession(clientType, request.getHeader("FaClientInstanceId"));
+
         // 配置该注解，说明不进行用户拦截
         IgnoreUserToken ignoreUserToken = getMethodAnno(handler, IgnoreUserToken.class);
         if (ignoreUserToken != null) {
@@ -42,7 +51,6 @@ public class UserDeviceInterceptor extends AbstractInterceptor {
         }
 
         // type 2: 读取header中deviceId信息，判断设备编码是否允许访问
-        String from = request.getHeader(CommonConstants.FA_FROM);
         String appDeviceId = request.getHeader(CommonConstants.FA_APP_DEVICE_ID);
 
         // 不是app的不校验
