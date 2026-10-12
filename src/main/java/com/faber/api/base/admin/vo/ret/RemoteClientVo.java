@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class RemoteClientVo {
     private String id;
+    private String clientInstanceId;
     private String clientType;
     private String runtime;
     private String appCode;

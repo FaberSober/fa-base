@@ -21,6 +21,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -73,6 +74,7 @@ public class WsChatEndpoint {
         WsClientInfoEntity entity = new WsClientInfoEntity();
         entity.setToken(token);
         entity.setSession(session);
+        entity.setConnectionId(UUID.randomUUID().toString());
         entity.setExistTime(LocalDateTime.now().plusHours(EXIST_TIME_HOUR)); // 默认连接6个小时
         entity.setConnectedAt(System.currentTimeMillis());
         entity.setLastSeenAt(entity.getConnectedAt());

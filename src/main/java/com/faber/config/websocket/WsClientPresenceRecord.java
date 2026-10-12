@@ -11,6 +11,8 @@ public class WsClientPresenceRecord implements Serializable {
 
     private String sessionId;
     private String userId;
+    private String username;
+    private String name;
     private String clientInstanceId;
     private String clientType;
     private String runtime;

@@ -22,6 +22,9 @@ public class RemoteClientPresenceService implements WsBaseService {
     @Resource
     private WsClientPresenceStore presenceStore;
 
+    @Resource
+    private RemoteClientStatusService statusService;
+
     @Override
     public void onOpen(WsClientInfoEntity client) {
         presenceStore.refresh(client);
@@ -30,6 +33,7 @@ public class RemoteClientPresenceService implements WsBaseService {
     @Override
     public void onHeartbeat(WsClientInfoEntity client) {
         presenceStore.refresh(client);
+        statusService.publish(client);
     }
 
     @Override
@@ -53,6 +57,7 @@ public class RemoteClientPresenceService implements WsBaseService {
         client.setDeviceModel(read(message, "deviceModel", 100));
         try {
             presenceStore.refresh(client);
+            statusService.publish(client);
         } catch (Exception e) {
             log.error("WebSocket 在线状态写入 Redis 失败 sessionId={}",
                     client.getSession() == null ? null : client.getSession().getId(), e);
@@ -62,7 +67,8 @@ public class RemoteClientPresenceService implements WsBaseService {
     @Override
     public void onClose(WsClientInfoEntity client) {
         if (client.getSession() != null) {
-            presenceStore.remove(client.getSession().getId());
+            presenceStore.remove(client.getConnectionId());
+            statusService.publish(client);
         }
     }
 

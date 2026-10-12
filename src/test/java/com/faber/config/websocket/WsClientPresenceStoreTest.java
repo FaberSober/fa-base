@@ -12,11 +12,35 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class WsClientPresenceStoreTest {
+
+    @Test
+    void usesGlobalConnectionIdsInsteadOfNodeLocalSessionIds() {
+        @SuppressWarnings("unchecked")
+        RMapCache<String, WsClientPresenceRecord> records = mock(RMapCache.class);
+        RedissonClient redisson = mock(RedissonClient.class);
+        when(redisson.<String, WsClientPresenceRecord>getMapCache("test:ws:client-presence:connections")).thenReturn(records);
+        WsClientPresenceStore store = new WsClientPresenceStore();
+        ReflectionTestUtils.setField(store, "redisson", redisson);
+        ReflectionTestUtils.setField(store, "prefix", "test");
+        Session session = mock(Session.class);
+        when(session.getId()).thenReturn("0");
+        WsClientInfoEntity first = new WsClientInfoEntity();
+        first.setSession(session);
+        first.setConnectionId("node-a-connection");
+        WsClientInfoEntity second = new WsClientInfoEntity();
+        second.setSession(session);
+        second.setConnectionId("node-b-connection");
+        store.refresh(first);
+        store.refresh(second);
+        verify(records).fastPut(eq("node-a-connection"), any(), eq(60L), eq(TimeUnit.SECONDS));
+        verify(records).fastPut(eq("node-b-connection"), any(), eq(60L), eq(TimeUnit.SECONDS));
+    }
 
     @Test
     void legacyClientUsesConnectionIdAndKeepsThePresenceTtl() {

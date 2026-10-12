@@ -28,10 +28,12 @@ public class WsClientPresenceStore {
     public void refresh(WsClientInfoEntity client) {
         if (client == null || client.getSession() == null) return;
 
-        String sessionId = client.getSession().getId();
+        String sessionId = client.getConnectionId();
         WsClientPresenceRecord record = new WsClientPresenceRecord();
         record.setSessionId(sessionId);
         record.setUserId(client.getUser() == null ? null : client.getUser().getId());
+        record.setUsername(client.getUser() == null ? null : client.getUser().getUsername());
+        record.setName(client.getUser() == null ? null : client.getUser().getName());
         // 未升级的客户端使用连接 ID 作为兼容标识；它不会跨连接持久化。
         record.setClientInstanceId(StrUtil.blankToDefault(client.getClientInstanceId(), sessionId));
         record.setClientType(client.getClientType());

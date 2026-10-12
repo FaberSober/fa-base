@@ -1,8 +1,8 @@
 # ADR-012：远程客户端实时日志
 
-- 状态：Proposed
+- 状态：✅已完成
 - 日期：2026-09-24
-- 范围：`fa-base`、`mobile`、`frontend/apps/admin`
+- 范围：`fa-base`、`mobile`、`mobile-x`、`frontend/apps/admin`
 - 目标：管理员可以查看在线客户端，并按需实时查看客户端 Console 日志和 JavaScript 错误；首期接入 UniApp App，协议保留桌面端等客户端扩展能力。
 
 ## 1. 功能清单
@@ -18,7 +18,8 @@
 | 5 | `mobile/fa-core-mobile` | Console 与运行时错误采集 | 远程开启后采集各级 Console、未捕获异常和 Promise 异常 | 执行开发 | ✅已完成 |
 | 6 | `frontend/apps/admin` | 在线客户端列表 | 展示在线客户端类别、应用、用户、版本和运行平台 | 执行开发 | ✅已完成 |
 | 7 | `frontend/apps/admin` | 实时日志查看 | Switch 控制采集、自动滚动和 HTTP JSON/原文；支持单条切换、级别筛选与搜索 | 执行开发 | ✅已完成 |
-| 8 | `fa-base`、`mobile`、`frontend/apps/admin` | 发布包与权限验证 | 验证完整远程日志功能的发布包、权限、脱敏、断线和重连 | 执行开发 | 🔍验证中 |
+| 8 | `fa-base`、`mobile`、`frontend/apps/admin` | 发布包与权限验证 | 验证完整远程日志功能的发布包、权限、脱敏、断线和重连 | 执行开发 | ✅已完成 |
+| 9 | 管理端、后端、移动端 | 心跳图与断线恢复 | 稳定实例跟踪、真实心跳图、开启回执、断线恢复与跨节点路由 | 本次开发 | ✅已完成 |
 
 ## 2. 功能开发说明
 
@@ -36,7 +37,7 @@
 - 与 Telemetry 已有持久化错误监控分工：本功能提供按需实时日志，不重复建设错误事件存储、Issue 聚合或日志归档。
 - 首期只覆盖 App-PLUS JavaScript Console 和 JavaScript 运行时错误；Android 原生 logcat、原生崩溃、后台常驻连接及历史日志查询不在范围内。
 - 远程采集默认关闭；查看、开始和停止均需服务端权限校验。客户端断线后自动视为离线并清理采集状态。
-- 本轮在线目录按仓库 Compose 单节点示例实现。实际生产若为多实例，需在上线前增加跨节点目录与消息路由，或保证请求始终到达持有连接的实例。
+- 在线目录使用 Redis 短期索引；日志指令、回执和日志通过 Redis Pub/Sub 跨节点转发，采集占用使用短期租约，连接标识使用 UUID 避免节点间冲突。生产多实例仍需按实际部署拓扑验收。
 - 现有 WebSocket URL 含 Token 路径，服务端不得记录原始 Token；同时确认代理访问日志对该路径脱敏，否则改用短时连接票据。
 
 ## 4. 验收标准
@@ -46,7 +47,7 @@
 - 客户端本地 Console 正常，未开启采集时不上传打印日志；上报失败不影响业务。
 - 断线、退出登录或后台后客户端不再显示在线；重新前台连接后状态恢复。
 - 无权限用户不能查看在线列表或控制采集；日志内容有大小限制并脱敏。
-- App-PLUS 发布包验证通过；多实例部署前置条件已经确认。
+- 更新后的 App-PLUS 发布包需验证开启回执和断线恢复；按实际多实例部署验证跨节点路由。
 
 ## 5. 相关实现
 
@@ -55,3 +56,13 @@
 - 现有在线用户实现：`fa-base/src/main/java/com/faber/api/base/admin/biz/OnlineUserBiz.java`
 - 管理端 WebSocket：`frontend/apps/admin/features/fa-admin-pages/layout/websocket/`
 - 移动端 Telemetry 与诊断：`mobile/src/features/fa-core-mobile/telemetry/`、`common/http-logger.ts`、`common/debug-mode.ts`
+
+## 6. 心跳与恢复协议（2026-10-12）
+
+- 实施清单见 [PLAN-base-001-remote-log-recovery-1012](../plans/PLAN-base-001-remote-log-recovery-1012.md)。
+- 2026-10-12：用户确认本次功能验证通过，关联功能状态更新为 ✅已完成。
+- 状态订阅使用 `RemoteClientStatus`，按用户及 `clientInstanceId` 跟踪目标，心跳推送结合 5 秒快照补偿；管理端失联或快照停止更新时显示未知，不断言 App 离线。
+- 开启请求带 `requestId`，后端先返回 `starting`，App 开启后上报 `RemoteLog { action: 'ack', sessionId }`，再返回 `started`；15 秒未确认则结束会话，未升级 App 不误显示采集中。
+- 前端保留用户采集意图，重连使用新请求及会话，并沿用原 30 分钟截止时间；主动停止、权限失效、占用冲突及超时不自动恢复。离线期间日志不补采。
+- 页面心跳历史只存前端内存（最近 3 分钟），关闭页面取消状态订阅并停止采集；无数据库迁移。
+- App 与管理端仅 ping 回执确认双向可达，普通业务推送不能掩盖半开连接；回执超时后沿用各端已有重连入口。

@@ -7,6 +7,13 @@ import lombok.Data;
 @Data
 public class WsClientInfoEntity extends ClientInfoEntity {
 
+    /** 跨节点唯一连接标识；容器 Session ID 仅保证本进程唯一。 */
+    private String connectionId;
+
+    public String getConnectionId() {
+        return connectionId != null ? connectionId : getSession() == null ? null : getSession().getId();
+    }
+
     /** 通用客户端类别，例如 MOBILE、DESKTOP、OTHER。 */
     private String clientType;
     /** 客户端安装实例标识；仅用于识别，不作为可信凭据。 */

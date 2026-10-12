@@ -2,12 +2,13 @@ package com.faber.api.base.admin.biz;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
-import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.vo.query.RemoteClientQueryVo;
 import com.faber.api.base.admin.vo.ret.RemoteClientVo;
 import com.faber.api.base.rbac.mapper.RbacUserRoleMapper;
 import com.faber.config.websocket.WsChatEndpoint;
 import com.faber.config.websocket.WsClientInfoEntity;
+import com.faber.config.websocket.WsClientPresenceRecord;
+import com.faber.config.websocket.WsClientPresenceStore;
 import com.faber.core.constant.CommonConstants;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.exception.auth.UserNoPermissionException;
@@ -29,17 +30,23 @@ public class RemoteClientBiz {
     @Resource
     private RbacUserRoleMapper roleMapper;
 
+    @Resource
+    private WsClientPresenceStore presenceStore;
+
     public TableRet<RemoteClientVo> page(BasePageQuery<RemoteClientQueryVo> params) {
         requireAccess();
         int size = Math.min(100, Math.max(1, params.getPageSize()));
         int current = Math.max(1, params.getCurrent());
         RemoteClientQueryVo query = params.getQuery() == null ? new RemoteClientQueryVo() : params.getQuery();
-        List<RemoteClientVo> matches = getOnlineClients().stream()
+        long now = System.currentTimeMillis();
+        List<RemoteClientVo> matches = presenceStore.all().values().stream()
+                .filter(client -> client.getClientType() != null)
+                .filter(client -> now - client.getLastSeenAt() <= ONLINE_WINDOW_MILLIS)
                 .filter(client -> StrUtil.isBlank(query.getClientType())
                         || Objects.equals(query.getClientType(), client.getClientType()))
                 .filter(client -> matches(client, query.getKeyword()))
-                .sorted(Comparator.comparingLong(WsClientInfoEntity::getLastSeenAt).reversed())
                 .map(this::toVo)
+                .sorted(buildComparator(params.getSorter()))
                 .toList();
         current = Math.min(current, Math.max(1, (matches.size() + size - 1) / size));
         List<RemoteClientVo> rows = matches.stream().skip((long) (current - 1) * size).limit(size).toList();
@@ -51,10 +58,34 @@ public class RemoteClientBiz {
         return new TableRet<>(pagination, rows);
     }
 
+    private Comparator<RemoteClientVo> buildComparator(String sorter) {
+        // 默认按连接时间排序，避免心跳更新使列表跳动；ID 保证同值顺序稳定。
+        Comparator<RemoteClientVo> defaultOrder = Comparator.comparingLong(RemoteClientVo::getConnectedAt)
+                .reversed().thenComparing(RemoteClientVo::getId);
+        if (StrUtil.isBlank(sorter)) return defaultOrder;
+        String[] parts = sorter.trim().split("\\s+");
+        if (parts.length != 2 || (!"ASC".equalsIgnoreCase(parts[1]) && !"DESC".equalsIgnoreCase(parts[1]))) {
+            return defaultOrder;
+        }
+        Comparator<String> textOrder = Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER);
+        Comparator<RemoteClientVo> order = switch (parts[0]) {
+            case "username" -> Comparator.comparing(RemoteClientVo::getUsername, textOrder);
+            case "name" -> Comparator.comparing(RemoteClientVo::getName, textOrder);
+            case "client_type" -> Comparator.comparing(RemoteClientVo::getClientType, textOrder);
+            case "app_name" -> Comparator.comparing(RemoteClientVo::getAppName, textOrder);
+            case "connected_at" -> Comparator.comparingLong(RemoteClientVo::getConnectedAt);
+            case "last_seen_at" -> Comparator.comparingLong(RemoteClientVo::getLastSeenAt);
+            default -> null;
+        };
+        if (order == null) return defaultOrder;
+        if ("DESC".equalsIgnoreCase(parts[1])) order = order.reversed();
+        return order.thenComparing(defaultOrder);
+    }
+
     public WsClientInfoEntity getOnlineClient(String sessionId) {
         if (StrUtil.isBlank(sessionId)) return null;
         return getOnlineClients().stream()
-                .filter(client -> sessionId.equals(client.getSession().getId()))
+                .filter(client -> sessionId.equals(client.getConnectionId()))
                 .findFirst()
                 .orElse(null);
     }
@@ -66,20 +97,20 @@ public class RemoteClientBiz {
                 .toList();
     }
 
-    private boolean matches(WsClientInfoEntity client, String keyword) {
+    private boolean matches(WsClientPresenceRecord client, String keyword) {
         if (StrUtil.isBlank(keyword)) return true;
         String value = keyword.trim();
-        User user = client.getUser();
         return StrUtil.containsIgnoreCase(client.getAppName(), value)
                 || StrUtil.containsIgnoreCase(client.getAppCode(), value)
                 || StrUtil.containsIgnoreCase(client.getRelease(), value)
-                || (user != null && (StrUtil.containsIgnoreCase(user.getUsername(), value)
-                    || StrUtil.containsIgnoreCase(user.getName(), value)));
+                || StrUtil.containsIgnoreCase(client.getUsername(), value)
+                || StrUtil.containsIgnoreCase(client.getName(), value);
     }
 
-    private RemoteClientVo toVo(WsClientInfoEntity client) {
+    private RemoteClientVo toVo(WsClientPresenceRecord client) {
         RemoteClientVo vo = new RemoteClientVo();
-        vo.setId(client.getSession().getId());
+        vo.setId(client.getSessionId());
+        vo.setClientInstanceId(client.getClientInstanceId());
         vo.setClientType(client.getClientType());
         vo.setRuntime(client.getRuntime());
         vo.setAppCode(client.getAppCode());
@@ -90,12 +121,9 @@ public class RemoteClientBiz {
         vo.setOsName(client.getOsName());
         vo.setOsVersion(client.getOsVersion());
         vo.setDeviceModel(client.getDeviceModel());
-        User user = client.getUser();
-        if (user != null) {
-            vo.setUserId(user.getId());
-            vo.setUsername(user.getUsername());
-            vo.setName(user.getName());
-        }
+        vo.setUserId(client.getUserId());
+        vo.setUsername(client.getUsername());
+        vo.setName(client.getName());
         vo.setConnectedAt(client.getConnectedAt());
         vo.setLastSeenAt(client.getLastSeenAt());
         return vo;

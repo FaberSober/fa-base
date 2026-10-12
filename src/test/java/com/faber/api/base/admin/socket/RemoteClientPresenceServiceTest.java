@@ -15,6 +15,8 @@ class RemoteClientPresenceServiceTest {
         WsClientPresenceStore store = mock(WsClientPresenceStore.class);
         RemoteClientPresenceService service = new RemoteClientPresenceService();
         ReflectionTestUtils.setField(service, "presenceStore", store);
+        RemoteClientStatusService status = mock(RemoteClientStatusService.class);
+        ReflectionTestUtils.setField(service, "statusService", status);
         Session session = mock(Session.class);
         when(session.getId()).thenReturn("socket-a");
         WsClientInfoEntity client = new WsClientInfoEntity();
@@ -23,5 +25,6 @@ class RemoteClientPresenceServiceTest {
         service.onClose(client);
 
         verify(store).remove("socket-a");
+        verify(status).publish(client);
     }
 }
