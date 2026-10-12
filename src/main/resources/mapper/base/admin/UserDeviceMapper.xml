@@ -5,6 +5,7 @@
 
     <resultMap id="portalLoginDeviceRetVo" type="com.faber.api.portal.auth.vo.PortalLoginDeviceRetVo">
         <id property="id" column="id"/>
+        <result property="clientInstanceId" column="device_id"/>
         <result property="displayName" column="display_name"/>
         <result property="os" column="os"/>
         <result property="osVersion" column="os_version"/>
@@ -16,6 +17,7 @@
 
     <select id="selectPortalLoginDevices" resultMap="portalLoginDeviceRetVo">
         SELECT d.id,
+               d.device_id,
                COALESCE(NULLIF(d.model, ''), NULLIF(d.manufacturer, ''), NULLIF(d.os, ''), '移动设备') AS display_name,
                d.os,
                d.os_version,

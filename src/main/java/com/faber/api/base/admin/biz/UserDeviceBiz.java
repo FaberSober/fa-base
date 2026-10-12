@@ -24,6 +24,8 @@ import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * BASE-用户设备
@@ -344,6 +346,47 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
         kickoutPortalDeviceSessions(userId, target.getDeviceId());
     }
 
+    /** End only the other device's sessions, preserving its trust and registration. */
+    public void logoutPortalLoginDevice(Integer deviceRecordId) {
+        if (deviceRecordId == null || deviceRecordId <= 0) throw new BuzzException("设备参数无效");
+        String userId = getCurrentUserId();
+        String currentDeviceId = getCurrentPortalMobileDeviceId();
+        UserDevice currentDevice = StrUtil.isBlank(currentDeviceId)
+                ? null : findMobileClientDevice(userId, currentDeviceId);
+        Date now = new Date();
+        if (currentDevice == null || currentDevice.getTrustRevokedAt() != null
+                || StrUtil.isBlank(currentDevice.getTrustTokenHash())
+                || (currentDevice.getTrustExpiresAt() != null && !currentDevice.getTrustExpiresAt().after(now))) {
+            throw new BuzzException("请在已登录的可信设备上登出其他设备");
+        }
+        UserDevice target = lambdaQuery()
+                .eq(UserDevice::getId, deviceRecordId)
+                .eq(UserDevice::getUserId, userId)
+                .eq(UserDevice::getClientType, TelemetryClientTypeEnum.MOBILE.getValue())
+                .one();
+        if (target == null) throw new BuzzException("设备不存在或无权操作");
+        if (currentDeviceId.equals(target.getDeviceId())) {
+            throw new BuzzException("当前设备请使用退出登录操作");
+        }
+        kickoutPortalDeviceSessions(userId, target.getDeviceId());
+    }
+
+    private Set<String> getLoggedInPortalDeviceIds(String userId) {
+        Set<String> deviceIds = new HashSet<>();
+        for (String token : StpUtil.getTokenValueListByLoginId(userId, "portal")) {
+            Object loginId = StpUtil.getLoginIdByToken(token);
+            if (loginId == null || !userId.equals(String.valueOf(loginId))
+                    || StpUtil.getStpLogic().getTokenActiveTimeoutByToken(token) == -2) continue;
+            SaSession session = StpUtil.getStpLogic().getTokenSessionByToken(token, false);
+            if (session == null
+                    || !DEVICE_BINDING_VERSION.equals(sessionString(session.get(TOKEN_SESSION_BINDING_VERSION)))
+                    || !TelemetryClientTypeEnum.MOBILE.getValue().equals(sessionString(session.get(TOKEN_SESSION_CLIENT_TYPE)))) continue;
+            String deviceId = sessionString(session.get(TOKEN_SESSION_CLIENT_INSTANCE_ID));
+            if (StrUtil.isNotBlank(deviceId)) deviceIds.add(deviceId);
+        }
+        return deviceIds;
+    }
+
     private void kickoutPortalDeviceSessions(String userId, String deviceId) {
         for (String token : StpUtil.getTokenValueListByLoginId(userId, "portal")) {
             SaSession tokenSession = StpUtil.getTokenSessionByToken(token);
@@ -454,11 +497,17 @@ public class UserDeviceBiz extends BaseBiz<UserDeviceMapper,UserDevice> {
                 normalizeDeviceHeader(os, 64),
                 normalizeDeviceHeader(osVersion, 64)
         );
-        return baseMapper.selectPortalLoginDevices(
+        List<PortalLoginDeviceRetVo> devices = baseMapper.selectPortalLoginDevices(
                 userId,
                 TelemetryClientTypeEnum.MOBILE.getValue(),
                 normalizedDeviceId
         );
+        Set<String> loggedInDeviceIds = getLoggedInPortalDeviceIds(userId);
+        for (PortalLoginDeviceRetVo device : devices) {
+            device.setLoggedIn(!"revoked".equals(device.getTrustStatus())
+                    && loggedInDeviceIds.contains(device.getClientInstanceId()));
+        }
+        return devices;
     }
 
     private String normalizeDeviceHeader(String value, int maxLength) {

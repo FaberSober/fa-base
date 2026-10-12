@@ -1,6 +1,7 @@
 package com.faber.api.portal.auth.vo;
 
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.Date;
 
@@ -15,5 +16,9 @@ public class PortalLoginDeviceRetVo {
     private Date firstLoginTime;
     private Date lastLoginTime;
     private Boolean current;
+    private Boolean loggedIn;
+    /** Only used internally to match session bindings; never returned to the App. */
+    @JsonIgnore
+    private String clientInstanceId;
     private String trustStatus;
 }

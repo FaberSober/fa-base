@@ -61,6 +61,14 @@ public class PortalAccountController extends BaseResHandler {
         return ok();
     }
 
+    @FaLogOpr(value = "登出本人其他设备", crud = LogCrudEnum.U)
+    @LogNoRet
+    @PostMapping("/devices/{deviceId}/logout")
+    public Ret<Void> logoutDevice(@PathVariable Integer deviceId) {
+        userDeviceBiz.logoutPortalLoginDevice(deviceId);
+        return ok();
+    }
+
     @FaLogOpr(value = "删除本人登录设备", crud = LogCrudEnum.D)
     @LogNoRet
     @PostMapping("/devices/{deviceId}/delete")
