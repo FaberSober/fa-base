@@ -36,7 +36,7 @@ public class StatEvent {
     @SqlEquals private String result;
     private Long duration;
     @TableField(typeHandler = UniversalJsonTypeHandler.class) private JsonNode properties;
-    @TableField(typeHandler = UniversalJsonTypeHandler.class) private JsonNode context;
+    @TableField(typeHandler = UniversalJsonTypeHandler.class, keepGlobalFormat = true) private JsonNode context;
     private Date occurTime;
     private Date createTime;
 }

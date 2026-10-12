@@ -15,9 +15,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OracleTelemetryMapperSqlTest {
 
     @Test
+    void shouldUseDmCompatibleTelemetrySql() {
+        assertCompatibleTelemetrySql("dm8");
+    }
+
+    @Test
     void shouldUseOracleCompatibleTelemetrySql() {
+        assertCompatibleTelemetrySql("oracle");
+    }
+
+    private void assertCompatibleTelemetrySql(String databaseId) {
         MybatisConfiguration configuration = new MybatisConfiguration();
-        configuration.setDatabaseId("oracle");
+        configuration.setDatabaseId(databaseId);
         parse(configuration, "mapper/base/telemetry/StatEventMapper.xml");
         parse(configuration, "mapper/base/telemetry/ClientErrorEventMapper.xml");
         parse(configuration, "mapper/base/telemetry/StatDailyMapper.xml");

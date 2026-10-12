@@ -132,4 +132,49 @@
         </choose>
     </select>
 
+    <sql id="dmTableMetadata">
+        SELECT t.TABLE_NAME AS table_name, NULL AS engine, c.COMMENTS AS table_comment, NULL AS create_time
+        FROM ALL_TABLES t
+        LEFT JOIN ALL_TAB_COMMENTS c ON c.OWNER = t.OWNER AND c.TABLE_NAME = t.TABLE_NAME
+        WHERE t.OWNER = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')
+    </sql>
+
+    <select id="queryTable" databaseId="dm8" resultType="com.faber.api.base.generator.vo.ret.TableVo">
+        <include refid="dmTableMetadata"/>
+        <if test="query.tableName != null and query.tableName.trim() != ''">
+            AND t.TABLE_NAME LIKE '%' || #{query.tableName} || '%'
+        </if>
+        <if test="query.tableComment != null and query.tableComment.trim() != ''">
+            AND c.COMMENTS LIKE '%' || #{query.tableComment} || '%'
+        </if>
+        <if test="sorter != null and sorter != ''">
+            ORDER BY ${sorter}
+        </if>
+    </select>
+
+    <select id="getTableByName" databaseId="dm8" resultType="com.faber.api.base.generator.vo.ret.TableVo">
+        <include refid="dmTableMetadata"/>
+        AND t.TABLE_NAME = #{tableName}
+    </select>
+
+    <select id="queryColumns" databaseId="dm8" resultType="com.faber.api.base.generator.vo.ret.ColumnVo">
+        SELECT c.COLUMN_NAME AS column_name,
+               CASE LOWER(c.DATA_TYPE) WHEN 'clob' THEN 'text' WHEN 'real' THEN 'float'
+                    ELSE LOWER(c.DATA_TYPE) END AS data_type,
+               LOWER(c.DATA_TYPE) AS column_type,
+               cc.COMMENTS AS column_comment,
+               CASE WHEN EXISTS (
+                   SELECT 1 FROM ALL_CONSTRAINTS pk
+                   JOIN ALL_CONS_COLUMNS pc ON pc.OWNER = pk.OWNER AND pc.CONSTRAINT_NAME = pk.CONSTRAINT_NAME
+                   WHERE pk.OWNER = c.OWNER AND pk.TABLE_NAME = c.TABLE_NAME
+                     AND pk.CONSTRAINT_TYPE = 'P' AND pc.COLUMN_NAME = c.COLUMN_NAME
+               ) THEN 'PRI' ELSE '' END AS column_key,
+               '' AS extra
+        FROM ALL_TAB_COLUMNS c
+        LEFT JOIN ALL_COL_COMMENTS cc ON cc.OWNER = c.OWNER AND cc.TABLE_NAME = c.TABLE_NAME
+                                    AND cc.COLUMN_NAME = c.COLUMN_NAME
+        WHERE c.OWNER = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AND c.TABLE_NAME = #{tableName}
+        ORDER BY c.COLUMN_ID
+    </select>
+
 </mapper>

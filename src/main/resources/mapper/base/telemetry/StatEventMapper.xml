@@ -37,6 +37,18 @@
          ORDER BY TRUNC(occur_time)
     </select>
 
+    <select id="selectDashboardTrend" databaseId="dm8" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
+        SELECT TRUNC(occur_time) AS stat_date,
+               COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
+               COALESCE(SUM(CASE WHEN event_type = 'LOGIN' AND event_code = 'auth.login.success' THEN 1 ELSE 0 END), 0) AS login_count,
+               COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
+               COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count
+         FROM base_stat_event
+         WHERE app_id = #{appId} AND occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         GROUP BY TRUNC(occur_time)
+         ORDER BY TRUNC(occur_time)
+    </select>
+
     <select id="selectModuleRank" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardRank">
         SELECT COALESCE(NULLIF(module, ''), '其他') AS name,
                COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS primary_count,
@@ -49,6 +61,18 @@
     </select>
 
     <select id="selectModuleRank" databaseId="oracle" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardRank">
+        SELECT * FROM (
+            SELECT COALESCE(NULLIF(module, ''), '其他') AS name,
+                   COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS primary_count,
+                   COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS secondary_count
+              FROM base_stat_event
+             WHERE app_id = #{appId} AND occur_time &gt;= #{startTime}
+             GROUP BY COALESCE(NULLIF(module, ''), '其他')
+             ORDER BY primary_count DESC, secondary_count DESC
+        ) WHERE ROWNUM &lt;= #{limit}
+    </select>
+
+    <select id="selectModuleRank" databaseId="dm8" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardRank">
         SELECT * FROM (
             SELECT COALESCE(NULLIF(module, ''), '其他') AS name,
                    COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS primary_count,
@@ -79,6 +103,16 @@
         ) WHERE ROWNUM &lt;= #{limit}
     </select>
 
+    <select id="selectEventRank" databaseId="dm8" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardRank">
+        SELECT * FROM (
+            SELECT event_code AS name, COUNT(*) AS primary_count, COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS secondary_count
+              FROM base_stat_event
+             WHERE app_id = #{appId} AND occur_time &gt;= #{startTime} AND event_type IN ('ACTION', 'BUSINESS')
+             GROUP BY event_code
+             ORDER BY primary_count DESC
+        ) WHERE ROWNUM &lt;= #{limit}
+    </select>
+
     <select id="selectGlobalDashboardOverview" resultType="com.faber.api.base.telemetry.vo.TelemetryGlobalDashboardOverview">
         SELECT COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
                COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
@@ -99,6 +133,17 @@
     </select>
 
     <select id="selectGlobalDashboardTrend" databaseId="oracle" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
+        SELECT TRUNC(occur_time) AS stat_date,
+               COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
+               COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,
+               COALESCE(SUM(CASE WHEN event_type = 'BUSINESS' THEN 1 ELSE 0 END), 0) AS business_event_count
+          FROM base_stat_event
+         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         GROUP BY TRUNC(occur_time)
+         ORDER BY TRUNC(occur_time)
+    </select>
+
+    <select id="selectGlobalDashboardTrend" databaseId="dm8" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
         SELECT TRUNC(occur_time) AS stat_date,
                COUNT(DISTINCT COALESCE(NULLIF(user_id, ''), session_id)) AS active_user_count,
                COALESCE(SUM(CASE WHEN event_type = 'PAGE_VIEW' THEN 1 ELSE 0 END), 0) AS page_view_count,

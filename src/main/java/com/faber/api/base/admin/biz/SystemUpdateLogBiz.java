@@ -79,7 +79,7 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         boolean lockAcquired = false;
         try (Connection lockConnection = dataSource.getConnection()) {
             String databaseType = resolveDatabaseType(lockConnection.getMetaData().getDatabaseProductName());
-            String lockName = buildLockName(lockConnection);
+            String lockName = buildLockName(lockConnection, databaseType);
             _logger.info("数据库升级初始化使用数据库类型：{}", databaseType);
             acquireDbInitLock(lockConnection, lockName, databaseType);
             lockAcquired = true;
@@ -128,6 +128,12 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
                 extendedLogSupported = updateLogTableExists && hasExtendedLogColumns(conn);
             }
             SystemUpdateLog latestLog = updateLogTableExists ? getLatestByNo(no, extendedLogSupported) : null;
+
+            // DM8 增量脚本从 1.0.10 开始，不能用于空库或尚未完成历史迁移的数据库。
+            if ("dm8".equals(databaseType) && "fa-base".equals(no)
+                    && (latestLog == null || latestLog.getVer() < 1_000_009L)) {
+                throw new IllegalStateException("DM8 自动升级需要 fa-base 至少完成 V1.0.9，请先核对历史迁移和版本日志");
+            }
 
             for (FaSqlHeader header : sqlHeaders) {
                 if (latestLog != null && header.getVer() <= latestLog.getVer()) {
@@ -430,7 +436,9 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
     private boolean isMissingTableOrColumnError(SQLException e) {
         // MySQL: 1054未知列(42S22)、1146表不存在(42S02)
         // PostgreSQL: 42703列不存在、42P01表不存在；Oracle: ORA-00904、ORA-00942
-        return e.getErrorCode() == 1054 || e.getErrorCode() == 1146
+        // DM8: -2106 无效的表或视图名、-2111 无效的列名。
+        return e.getErrorCode() == -2106 || e.getErrorCode() == -2111
+                || e.getErrorCode() == 1054 || e.getErrorCode() == 1146
                 || e.getErrorCode() == 904 || e.getErrorCode() == 942
                 || "42S22".equals(e.getSQLState()) || "42S02".equals(e.getSQLState())
                 || "42703".equals(e.getSQLState()) || "42P01".equals(e.getSQLState());
@@ -519,8 +527,9 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         }
     }
 
-    private String buildLockName(Connection conn) throws SQLException {
-        String lockName = "fa-admin:db-init:" + Objects.toString(conn.getCatalog(), "default");
+    private String buildLockName(Connection conn, String databaseType) throws SQLException {
+        String databaseName = "dm8".equals(databaseType) ? conn.getSchema() : conn.getCatalog();
+        String lockName = "fa-admin:db-init:" + Objects.toString(databaseName, "default");
         return lockName.length() <= 64 ? lockName : lockName.substring(0, 64);
     }
 
@@ -532,11 +541,14 @@ public class SystemUpdateLogBiz extends BaseBiz<SystemUpdateLogMapper, SystemUpd
         if (normalizedName.contains("postgresql")) {
             return "postgre";
         }
+        if (normalizedName.startsWith("dm")) {
+            return "dm8";
+        }
         if (normalizedName.contains("oracle")) {
             return "oracle";
         }
         throw new IllegalStateException("不支持的数据库类型：" + Objects.toString(databaseProductName, "<unknown>")
-                + "，仅支持 MySQL、PostgreSQL、Oracle");
+                + "，仅支持 MySQL、PostgreSQL、Oracle、DM8");
     }
 
     private long toPostgreLockId(String lockName) {

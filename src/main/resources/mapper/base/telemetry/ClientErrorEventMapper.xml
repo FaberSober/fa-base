@@ -26,6 +26,14 @@
          ORDER BY TRUNC(occur_time)
     </select>
 
+    <select id="selectDashboardErrorTrend" databaseId="dm8" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
+        SELECT TRUNC(occur_time) AS stat_date, COUNT(*) AS error_count
+          FROM base_client_error_event
+         WHERE app_id = #{appId} AND occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         GROUP BY TRUNC(occur_time)
+         ORDER BY TRUNC(occur_time)
+    </select>
+
     <select id="selectGlobalDashboardErrorOverview" resultType="com.faber.api.base.telemetry.vo.TelemetryGlobalDashboardOverview">
         SELECT COUNT(*) AS error_count
           FROM base_client_error_event
@@ -41,6 +49,14 @@
     </select>
 
     <select id="selectGlobalDashboardErrorTrend" databaseId="oracle" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
+        SELECT TRUNC(occur_time) AS stat_date, COUNT(*) AS error_count
+          FROM base_client_error_event
+         WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}
+         GROUP BY TRUNC(occur_time)
+         ORDER BY TRUNC(occur_time)
+    </select>
+
+    <select id="selectGlobalDashboardErrorTrend" databaseId="dm8" resultType="com.faber.api.base.telemetry.vo.TelemetryDashboardTrend">
         SELECT TRUNC(occur_time) AS stat_date, COUNT(*) AS error_count
           FROM base_client_error_event
          WHERE occur_time &gt;= #{startTime} AND occur_time &lt; #{endTime}

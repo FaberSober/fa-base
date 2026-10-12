@@ -21,7 +21,8 @@ class LogArchiveDialectTest {
     private final LogArchiveDialectResolver resolver = new LogArchiveDialectResolver(List.of(
             new MySqlLogArchiveDialect(),
             new PostgreSqlLogArchiveDialect(),
-            new OracleLogArchiveDialect()
+            new OracleLogArchiveDialect(),
+            new DmLogArchiveDialect()
     ));
 
     @Test
@@ -29,6 +30,7 @@ class LogArchiveDialectTest {
         assertInstanceOf(MySqlLogArchiveDialect.class, resolver.resolve("MySQL"));
         assertInstanceOf(PostgreSqlLogArchiveDialect.class, resolver.resolve("PostgreSQL"));
         assertInstanceOf(OracleLogArchiveDialect.class, resolver.resolve("Oracle"));
+        assertInstanceOf(DmLogArchiveDialect.class, resolver.resolve("DM DBMS"));
     }
 
     @Test
@@ -49,6 +51,7 @@ class LogArchiveDialectTest {
 
         assertCopiedRowQuery(new MySqlLogArchiveDialect(), start, end, "EXISTS (SELECT 1 FROM base_log_api_2026_08 a", "LIMIT ?");
         assertCopiedRowQuery(new PostgreSqlLogArchiveDialect(), start, end, "EXISTS (SELECT 1 FROM base_log_api_2026_08 a", "LIMIT ?");
+        assertCopiedRowQuery(new DmLogArchiveDialect(), start, end, "EXISTS (SELECT 1 FROM base_log_api_2026_08 a", "ROWNUM <= ?");
         assertCopiedRowQuery(new OracleLogArchiveDialect(), start, end, "EXISTS (SELECT 1 FROM base_log_api_2026_08 a", "ROWNUM <= ?");
     }
 
@@ -56,6 +59,7 @@ class LogArchiveDialectTest {
     void cleanupOperationsAreIdempotentAcrossAllDialects() throws SQLException {
         assertDropSql(new MySqlLogArchiveDialect(), "DROP TABLE IF EXISTS base_log_api_2026_08");
         assertDropSql(new PostgreSqlLogArchiveDialect(), "DROP TABLE IF EXISTS base_log_api_2026_08");
+        assertDropSql(new DmLogArchiveDialect(), "DROP TABLE IF EXISTS base_log_api_2026_08");
         assertDropSql(new OracleLogArchiveDialect(), "DROP TABLE base_log_api_2026_08");
     }
 

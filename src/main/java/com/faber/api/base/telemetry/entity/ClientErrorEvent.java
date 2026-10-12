@@ -56,7 +56,7 @@ public class ClientErrorEvent {
     @TableField(typeHandler = UniversalJsonTypeHandler.class)
     private JsonNode breadcrumbs;
 
-    @TableField(typeHandler = UniversalJsonTypeHandler.class)
+    @TableField(typeHandler = UniversalJsonTypeHandler.class, keepGlobalFormat = true)
     private JsonNode context;
 
     private Date occurTime;

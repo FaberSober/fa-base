@@ -1,12 +1,21 @@
 package com.faber.api.base.admin.biz;
 
 import com.faber.api.base.admin.vo.dto.FaSqlHeader;
+import com.faber.api.base.FaBaseDbInit;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import javax.sql.DataSource;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -117,19 +126,36 @@ class SystemUpdateLogBizHeaderTest {
         assertEquals("mysql", SystemUpdateLogBiz.resolveDatabaseType("MySQL"));
         assertEquals("postgre", SystemUpdateLogBiz.resolveDatabaseType("PostgreSQL"));
         assertEquals("oracle", SystemUpdateLogBiz.resolveDatabaseType("Oracle"));
+        assertEquals("dm8", SystemUpdateLogBiz.resolveDatabaseType("DM DBMS"));
+        assertEquals("dm8", SystemUpdateLogBiz.resolveDatabaseType("DM8"));
     }
 
     @Test
-    void shouldUseOracleColumnDefinitionOrder() throws Exception {
-        Resource resource = new ClassPathResource("sql/fa-base/oracle/1.0.0_base_ddl.sql");
+    void shouldUseDmColumnDefinitionOrder() throws Exception {
+        Resource resource = new ClassPathResource("sql/fa-base/dm8/1.0.10_base_ddl.sql");
         String sql;
         try (var inputStream = resource.getInputStream()) {
             sql = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
 
-        assertTrue(sql.contains("\"LEVEL\" NUMBER(5) NOT NULL"));
+        assertTrue(sql.contains("IDENTITY(1,1) NOT NULL"));
         assertFalse(sql.contains("NOT NULL DEFAULT"));
         assertFalse(sql.contains("END; NOT NULL"));
+    }
+
+    @Test
+    void shouldRejectDmDatabaseWithoutHistoricalBaselineBeforeExecutingUpgrades() throws Exception {
+        DataSource dataSource = mock(DataSource.class);
+        Connection connection = mock(Connection.class);
+        PreparedStatement statement = mock(PreparedStatement.class);
+        when(dataSource.getConnection()).thenReturn(connection);
+        when(connection.prepareStatement("SELECT 1 FROM base_system_update_log WHERE 1 = 0")).thenReturn(statement);
+        when(statement.executeQuery()).thenThrow(new SQLException("无效的表或视图名", "22000", -2106));
+        systemUpdateLogBiz.dataSource = dataSource;
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> ReflectionTestUtils.invokeMethod(systemUpdateLogBiz, "initOneBuzz", new FaBaseDbInit(), "dm8", false, false));
+        assertTrue(exception.getMessage().contains("至少完成 V1.0.9"));
     }
 
     @Test
@@ -144,9 +170,14 @@ class SystemUpdateLogBizHeaderTest {
 
     @Test
     void shouldLoadSqlFromDatabaseTypeDirectory() throws Exception {
-        assertEquals(32, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "mysql").size());
-        assertEquals(32, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "postgre").size());
-        assertEquals(32, systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "oracle").size());
+        var mysql = systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "mysql");
+        var postgre = systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "postgre");
+        var dm = systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "dm8");
+        assertFalse(mysql.isEmpty());
+        assertEquals(mysql.stream().map(FaSqlHeader::getVer).toList(), postgre.stream().map(FaSqlHeader::getVer).toList());
+        assertEquals(mysql.stream().filter(h -> h.getVer() >= 1_000_010L).map(FaSqlHeader::getVer).toList(),
+                dm.stream().map(FaSqlHeader::getVer).toList());
+        assertFalse(systemUpdateLogBiz.loadAndValidateSqlHeaders("fa-base", "oracle").isEmpty());
     }
 
     @Test
