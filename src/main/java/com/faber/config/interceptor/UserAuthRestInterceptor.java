@@ -14,6 +14,7 @@ import com.faber.config.auth.TenantContextResolver;
 import com.faber.core.config.annotation.AdminOpr;
 import com.faber.core.config.annotation.ApiToken;
 import com.faber.core.config.annotation.IgnoreUserToken;
+import com.faber.core.constant.CommonConstants;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.context.TenantContext;
 import com.faber.core.exception.auth.UserTokenException;
@@ -71,7 +72,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         // 配置该注解，说明在上下文中注入当前操作用户为admin
         AdminOpr adminOpr = getMethodAnno(handler, AdminOpr.class);
         if (adminOpr != null) {
-            User user = userBiz.getById(1L);
+            User user = userBiz.getById(CommonConstants.SUPER_ADMIN_ID);
             userBiz.setUserLogin(user);
             return super.preHandle(request, response, handler);
         }
