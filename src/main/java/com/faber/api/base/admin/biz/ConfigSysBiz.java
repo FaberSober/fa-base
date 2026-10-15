@@ -7,6 +7,7 @@ import com.faber.api.base.admin.mapper.ConfigSysMapper;
 import com.faber.api.base.admin.vo.ret.SystemConfigPo;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.service.StorageService;
+import com.faber.core.utils.FaFileUploadUtils;
 import com.faber.core.vo.config.FaConfig;
 import com.faber.core.web.biz.BaseBiz;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,10 +36,13 @@ public class ConfigSysBiz extends BaseBiz<ConfigSysMapper, ConfigSys> {
 
     @Override
     public boolean updateById(ConfigSys entity) {
-        super.updateById(entity);
+        if (!super.updateById(entity)) {
+            return false;
+        }
 
-        storageService.syncStorageDatabaseConfig();
         this.refreshConfigSysCache();
+        FaFileUploadUtils.clearQiniuUploadTokenCache();
+        storageService.syncStorageDatabaseConfig();
 
         return true;
     }
