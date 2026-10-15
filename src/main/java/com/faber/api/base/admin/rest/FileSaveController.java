@@ -150,6 +150,7 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
         data.put("domain", faConfig.getQiniuDomain());
         data.put("bucketName", faConfig.getQiniuBucketName());
         data.put("basePath", faConfig.getQiniuBasePath());
+        data.put("accessType", faConfig.getQiniuAccessType().getValue());
         return ok(data);
     }
 

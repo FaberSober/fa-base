@@ -24,6 +24,10 @@ import com.faber.core.utils.FaFileUtils;
 import com.faber.core.vo.config.FaConfig;
 import com.faber.core.web.biz.BaseBiz;
 import com.qiniu.util.Auth;
+import com.qiniu.common.QiniuException;
+import com.qiniu.storage.BucketManager;
+import com.qiniu.storage.Configuration;
+import com.qiniu.storage.Region;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +52,8 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
@@ -60,6 +66,8 @@ import javax.imageio.ImageIO;
 @Slf4j
 @Service
 public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements StorageService {
+
+    private static final Pattern QINIU_FILENAME = Pattern.compile("^(.+)_\\d{14}_(\\d+)(\\.[^/]*)?$");
 
     @Resource FileStorageService fileStorageService;
     @Resource ConfigSysService configSysService;
@@ -269,34 +277,48 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      * @return
      */
     public FileSave syncUrlQiniu(String url) {
-        // parse id
-        String id = FaFileUtils.parseIdFromUrl(url);
-        if (StrUtil.isEmpty(id)) {
-            throw new BuzzException("无法从URL中解析出文件ID");
-        }
-
         FaConfig faConfig = configSysService.getConfig();
-        
-        String fullName = url.substring(url.lastIndexOf("/") + 1);
-        int dot = fullName.lastIndexOf(".");
-        String name = fullName.substring(0, fullName.indexOf("_"));
-        String ext = fullName.substring(dot+1);
+        URI resource = URI.create(validateQiniuUrl(url, faConfig));
+        if (resource.getRawQuery() != null) throw new BuzzException("七牛文件登记地址不能包含查询参数");
+        if (StrUtil.hasBlank(faConfig.getQiniuAk(), faConfig.getQiniuSk(), faConfig.getQiniuBucketName())) {
+            throw new BuzzException("七牛云配置不完整");
+        }
+        String domainPath = URI.create(faConfig.getQiniuDomain()).getPath();
+        if (!domainPath.endsWith("/")) domainPath += "/";
+        String key = resource.getPath().substring(domainPath.length());
+        String fullName = key.substring(key.lastIndexOf('/') + 1);
+        Matcher filename = QINIU_FILENAME.matcher(fullName);
+        if (!filename.matches()) throw new BuzzException("七牛文件名必须包含上传时间和文件ID");
+        String originalFilename = filename.group(1) + StrUtil.nullToEmpty(filename.group(3));
+        if (!faSetting.getFile().isFileAllowed(originalFilename)) {
+            throw new BuzzException("非法文件，附件上传出错");
+        }
+        String basePath = StrUtil.removePrefix(StrUtil.nullToEmpty(faConfig.getQiniuBasePath()), "/");
+        if (!basePath.isEmpty() && !basePath.endsWith("/")) basePath += "/";
 
-        String path = url.substring(url.indexOf(faConfig.getQiniuBasePath()) + faConfig.getQiniuBasePath().length(), url.lastIndexOf("/"));
+        com.qiniu.storage.model.FileInfo metadata;
+        try {
+            BucketManager manager = new BucketManager(Auth.create(faConfig.getQiniuAk(), faConfig.getQiniuSk()),
+                    new Configuration(Region.autoRegion()));
+            metadata = manager.stat(faConfig.getQiniuBucketName(), key);
+        } catch (QiniuException e) {
+            throw new BuzzException("七牛文件不存在或元数据读取失败，请检查存储配置");
+        }
+        if (metadata == null || metadata.fsize < 0) throw new BuzzException("七牛文件元数据无效");
 
         FileSave fileSave = new FileSave();
-        fileSave.setId(id);
-        fileSave.setUrl(url);
-        fileSave.setSize(FaFileUtils.getFileSize(url)); // TODO 获取文件大小
+        fileSave.setId(filename.group(2));
+        fileSave.setUrl(resource.toASCIIString());
+        fileSave.setSize(metadata.fsize);
         fileSave.setFilename(fullName);
-        fileSave.setOriginalFilename(name + '.' + ext);
-        fileSave.setBasePath(faConfig.getQiniuBasePath());
-        fileSave.setPath(path);
-        fileSave.setExt(ext);
-        fileSave.setContentType("ext"); // TODO MIME类型
+        fileSave.setOriginalFilename(originalFilename);
+        fileSave.setBasePath(basePath);
+        fileSave.setPath(key.substring(basePath.length(), key.length() - fullName.length()));
+        fileSave.setExt(FileUtil.extName(fullName));
+        fileSave.setContentType(StrUtil.blankToDefault(metadata.mimeType, "application/octet-stream"));
         fileSave.setPlatform(ConfigSysStorageActiveEnum.QINIU.getDesc());
         fileSave.setAttr("{}");
-        super.save(fileSave);
+        if (!super.save(fileSave)) throw new BuzzException("七牛文件登记失败");
         return fileSave;
     }
 
