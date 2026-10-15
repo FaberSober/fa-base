@@ -13,6 +13,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
+import org.springframework.mock.env.MockEnvironment;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -74,7 +75,7 @@ class RequestCryptoBizTest {
                 .when(bucket).set(anyString(), eq(120L), eq(TimeUnit.SECONDS));
         when(bucket.get()).thenAnswer(call -> stored.get());
         when(bucket.getAndDelete()).thenAnswer(call -> stored.getAndSet(null));
-        biz = new RequestCryptoBiz(properties, redis, validators.getValidator(), new ObjectMapper());
+        biz = new RequestCryptoBiz(properties, redis, validators.getValidator(), new ObjectMapper(), new MockEnvironment());
     }
 
     @Test
@@ -187,7 +188,7 @@ class RequestCryptoBizTest {
     void invalidKeyConfigurationFailsWithoutLeakingItsValue() {
         properties.setPrivateKeyFile("sensitive-private-path-that-does-not-exist");
         var error = assertThrows(IllegalStateException.class,
-                () -> new RequestCryptoBiz(properties, redis, validators.getValidator(), new ObjectMapper()));
+                () -> new RequestCryptoBiz(properties, redis, validators.getValidator(), new ObjectMapper(), new MockEnvironment()));
         assertNull(error.getCause());
         assertFalse(error.getMessage().contains(properties.getPrivateKeyFile()));
     }

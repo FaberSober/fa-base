@@ -15,10 +15,14 @@ import com.fasterxml.jackson.databind.type.LogicalType;
 import jakarta.validation.Validator;
 import org.redisson.api.RBucket;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateCrtKey;
@@ -45,7 +49,7 @@ public class RequestCryptoBiz {
     private final String publicKey;
 
     public RequestCryptoBiz(RequestCryptoProperties properties, FaRedisUtils redis, Validator validator,
-                            ObjectMapper objectMapper) {
+                            ObjectMapper objectMapper, Environment environment) {
         this.properties = properties;
         this.redis = redis;
         this.validator = validator;
@@ -61,9 +65,20 @@ public class RequestCryptoBiz {
             if (properties.getKid() == null || !properties.getKid().matches("[A-Za-z0-9._-]{1,64}")) {
                 throw new IllegalArgumentException();
             }
-            Path path = Path.of(properties.getPrivateKeyFile());
-            if (Files.size(path) > 16384) throw new IllegalArgumentException();
-            String pem = Files.readString(path).replace("-----BEGIN PRIVATE KEY-----", "")
+            String location = properties.getPrivateKeyFile();
+            Resource resource;
+            if (location.startsWith("classpath:")) {
+                if (!environment.acceptsProfiles(Profiles.of("dev & !prod"))) throw new IllegalArgumentException();
+                resource = new ClassPathResource(location.substring("classpath:".length()));
+            } else {
+                resource = new FileSystemResource(location);
+            }
+            byte[] encoded;
+            try (var input = resource.getInputStream()) {
+                encoded = input.readNBytes(16385);
+            }
+            if (encoded.length > 16384) throw new IllegalArgumentException();
+            String pem = new String(encoded, StandardCharsets.US_ASCII).replace("-----BEGIN PRIVATE KEY-----", "")
                     .replace("-----END PRIVATE KEY-----", "").replaceAll("\\s", "");
             KeyFactory factory = KeyFactory.getInstance("RSA");
             this.privateKey = (RSAPrivateCrtKey) factory.generatePrivate(
@@ -73,7 +88,7 @@ public class RequestCryptoBiz {
                     new RSAPublicKeySpec(privateKey.getModulus(), privateKey.getPublicExponent())).getEncoded());
         } catch (Exception e) {
             // 不附带原异常，避免配置绑定错误或文件内容进入启动日志。
-            throw new IllegalStateException("请求加密配置无效，请检查 kid 和 RSA-2048 PKCS#8 私钥文件");
+            throw new IllegalStateException("请求加密配置无效，请检查 kid 和 RSA-2048 PKCS#8 私钥文件；classpath 测试密钥仅允许 dev 环境");
         }
     }
 

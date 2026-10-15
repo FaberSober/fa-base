@@ -2,9 +2,18 @@
 
 本批完成 Web Demo 及后台公共能力。App、`/loginV2` 尚未接入，原登录接口保持不变。
 
-## 启用配置
+## 开发环境直接演示
 
-当前项目 `application.yml` 默认开启加密功能和防重放，启动前需准备有效私钥；尚未准备密钥时，可设置 `FA_CRYPTO_ENABLED=false` 关闭此能力。先在仓库外生成 RSA-2048 PKCS#8 私钥，例如：
+项目默认启用 `dev` profile，并开启加密功能和防重放。克隆后沿用现有数据库、Redis 配置启动后端，即可访问 Demo；macOS、Windows 不需要额外生成、复制私钥或设置用户目录。
+
+- `application-dev.yml` 默认使用 `classpath:crypto/dev-public-request-key.pem`，密钥标识为 `dev-public-v1`。
+- 文件位于 `fa-base/src/main/resources/crypto/dev-public-request-key.pem`，是**视为公开数据的开发测试资产**，仅用于假数据演示，不保护真实密码或客户数据。
+- `FA_CRYPTO_PRIVATE_KEY_FILE`、`FA_CRYPTO_KID` 仍可覆盖开发默认值；本机已有外置密钥配置时优先使用该配置。
+- classpath 密钥只允许在 `dev` 激活且 `prod` 未激活时加载；`prod`、`dev,prod` 或其他 profile 会拒绝这种加载方式。其他环境保持外置文件配置，不自动回退到开发密钥。
+
+## 生产环境配置
+
+生产部署显式启用 `prod` profile，并为客户生成独立的 RSA-2048 PKCS#8 私钥。例如在仓库外生成：
 
 ```sh
 mkdir -p "$HOME/.config/fa-admin"
@@ -16,18 +25,20 @@ chmod 600 "$HOME/.config/fa-admin/request-crypto.pem"
 让后端进程加载以下环境变量，路径替换为实际绝对路径：
 
 ```sh
+export SPRING_PROFILES_ACTIVE=prod
 export FA_CRYPTO_ENABLED=true
 export FA_CRYPTO_KID=v1
 export FA_CRYPTO_PRIVATE_KEY_FILE="$HOME/.config/fa-admin/request-crypto.pem"
 export FA_CRYPTO_REPLAY_ENABLED=false
 ```
 
+- Windows PowerShell 可用 `$env:SPRING_PROFILES_ACTIVE='prod'`、`$env:FA_CRYPTO_PRIVATE_KEY_FILE='C:\fa-config\request-crypto.pem'` 设置对应值；其他变量同理。
 - 对应配置为 `fa.security.crypto.enabled`、`kid`、`private-key-file`、`replay.enabled`。
-- 未指定私钥环境变量时，项目使用 `${user.home}/.config/fa-admin/request-crypto.pem`，其中 `user.home` 是运行 Java 进程的用户主目录。以上示例显式关闭防重放，便于先验证关闭模式；验证开启模式时设为 `true`。
+- `prod` 未指定私钥环境变量时，使用 `${user.home}/.config/fa-admin/request-crypto.pem`，其中 `user.home` 是运行 Java 进程的用户主目录；没有有效文件时启动失败，可设置 `FA_CRYPTO_ENABLED=false` 关闭此能力。以上示例显式关闭防重放，便于先验证关闭模式；正式开启时设为 `true`。
 - 启用后缺少有效私钥会启动失败，错误信息不附带私钥内容。公钥从私钥推导，客户端不能获取私钥。
 - 多实例必须使用相同配置与密钥；开启防重放时还需共用 Redis，沿用项目 Redis 前缀。
 - 配置变更后重启服务。当前仅支持一个活动 `kid`，本批不提供轮换宽限期；更换密钥前先完成验收，轮换机制留待后续发布工作。
-- 不提交真实私钥到仓库；测试资源中的密钥只用于自动化测试，不能用于部署。
+- 不提交真实生产私钥到仓库；内置公开开发密钥和自动化测试资源中的密钥均不能用于客户生产环境。
 - 后端启动时沿用现有升级流程加载 `fa-demo` 的 MySQL / PostgreSQL `1.0.23_demo_crypto.sql` 菜单脚本，不增加业务表。
 
 ## 接口与使用约定
