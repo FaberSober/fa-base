@@ -1,6 +1,7 @@
 package com.faber.config.interceptor;
 
 import cn.hutool.core.util.StrUtil;
+import com.faber.api.base.admin.annotation.FileAccess;
 import com.faber.api.base.admin.biz.UserDeviceBiz;
 import com.faber.api.base.admin.entity.UserDevice;
 import com.faber.api.base.telemetry.enums.TelemetryClientTypeEnum;
@@ -40,7 +41,7 @@ public class UserDeviceInterceptor extends AbstractInterceptor {
 
         // 配置该注解，说明不进行用户拦截
         IgnoreUserToken ignoreUserToken = getMethodAnno(handler, IgnoreUserToken.class);
-        if (ignoreUserToken != null) {
+        if (ignoreUserToken != null && !Boolean.TRUE.equals(request.getAttribute(FileAccess.AUTH_REQUIRED))) {
             return super.preHandle(request, response, handler);
         }
 

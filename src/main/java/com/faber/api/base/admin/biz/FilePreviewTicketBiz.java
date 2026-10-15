@@ -13,9 +13,12 @@ import com.faber.core.exception.BuzzException;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.utils.FaRedisUtils;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.io.File;
 import java.io.IOException;
@@ -137,6 +140,9 @@ public class FilePreviewTicketBiz {
         File file = fileSaveBiz.getFileObj(fileSave);
         boolean temporaryFile = !isLocalFile(fileSave);
         try {
+            HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
+            response.setHeader("Cache-Control", "private, no-store");
+            response.setHeader("Referrer-Policy", "no-referrer");
             FaFileUtils.downloadFileShard(file, resolveFilename(fileSave));
         } finally {
             if (temporaryFile) {

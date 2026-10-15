@@ -15,6 +15,7 @@ import com.faber.api.base.admin.mapper.FileSaveMapper;
 import com.faber.core.bean.BaseCrtEntity;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.enums.ConfigSysStorageActiveEnum;
+import com.faber.core.enums.ConfigSysQiniuAccessTypeEnum;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.service.ConfigSysService;
 import com.faber.core.service.StorageService;
@@ -22,6 +23,7 @@ import com.faber.core.utils.FaDateUtils;
 import com.faber.core.utils.FaFileUtils;
 import com.faber.core.vo.config.FaConfig;
 import com.faber.core.web.biz.BaseBiz;
+import com.qiniu.util.Auth;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +43,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -61,6 +65,65 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     @Resource ConfigSysService configSysService;
     @Resource FaSetting faSetting;
     @Resource FileBizBiz fileBizBiz;
+
+    public boolean isPrivateQiniu(FileSave file) {
+        return file != null && ConfigSysStorageActiveEnum.QINIU.getDesc().equals(file.getPlatform())
+                && configSysService.getConfig().getQiniuAccessType() == ConfigSysQiniuAccessTypeEnum.PRIVATE;
+    }
+
+    public boolean isPublicSystemResource(String fileId) {
+        if (StrUtil.isBlank(fileId)) return false;
+        FaConfig config = configSysService.getConfig();
+        return fileId.equals(config.getLogo()) || fileId.equals(config.getLogoWithText())
+                || fileId.equals(config.getLoginBg()) || fileId.equals(config.getWxminiapp());
+    }
+
+    private String getRemoteFileUrl(FileSave file, boolean preview) {
+        String url = preview && hasTh(file) ? file.getThUrl() : file.getUrl();
+        if (!isPrivateQiniu(file)) return URLUtil.encode(url);
+        FaConfig config = configSysService.getConfig();
+        if (StrUtil.hasBlank(config.getQiniuAk(), config.getQiniuSk(), config.getQiniuDomain())) {
+            throw new BuzzException("七牛云私有访问配置不完整");
+        }
+        // 存储组件的七牛预签名接口不保留处理参数，直接复用七牛 SDK 对完整 URL 签名。
+        return Auth.create(config.getQiniuAk(), config.getQiniuSk())
+                .privateDownloadUrl(validateQiniuUrl(url, config), 600);
+    }
+
+    private String validateQiniuUrl(String url, FaConfig config) {
+        try {
+            URI resource = URI.create(url.replace(" ", "%20"));
+            URI domain = URI.create(config.getQiniuDomain());
+            String prefix = domain.getPath();
+            if (!prefix.endsWith("/")) prefix += "/";
+            String basePath = StrUtil.nullToEmpty(config.getQiniuBasePath());
+            prefix += basePath.startsWith("/") ? basePath.substring(1) : basePath;
+            if (!prefix.endsWith("/")) prefix += "/";
+            String path = resource.getPath();
+            if (!("http".equalsIgnoreCase(resource.getScheme()) || "https".equalsIgnoreCase(resource.getScheme()))
+                    || !resource.getScheme().equalsIgnoreCase(domain.getScheme())
+                    || resource.getHost() == null || !resource.getHost().equalsIgnoreCase(domain.getHost())
+                    || resource.getPort() != domain.getPort() || resource.getRawUserInfo() != null
+                    || resource.getRawFragment() != null || domain.getRawUserInfo() != null
+                    || domain.getRawQuery() != null || domain.getRawFragment() != null
+                    || path == null || !path.startsWith(prefix) || path.length() <= prefix.length()
+                    || path.contains("\\") || path.chars().anyMatch(Character::isISOControl)) {
+                throw new IllegalArgumentException();
+            }
+            for (String part : path.split("/")) {
+                if (".".equals(part) || "..".equals(part)) throw new IllegalArgumentException();
+            }
+            if (resource.getRawQuery() != null) {
+                String query = URLDecoder.decode(resource.getRawQuery(), StandardCharsets.UTF_8);
+                for (String part : query.split("&")) {
+                    if (part.startsWith("e=") || part.startsWith("token=")) throw new IllegalArgumentException();
+                }
+            }
+            return resource.toASCIIString();
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BuzzException("七牛文件地址无效或不在配置的存储路径内");
+        }
+    }
 
     /**
      * 下载URL文件到本地，并入库
@@ -282,8 +345,19 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
             return new File(fileFullPath);
         } else {
             File tempFile = FileUtil.createTempFile(fileSave.getFileNameWithoutExtension(), "." + fileSave.getExt(), true);
-            fileStorageService.download(getFileInfo(fileSave)).file(tempFile);
-            return tempFile;
+            try {
+                if (isPrivateQiniu(fileSave)) {
+                    HttpUtil.downloadFile(getRemoteFileUrl(fileSave, false), tempFile);
+                } else {
+                    fileStorageService.download(getFileInfo(fileSave)).file(tempFile);
+                }
+                return tempFile;
+            } catch (RuntimeException e) {
+                FileUtil.del(tempFile);
+                // 网络异常可能含下载签名，不能把原异常写入日志或响应。
+                if (isPrivateQiniu(fileSave)) throw new BuzzException("七牛文件下载失败，请检查存储配置或文件状态");
+                throw e;
+            }
         }
     }
 
@@ -328,7 +402,11 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         } else {
             // TO-DO 其他下载渠道直接返回URL
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
-            response.sendRedirect(URLUtil.encode(fileSave.getUrl()));
+            if (isPrivateQiniu(fileSave)) {
+                response.setHeader("Cache-Control", "private, no-store");
+                response.setHeader("Referrer-Policy", "no-referrer");
+            }
+            response.sendRedirect(getRemoteFileUrl(fileSave, false));
         }
     }
 
@@ -355,9 +433,12 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
         } else {
             // TO-DO 其他下载渠道直接返回URL
             // 判断大小，如果缩略图大于原图，或者没有缩略图，则直接返回原图
-            String url = hasTh(fileSave) ? fileSave.getThUrl() : fileSave.getUrl();
             HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
-            response.sendRedirect(URLUtil.encode(url));
+            if (isPrivateQiniu(fileSave)) {
+                response.setHeader("Cache-Control", "private, no-store");
+                response.setHeader("Referrer-Policy", "no-referrer");
+            }
+            response.sendRedirect(getRemoteFileUrl(fileSave, true));
         }
     }
 
@@ -377,8 +458,13 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      * @return
      */
     public String getFileStr(String fileId) {
-        File file = getFileObj(fileId);
-        return FileUtil.readString(file, StandardCharsets.UTF_8);
+        FileSave fileSave = getById(fileId);
+        File file = getFileObj(fileSave);
+        try {
+            return FileUtil.readString(file, StandardCharsets.UTF_8);
+        } finally {
+            if (!fileSave.getPlatform().startsWith("local-")) FileUtil.del(file);
+        }
     }
 
     /**

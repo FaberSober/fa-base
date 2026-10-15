@@ -4,10 +4,13 @@ import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.faber.api.base.admin.annotation.FileAccess;
+import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
 import com.faber.api.base.admin.entity.User;
 import com.faber.api.base.admin.entity.UserToken;
+import com.faber.api.base.admin.entity.FileSave;
 import com.faber.api.base.telemetry.service.TelemetryService;
 import com.faber.config.auth.OnlineUserTracker;
 import com.faber.config.auth.TenantContextResolver;
@@ -19,6 +22,7 @@ import com.faber.core.constant.FaSetting;
 import com.faber.core.context.TenantContext;
 import com.faber.core.exception.auth.UserTokenException;
 import com.faber.core.exception.auth.UserNoPermissionException;
+import com.faber.core.exception.BuzzException;
 import com.faber.core.vo.msg.BaseRet;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -26,6 +30,9 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.servlet.HandlerMapping;
+
+import java.util.Map;
 
 /**
  * 用户授权过滤器
@@ -51,6 +58,9 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
     @Resource
     private FaSetting faSetting;
+
+    @Resource
+    private FileSaveBiz fileSaveBiz;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -79,7 +89,8 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
 
         // 配置该注解，说明不进行用户拦截
         IgnoreUserToken ignoreUserToken = getMethodAnno(handler, IgnoreUserToken.class);
-        if (ignoreUserToken != null) {
+        boolean requireFileAuth = requiresFileAuthentication(request, response, handler);
+        if (ignoreUserToken != null && !requireFileAuth) {
             return super.preHandle(request, response, handler);
         }
 
@@ -136,6 +147,30 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
                 request.getHeader(TelemetryService.HEADER_CLIENT_TYPE), request.getHeader("FaClientInstanceId"));
 
         return super.preHandle(request, response, handler);
+    }
+
+    private boolean requiresFileAuthentication(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        FileAccess fileAccess = getMethodAnno(handler, FileAccess.class);
+        if (fileAccess == null) {
+            return false;
+        }
+        Object variables = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+        if (!(variables instanceof Map<?, ?> paths) || !(paths.get("fileId") instanceof String fileId)
+                || StrUtil.isBlank(fileId)) {
+            throw new BuzzException("文件ID不能为空");
+        }
+        FileSave file = fileSaveBiz.getById(fileId);
+        if (file == null) {
+            throw new BuzzException("文件不存在或已删除");
+        }
+        if (!fileSaveBiz.isPrivateQiniu(file)) {
+            return false;
+        }
+        response.setHeader("Cache-Control", "private, no-store");
+        response.setHeader("Referrer-Policy", "no-referrer");
+        boolean required = !fileAccess.allowPublicResource() || !fileSaveBiz.isPublicSystemResource(fileId);
+        request.setAttribute(FileAccess.AUTH_REQUIRED, required);
+        return required;
     }
 
     static void requireApplicationAccess(String requestUri, User user) {

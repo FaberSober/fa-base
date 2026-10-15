@@ -79,6 +79,11 @@ public class RequestAgainFilter implements Filter {
 
             // 判断是否是跳过判断的URL
             String uri = getRequestPath(request);
+            boolean filePreviewRequest = isFilePreviewCredentialRequest(uri);
+            if (filePreviewRequest) {
+                response.setHeader("Cache-Control", "private, no-store");
+                response.setHeader("Referrer-Policy", "no-referrer");
+            }
             boolean isSkipUrl = matchesSkipUrl(uri);
             // 判断是否是websocket请求
             boolean isWebSocket = "websocket".equalsIgnoreCase(request.getHeader("upgrade"));
@@ -155,7 +160,7 @@ public class RequestAgainFilter implements Filter {
             outputStream.write(content);
             outputStream.flush();
 
-            if (NO_LOG_APIS.contains(requestWrapper.getRequestURI())) {
+            if (filePreviewRequest || NO_LOG_APIS.contains(requestWrapper.getRequestURI())) {
                 return;
             }
 
@@ -256,6 +261,12 @@ public class RequestAgainFilter implements Filter {
 
     static boolean matchesSkipUrl(String uri) {
         return SKIP_URLS.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, uri));
+    }
+
+    static boolean isFilePreviewCredentialRequest(String uri) {
+        String prefix = "/api/base/admin/fileSave/";
+        return (prefix + "createPreviewTicket").equals(uri) || (prefix + "exchangePreviewTicket").equals(uri)
+                || uri.startsWith(prefix + "getPreviewFile/") || uri.startsWith(prefix + "getPreviewDownload/");
     }
 
     /**
