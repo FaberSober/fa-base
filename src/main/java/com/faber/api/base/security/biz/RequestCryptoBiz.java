@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.type.LogicalType;
 import jakarta.validation.Validator;
+import jakarta.validation.constraints.NotBlank;
 import org.redisson.api.RBucket;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.env.Environment;
@@ -38,6 +39,10 @@ public class RequestCryptoBiz {
     public static final String DEMO_PURPOSE = "CRYPTO_DEMO";
     public static final String DEMO_PATH = "/api/base/demo/crypto/roundtrip";
     public static final String DEMO_PERMISSION = "/admin/demo/crypto";
+    public static final String ADMIN_LOGIN = "ADMIN_LOGIN";
+    public static final String PORTAL_LOGIN = "PORTAL_LOGIN";
+    public static final String ADMIN_LOGIN_PATH = "/api/base/admin/auth/loginV2";
+    public static final String PORTAL_LOGIN_PATH = "/api/portal/auth/loginV2";
     private static final int CHALLENGE_SECONDS = 120;
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -98,6 +103,14 @@ public class RequestCryptoBiz {
 
     public Preparation prepare(String purpose, String userId) {
         requireDemo(purpose, userId);
+        return prepareTarget(purpose, DEMO_PATH, userId);
+    }
+
+    public Preparation prepareLogin(String purpose) {
+        return prepareTarget(purpose, loginPath(purpose), null);
+    }
+
+    private Preparation prepareTarget(String purpose, String path, String userId) {
         if (!properties.getReplay().isEnabled()) {
             return new Preparation(1, properties.getKid(), false, null, null);
         }
@@ -105,7 +118,7 @@ public class RequestCryptoBiz {
         RANDOM.nextBytes(random);
         String id = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
         try {
-            bucket(id).set(binding(userId), CHALLENGE_SECONDS, TimeUnit.SECONDS);
+            bucket(id).set(binding(purpose, path, userId), CHALLENGE_SECONDS, TimeUnit.SECONDS);
         } catch (RuntimeException e) {
             throw new BuzzException("防重放服务暂不可用");
         }
@@ -115,13 +128,22 @@ public class RequestCryptoBiz {
 
     public <T> T decryptDemo(CryptoEnvelope envelope, String userId, Class<T> type) {
         requireDemo(envelope == null ? null : envelope.purpose(), userId);
+        return decrypt(envelope, DEMO_PURPOSE, DEMO_PATH, userId, type);
+    }
+
+    public LoginCredentials decryptLogin(CryptoEnvelope envelope, String purpose) {
+        return decrypt(envelope, purpose, loginPath(purpose), null, LoginCredentials.class);
+    }
+
+    private <T> T decrypt(CryptoEnvelope envelope, String purpose, String path, String userId, Class<T> type) {
+        if (envelope == null || !purpose.equals(envelope.purpose())) throw new BuzzException("不支持的加密用途");
         if (!properties.getKid().equals(envelope.kid())) throw new BuzzException("加密密钥不支持，请重新准备请求");
         boolean replay = properties.getReplay().isEnabled();
         if (replay) {
             if (envelope.challengeId() == null || !envelope.challengeId().matches("[A-Za-z0-9_-]{43}")) {
                 throw new BuzzException("缺少有效挑战，请重新准备请求");
             }
-            if (!binding(userId).equals(readChallenge(envelope.challengeId(), false))) {
+            if (!binding(purpose, path, userId).equals(readChallenge(envelope.challengeId(), false))) {
                 throw new BuzzException("挑战已过期、已使用或不匹配");
             }
         } else if (envelope.challengeId() != null) {
@@ -129,13 +151,13 @@ public class RequestCryptoBiz {
         }
         T body;
         try {
-            byte[] plaintext = RequestCrypto.decrypt(envelope, privateKey, "POST", DEMO_PATH);
+            byte[] plaintext = RequestCrypto.decrypt(envelope, privateKey, "POST", path);
             body = json.readValue(plaintext, type);
             if (body == null || !validator.validate(body).isEmpty()) throw new IllegalArgumentException();
         } catch (Exception e) {
             throw new BuzzException("加密信封或业务数据无效");
         }
-        if (replay && !binding(userId).equals(readChallenge(envelope.challengeId(), true))) {
+        if (replay && !binding(purpose, path, userId).equals(readChallenge(envelope.challengeId(), true))) {
             throw new BuzzException("挑战已过期、已使用或不匹配");
         }
         return body;
@@ -146,8 +168,14 @@ public class RequestCryptoBiz {
         if (userId == null || userId.isBlank()) throw new BuzzException("请先登录");
     }
 
-    private String binding(String userId) {
-        return properties.getKid() + ":" + DEMO_PURPOSE + ":POST:" + DEMO_PATH + ":" + userId;
+    private String loginPath(String purpose) {
+        if (ADMIN_LOGIN.equals(purpose)) return ADMIN_LOGIN_PATH;
+        if (PORTAL_LOGIN.equals(purpose)) return PORTAL_LOGIN_PATH;
+        throw new BuzzException("不支持的加密用途");
+    }
+
+    private String binding(String purpose, String path, String userId) {
+        return "1:" + properties.getKid() + ":" + purpose + ":POST:" + path + ":" + (userId == null ? "" : userId);
     }
 
     private RBucket<String> bucket(String id) {
@@ -165,4 +193,5 @@ public class RequestCryptoBiz {
 
     public record PublicKeyInfo(int v, String kid, String publicKey) {}
     public record Preparation(int v, String kid, boolean replayEnabled, String challengeId, String expiresAt) {}
+    public record LoginCredentials(@NotBlank String username, @NotBlank String password) {}
 }

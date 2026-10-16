@@ -1,6 +1,6 @@
-# 通用请求加密：Web / App Demo 接入与验证
+# 通用请求加密：Demo 与登录接入验证
 
-Web、App Demo 均已由用户确认验收通过；`/loginV2` 尚未接入，原登录接口保持不变。App 共享工具、原生基座与操作步骤见 `mobile-x/docs/development/request-crypto.md`。
+Web、App Demo 及两个 `/loginV2`、管理端和 App 密码登录接入均已由用户确认验收通过。原登录接口保持不变。App 共享工具、原生基座与操作步骤见 `mobile-x/docs/development/request-crypto.md`。
 
 ## 开发环境直接演示
 
@@ -47,6 +47,9 @@ export FA_CRYPTO_REPLAY_ENABLED=false
 | --- | --- |
 | `GET /api/base/security/crypto/public-key` | 返回协议版本、`kid`、SPKI DER Base64 公钥，可未登录访问 |
 | `POST /api/base/security/crypto/prepare` | 当前仅支持 `{"purpose":"CRYPTO_DEMO"}`；要求登录并具有 `/admin/demo/crypto` 菜单权限 |
+| `POST /api/base/security/crypto/prepare-login` | 匿名且许可异常时可用，仅支持 `ADMIN_LOGIN`、`PORTAL_LOGIN`；不接受 Demo 用途 |
+| `POST /api/base/admin/auth/loginV2` | 匿名加密登录，固定 `ADMIN_LOGIN`；成功返回与旧管理端登录一致 |
+| `POST /api/portal/auth/loginV2` | 匿名加密登录，固定 `PORTAL_LOGIN`；复用原 App 会话和设备信任逻辑 |
 | `POST /api/base/demo/crypto/roundtrip` | 相同权限；仅接受加密信封，解密正文为 `{"text":"测试文本"}` |
 
 Web 纯工具从 `@fa/core/crypto` 导出 `encryptRequest` 与相关类型，不依赖 UI。先获取公钥和当前准备信息，再传入正文与 `{purpose,method,path}` 生成信封；请求客户端负责发送，不自动重试或降级明文。
@@ -77,3 +80,27 @@ Web 纯工具从 `@fa/core/crypto` 导出 `encryptRequest` 与相关类型，不
 node --test frontend/fa-ui/packages/core/tests/crypto.test.mjs
 mvn -q -pl fa-demo -am -DskipTests=false -Dtest=RequestCryptoTest,RequestCryptoBizTest,RequestCryptoConfigurationTest,CryptoMenuSqlTest -Dsurefire.failIfNoSpecifiedTests=false test
 ```
+
+## 登录接入与发布验收
+
+管理端 `services/base/admin/auth.ts`、App `features/fa-base-mobile/api/auth.uts` 每次密码登录先获取公钥和登录准备信息，整体加密 `{username,password}` 后发送对应 `/loginV2`。密码不额外 trim 或归一化。短信、Token 登录、注册、Portal 网页及 Desktop 继续使用既有接口。
+
+- 防重放开启时，一次挑战仅允许进入认证业务一次；密码错误也不恢复挑战。点击登录重试会重新准备和加密；网络失败不自动重发、不回退旧接口。
+- 关闭防重放时仍要求合法信封，原样密文可以重新进入账号密码校验。直接提交明文或在信封外追加 `password` 等字段始终拒绝。
+- 新加密登录及准备入口只在 `FA_CRYPTO_ENABLED=true` 时注册；关闭后新客户端明确失败，旧接口继续按原逻辑工作。客户端加密不能阻止用户自行调用旧明文接口，这是保留旧入口的兼容边界。
+- 新登录入口使用 `FaNoLog`，不记录信封或解密后的账号密码、会话及设备信任凭据。App HTTP 日志沿用敏感字段脱敏。
+- 先发布支持新旧接口的后端并启用有效密钥，再发布管理端和 App 资源；多实例统一密钥和防重放配置、共用 Redis。回滚客户端应配合旧版本资源，不依赖自动明文降级。
+- App 使用上一批已包含 `fa-request-crypto` 的自定义基座；本批未改插件导出或宿主，无需新增原生依赖。仍在使用旧基座的设备需先重建安装，再同步页面。
+
+本批自动验证：22 项 Java 定向测试（`RequestCryptoBizTest`、`RequestCryptoConfigurationTest`、`RequestCryptoLoginControllerTest`）、3 项管理端登录 service 测试、2 项 App 登录调用测试及 3 个受影响 TypeScript 文件类型检查通过。HBuilderV 配套 `5.31.2026100911-alpha` 两端资源编译通过，并确认产物含新登录调用；为避免同名工程混淆，编译使用指向当前源码的临时项目入口。Java 测试使用临时测试密钥和模拟 Redis/认证依赖，不能代替真实数据库、Redis、许可及设备运行验收。
+
+人工验收请使用假数据测试账号，管理端、Android、iOS 分别执行：
+
+1. 后台开启加密和防重放，发布最新管理端与 App 资源。正确密码登录成功，错误密码失败，随后改为正确密码应可登录；密码两侧空格应保留并按原密码规则校验。
+2. 管理端 F12 保留网络日志，确认密码登录按 `public-key → prepare-login → loginV2` 执行，`loginV2` 请求体只有七个信封字段；使用“编辑并重发”重复同一已提交请求，应被拒绝，包括先前密码错误的请求。再次点击页面登录应重新申请挑战。
+3. 从一次已提交请求复制信封，分别修改密文、在信封外追加 `password`，应拒绝；直接向两个 `/loginV2` 提交 `{username,password}` 也应拒绝。关闭防重放后重复该明文/篡改测试，仍应拒绝。
+4. 设置 `FA_CRYPTO_REPLAY_ENABLED=false` 并重启，重新登录准备信息显示关闭，合法密文重发可再次进入密码校验；再恢复开启，确认重复请求拒绝。
+5. App 登录后检查设备列表、退出再登录和已有设备信任行为；以旧版 App 或 Portal 网页验证原 `/api/portal/auth/login`，并验证原管理端 `/login`、Token/短信登录仍按原行为工作。
+6. 在测试环境的许可异常状态验证公钥、`prepare-login` 和两个 `/loginV2` 可达，认证仍按账号规则执行；Demo 的 `prepare` 和解密权限保持原限制。不要改生产许可进行测试。
+
+用户于 2026-10-16 确认本批验证通过，关联 PLAN 功能 4、5 已更新为 ✅已完成；未提供单独的设备、逐项测试或生产发布记录，不推定额外验证结论。

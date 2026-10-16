@@ -1,6 +1,9 @@
 package com.faber.api.base.security.biz;
 
 import com.faber.api.base.security.config.RequestCryptoProperties;
+import com.faber.api.base.admin.biz.AuthBiz;
+import com.faber.api.base.admin.biz.UserBiz;
+import com.faber.api.base.security.rest.RequestCryptoLoginController;
 import com.faber.core.crypto.CryptoEnvelope;
 import com.faber.core.crypto.RequestCrypto;
 import com.faber.core.exception.BuzzException;
@@ -175,7 +178,7 @@ class RequestCryptoBizTest {
 
     @Test
     void rejectsUnsupportedPurposeAnonymousUsersAndStalePolicy() throws Exception {
-        assertThrows(BuzzException.class, () -> biz.prepare("ADMIN_LOGIN", "user1"));
+        assertThrows(BuzzException.class, () -> biz.prepare("UNKNOWN", "user1"));
         assertThrows(BuzzException.class, () -> biz.prepare("CRYPTO_DEMO", ""));
         properties.getReplay().setEnabled(true);
         var ready = biz.prepare("CRYPTO_DEMO", "user1");
@@ -193,7 +196,92 @@ class RequestCryptoBizTest {
         assertFalse(error.getMessage().contains(properties.getPrivateKeyFile()));
     }
 
+    @Test
+    void loginPurposesPreserveCredentialsAndRespectBothReplayPolicies() throws Exception {
+        for (boolean replay : new boolean[]{false, true}) {
+            properties.getReplay().setEnabled(replay);
+            for (String purpose : new String[]{RequestCryptoBiz.ADMIN_LOGIN, RequestCryptoBiz.PORTAL_LOGIN}) {
+                var ready = biz.prepareLogin(purpose);
+                var envelope = encrypt(ready, "{\"username\":\" account \",\"password\":\" 密码🔐 \\n\"}",
+                        purpose, loginPath(purpose));
+                var credentials = biz.decryptLogin(envelope, purpose);
+                assertEquals(" account ", credentials.username());
+                assertEquals(" 密码🔐 \n", credentials.password());
+                if (replay) {
+                    assertThrows(BuzzException.class, () -> biz.decryptLogin(envelope, purpose));
+                } else {
+                    assertEquals(credentials, biz.decryptLogin(envelope, purpose));
+                }
+            }
+        }
+    }
+
+    @Test
+    void loginRejectsForeignPurposesRoutesAndInvalidCredentialsBeforeConsumption() throws Exception {
+        properties.getReplay().setEnabled(true);
+        assertThrows(BuzzException.class, () -> biz.prepareLogin("CRYPTO_DEMO"));
+        assertThrows(BuzzException.class, () -> biz.prepareLogin(null));
+        var ready = biz.prepareLogin(RequestCryptoBiz.ADMIN_LOGIN);
+        var credentials = "{\"username\":\"account\",\"password\":\"test\"}";
+        var foreign = encrypt(ready, credentials, RequestCryptoBiz.PORTAL_LOGIN, RequestCryptoBiz.PORTAL_LOGIN_PATH);
+        assertThrows(BuzzException.class, () -> biz.decryptLogin(foreign, RequestCryptoBiz.PORTAL_LOGIN));
+        var wrongRoute = encrypt(ready, credentials, RequestCryptoBiz.ADMIN_LOGIN, RequestCryptoBiz.PORTAL_LOGIN_PATH);
+        assertThrows(BuzzException.class, () -> biz.decryptLogin(wrongRoute, RequestCryptoBiz.ADMIN_LOGIN));
+        var original = encrypt(ready, credentials, RequestCryptoBiz.ADMIN_LOGIN, RequestCryptoBiz.ADMIN_LOGIN_PATH);
+        assertThrows(BuzzException.class, () -> biz.decryptLogin(original, RequestCryptoBiz.PORTAL_LOGIN));
+        assertThrows(BuzzException.class, () -> biz.decryptDemo(original, "user1", Text.class));
+        for (String body : new String[]{"{}", "null", "{\"username\":\"a\",\"password\":\" \"}",
+                "{\"username\":123,\"password\":\"a\"}", "{\"username\":\"a\",\"password\":\"a\",\"extra\":true}",
+                "{\"username\":\"a\",\"password\":\"a\",\"password\":\"b\"}"}) {
+            var invalid = encrypt(ready, body, RequestCryptoBiz.ADMIN_LOGIN, RequestCryptoBiz.ADMIN_LOGIN_PATH);
+            assertThrows(BuzzException.class, () -> biz.decryptLogin(invalid, RequestCryptoBiz.ADMIN_LOGIN));
+        }
+        verify(bucket, never()).getAndDelete();
+        assertEquals("account", biz.decryptLogin(original, RequestCryptoBiz.ADMIN_LOGIN).username());
+    }
+
+    @Test
+    void loginRejectsExpiredChallengesAndRedisFailureWithoutFallback() throws Exception {
+        properties.getReplay().setEnabled(true);
+        var ready = biz.prepareLogin(RequestCryptoBiz.PORTAL_LOGIN);
+        var envelope = encrypt(ready, "{\"username\":\"account\",\"password\":\"test\"}",
+                RequestCryptoBiz.PORTAL_LOGIN, RequestCryptoBiz.PORTAL_LOGIN_PATH);
+        stored.set(null);
+        assertThrows(BuzzException.class, () -> biz.decryptLogin(envelope, RequestCryptoBiz.PORTAL_LOGIN));
+        when(bucket.get()).thenThrow(new IllegalStateException("redis unavailable"));
+        assertThrows(BuzzException.class, () -> biz.decryptLogin(envelope, RequestCryptoBiz.PORTAL_LOGIN));
+        verify(bucket, never()).getAndDelete();
+    }
+
+    private String loginPath(String purpose) {
+        return RequestCryptoBiz.ADMIN_LOGIN.equals(purpose) ? RequestCryptoBiz.ADMIN_LOGIN_PATH : RequestCryptoBiz.PORTAL_LOGIN_PATH;
+    }
+
+    @Test
+    void failedAuthenticationStillConsumesTheChallengeBeforeCallingExistingAuth() throws Exception {
+        properties.getReplay().setEnabled(true);
+        var auth = mock(AuthBiz.class);
+        when(auth.login(any())).thenThrow(new BuzzException("账号或密码错误"));
+        when(auth.portalLoginWithTrust(any())).thenThrow(new BuzzException("账号或密码错误"));
+        var controller = new RequestCryptoLoginController(biz, auth, mock(UserBiz.class));
+        for (String purpose : new String[]{RequestCryptoBiz.ADMIN_LOGIN, RequestCryptoBiz.PORTAL_LOGIN}) {
+            var envelope = encrypt(biz.prepareLogin(purpose), "{\"username\":\"account\",\"password\":\"wrong\"}", purpose, loginPath(purpose));
+            org.junit.jupiter.api.function.Executable submit = () -> {
+                if (RequestCryptoBiz.ADMIN_LOGIN.equals(purpose)) controller.adminLogin(envelope);
+                else controller.portalLogin(envelope);
+            };
+            assertEquals("账号或密码错误", assertThrows(BuzzException.class, submit).getMessage());
+            assertEquals("挑战已过期、已使用或不匹配", assertThrows(BuzzException.class, submit).getMessage());
+        }
+        verify(auth, times(1)).login(any());
+        verify(auth, times(1)).portalLoginWithTrust(any());
+    }
+
     private CryptoEnvelope encrypt(RequestCryptoBiz.Preparation ready, String plaintext) throws Exception {
+        return encrypt(ready, plaintext, RequestCryptoBiz.DEMO_PURPOSE, RequestCryptoBiz.DEMO_PATH);
+    }
+
+    private CryptoEnvelope encrypt(RequestCryptoBiz.Preparation ready, String plaintext, String purpose, String path) throws Exception {
         var keyGenerator = KeyGenerator.getInstance("AES");
         keyGenerator.init(256);
         var key = keyGenerator.generateKey();
@@ -202,11 +290,11 @@ class RequestCryptoBizTest {
         var rsa = Cipher.getInstance("RSA/ECB/OAEPPadding");
         rsa.init(Cipher.ENCRYPT_MODE, pair.getPublic(),
                 new OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT));
-        var envelope = new CryptoEnvelope(1, ready.kid(), ready.challengeId(), "CRYPTO_DEMO",
+        var envelope = new CryptoEnvelope(1, ready.kid(), ready.challengeId(), purpose,
                 Base64.getEncoder().encodeToString(rsa.doFinal(key.getEncoded())), Base64.getEncoder().encodeToString(iv), null);
         var aes = Cipher.getInstance("AES/GCM/NoPadding");
         aes.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
-        aes.updateAAD(RequestCrypto.aad(envelope, "POST", RequestCryptoBiz.DEMO_PATH));
+        aes.updateAAD(RequestCrypto.aad(envelope, "POST", path));
         return new CryptoEnvelope(1, ready.kid(), ready.challengeId(), envelope.purpose(), envelope.encryptedKey(), envelope.iv(),
                 Base64.getEncoder().encodeToString(aes.doFinal(plaintext.getBytes(StandardCharsets.UTF_8))));
     }

@@ -38,5 +38,12 @@ public class RequestCryptoController extends BaseResHandler {
         return ok(biz.prepare(request.purpose(), BaseContextHandler.getUserId()));
     }
 
+    @PostMapping("/prepare-login")
+    @IgnoreUserToken
+    @IgnoreLicense
+    public Ret<RequestCryptoBiz.Preparation> prepareLogin(@RequestBody PrepareRequest request) {
+        return ok(biz.prepareLogin(request.purpose()));
+    }
+
     public record PrepareRequest(String purpose) {}
 }

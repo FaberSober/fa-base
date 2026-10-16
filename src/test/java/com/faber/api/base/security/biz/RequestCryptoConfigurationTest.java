@@ -2,6 +2,9 @@ package com.faber.api.base.security.biz;
 
 import com.faber.api.base.security.config.RequestCryptoProperties;
 import com.faber.api.base.security.rest.RequestCryptoController;
+import com.faber.api.base.security.rest.RequestCryptoLoginController;
+import com.faber.api.base.admin.biz.AuthBiz;
+import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.core.utils.FaRedisUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Validation;
@@ -41,11 +44,16 @@ class RequestCryptoConfigurationTest {
     private ApplicationContextRunner context() {
         return new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(ConfigurationPropertiesAutoConfiguration.class))
-                .withUserConfiguration(RequestCryptoProperties.class, RequestCryptoBiz.class, RequestCryptoController.class)
+                .withUserConfiguration(RequestCryptoProperties.class, RequestCryptoBiz.class, RequestCryptoController.class,
+                        RequestCryptoLoginController.class)
                 .withPropertyValues("spring.data.redis.prefix=crypto-test")
                 .withBean(FaRedisUtils.class, () -> mock(FaRedisUtils.class))
                 .withBean(RedissonClient.class, () -> mock(RedissonClient.class))
                 .withBean(ObjectMapper.class, ObjectMapper::new)
+                .withInitializer(context -> {
+                    context.getBeanFactory().registerSingleton("cryptoLoginAuth", mock(AuthBiz.class));
+                    context.getBeanFactory().registerSingleton("cryptoLoginUsers", mock(UserBiz.class));
+                })
                 .withBean(Validator.class, validators::getValidator);
     }
 
@@ -67,7 +75,8 @@ class RequestCryptoConfigurationTest {
     @Test
     void defaultDisabledFeatureDoesNotRequireAKeyOrExposeEndpoints() {
         context().run(context -> assertThat(context).hasNotFailed()
-                .doesNotHaveBean(RequestCryptoBiz.class).doesNotHaveBean(RequestCryptoController.class));
+                .doesNotHaveBean(RequestCryptoBiz.class).doesNotHaveBean(RequestCryptoController.class)
+                .doesNotHaveBean(RequestCryptoLoginController.class));
     }
 
     @Test
@@ -86,7 +95,8 @@ class RequestCryptoConfigurationTest {
         context().withPropertyValues("fa.security.crypto.enabled=true", "fa.security.crypto.kid=config-test",
                         "fa.security.crypto.private-key-file=" + file, "fa.security.crypto.replay.enabled=false")
                 .run(context -> {
-                    assertThat(context).hasNotFailed().hasSingleBean(RequestCryptoBiz.class).hasSingleBean(RequestCryptoController.class);
+                    assertThat(context).hasNotFailed().hasSingleBean(RequestCryptoBiz.class).hasSingleBean(RequestCryptoController.class)
+                            .hasSingleBean(RequestCryptoLoginController.class);
                     assertThat(context.getBean(RequestCryptoBiz.class).publicKey().kid()).isEqualTo("config-test");
                     assertThat(context.getBean(RequestCryptoBiz.class).prepare("CRYPTO_DEMO", "user1").replayEnabled()).isFalse();
                 });
