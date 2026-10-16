@@ -44,8 +44,10 @@ class RequestAgainFilterTest {
         filter.logApiBiz = mock(LogApiBiz.class);
         filter.faSetting = new FaSetting();
         filter.faSetting.setSafety(new FaSetting.Safety());
-        for (String path : new String[]{"createPreviewTicket", "exchangePreviewTicket", "getPreviewFile/test-session", "getPreviewDownload/test-session"}) {
-            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/base/admin/fileSave/" + path);
+        for (String path : new String[]{"/api/portal/fileSave/createPreviewTicket", "/api/base/admin/fileSave/createPreviewTicket",
+                "/api/base/admin/fileSave/exchangePreviewTicket", "/api/base/admin/fileSave/getPreviewFile/test-session",
+                "/api/base/admin/fileSave/getPreviewDownload/test-session"}) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", path);
             request.setContent("{\"ticket\":\"test-secret\"}".getBytes(StandardCharsets.UTF_8));
             MockHttpServletResponse response = new MockHttpServletResponse();
             filter.doFilter(request, response, (req, res) -> {
@@ -59,5 +61,6 @@ class RequestAgainFilterTest {
         verifyNoInteractions(filter.logApiBiz);
         assertFalse(RequestAgainFilter.isFilePreviewCredentialRequest("/api/base/admin/fileSave/getFile/file-1"));
         assertFalse(RequestAgainFilter.isFilePreviewCredentialRequest("/api/base/admin/fileSave/exchangePreviewTicketExtra"));
+        assertFalse(RequestAgainFilter.isFilePreviewCredentialRequest("/api/portal/fileSave/createPreviewTicketExtra"));
     }
 }

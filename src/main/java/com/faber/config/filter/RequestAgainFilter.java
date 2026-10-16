@@ -265,7 +265,8 @@ public class RequestAgainFilter implements Filter {
 
     static boolean isFilePreviewCredentialRequest(String uri) {
         String prefix = "/api/base/admin/fileSave/";
-        return (prefix + "createPreviewTicket").equals(uri) || (prefix + "exchangePreviewTicket").equals(uri)
+        return "/api/portal/fileSave/createPreviewTicket".equals(uri)
+                || (prefix + "createPreviewTicket").equals(uri) || (prefix + "exchangePreviewTicket").equals(uri)
                 || uri.startsWith(prefix + "getPreviewFile/") || uri.startsWith(prefix + "getPreviewDownload/");
     }
 
