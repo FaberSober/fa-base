@@ -2,13 +2,15 @@
 
 文档简介：为系统设置中的七牛云配置增加公开、私有访问类型，配套文件接口鉴权、私有下载签名和现有调用方兼容，按可独立验证的功能分批开发。
 
-创建时间：2026-10-15。状态：第 1、2、4、5 项 ✅已完成；第 3、6 项待开发。
+创建时间：2026-10-15。状态：第 1、2、3.1、4、5 项 ✅已完成；第 3.2 项移动端及第 6 项待开发。
 
 | 编号 | 模块 | 功能 | 功能详情 | 当前规划 | 进度 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 管理端 / fa-core / fa-base | 访问类型配置闭环 | 页面增加公开、私有选项，配置保存、回显、默认值及配置缓存即时生效 | 本期开发 | ✅已完成 |
 | 2 | fa-base / fa-core | 原图、缩略图和文本访问 | 私有文件先认证再访问，复用七牛 SDK 生成短效签名 | 本期开发 | ✅已完成 |
-| 3 | 管理端 / @fa/ui / mobile-x | 文件展示与下载 | 同源登录态、短效预览凭证及图片、视频、下载调用适配 | 本期开发 | ❌未完成 |
+| 3 | 管理端 / @fa/ui / mobile-x | 文件展示与下载 | 按 Web、移动端拆分验收，见 3.1、3.2 | 本期开发 | 🟡进行中 |
+| 3.1 | 管理端 / @fa/ui | Web 文件展示与下载 | 同源 Cookie 验证、外部预览短效凭证、退出清理及重新加载 | 本期开发 | ✅已完成 |
+| 3.2 | mobile-x | 移动端文件展示与下载 | 图片、头像及系统下载公共入口适配，隔离账号与租户切换结果 | 本期开发 | ❌未完成 |
 | 4 | fa-base / @fa/ui | 七牛直传与文件登记 | 上传凭证保持受保护，登记时校验对象并通过 SDK 获取元数据 | 本期开发 | ✅已完成 |
 | 5 | fa-base / fa-app | 特殊访问入口兼容 | 登录页素材、OnlyOffice、应用发布下载及 URL 返回值均已验证通过 | 本期开发 | ✅已完成 |
 | 6 | 测试 / 文档 | 回归与切换验收 | 定向测试、真实私有桶联调、上线与回退步骤 | 本期开发 | ❌未完成 |
@@ -254,3 +256,42 @@
 6. 在公开测试 Bucket 和本地存储下回归相同入口：公开文件仍可访问，本地文档地址使用既有回调服务器，原有路径语义保持不变。
 
 用户已确认本批验证通过，第 5 项已更新为 `✅已完成`；第 3、6 项保持原进度。
+
+
+## 11. 第五批开发与验证记录（2026-10-16，已验证通过）
+
+本批范围：将第 3 项拆分为 Web（3.1）和移动端（3.2），完成 Web 的同源访问及外部文档预览闭环。第 3.2、6 项仍待开发，不标记整体完成。
+
+### 已开发内容
+
+- 核对普通登录及 Token 换登录均调用现有 Sa-Token 登录流程；用真实 Sa-Token Servlet 上下文验证 `Authorization` Cookie 的 `Path=/`、30 天有效期、无请求头资源访问恢复登录及退出删除。管理端与 `@fa/ui` 的同源图片、缩略图、音视频、上传回显和下载继续使用稳定文件接口，不向 URL 添加长期登录 Token。
+- `@fa/ui` 文件 service 新增 `getPreviewResource`，顺序申请一次性 ticket、兑换 600 秒 session；管理端复用该方法。每次调用重新申请，不缓存凭证；每个异步阶段检查登录及公司、租户上下文，取消请求或切换上下文后不再交付旧结果。
+- `FaFileView` 及 `FilePreview` 的外部预览、外部降级入口统一使用 session 文件地址，保留文件名和水印；不再让 kkFileView 拉取需要浏览器 Cookie 的普通文件接口。
+- 外部预览提供“重新加载预览”：凭证过期或加载失败后由当前登录态重新申请；卸载、切换文件及重新加载时取消旧请求、清除旧资源。iframe 设置 `no-referrer`，资源地址不持久化。
+- `clearToken` 同步清除现有根路径登录 Cookie，避免 localStorage 清空后 `getToken` 又从 Cookie 恢复旧账号。Cookie 的签发和有效期仍由后端控制。
+- 不更改接口权限、文件 ACL、数据库及七牛配置；本批不修改移动端，也不新增自动轮询刷新。
+
+### 文件范围
+
+- `frontend/fa-ui/packages/ui/src/services/base/admin/fileSave.ts`、`services/index.ts`、`utils/cache.ts`，新增 `fileSave.test.mjs`、`cache.test.mjs`。
+- `frontend/apps/admin/features/fa-admin-pages/services/base/admin/fileSave.ts`，`components/file/FaFileView.tsx`、`FaFileUrlView.tsx`、`FilePreview.tsx`。
+- `fa-base/src/test/java/com/faber/config/auth/FileResourceCookieTest.java` 及本方案。
+
+### 自动验证
+
+- `mvn -o -q -pl fa-base -am -DskipTests=false -Dtest=FileResourceCookieTest,PrivateFileAuthTest,FilePreviewAccessTest -Dsurefire.failIfNoSpecifiedTests=false test`：11 个测试通过，无失败或跳过，覆盖 Cookie 恢复、私有鉴权及预览会话 Range/失效/一次兑换回归。
+- `node --test frontend/fa-ui/packages/ui/src/services/base/admin/fileSave.test.mjs frontend/fa-ui/packages/ui/src/utils/cache.test.mjs`：8 个测试通过，覆盖凭证流程、重新申请、登录与租户切换、取消、失败不回退匿名访问和 Cookie 清理。
+- 使用项目 TypeScript 5.9.2 定向检查 7 个受影响源文件，无相关类型诊断；仅在内存适配 `ignoreDeprecations=5.0`，不替代全项目 typecheck。
+- 受影响前端文件定向 `biome lint` 与本批文件 `git diff --check` 通过。未启动浏览器或开发服务器，未运行全量构建/测试。
+
+### 本批人工验证步骤
+
+1. 使用独立私有测试 Bucket，系统配置设为“私有”；重新登录管理端。检查 `Authorization` Cookie 的 Path 为 `/`，查看图片、头像、上传回显、原图预览、视频播放/拖动及文件下载，确认无需在 URL 中添加登录 Token。无痕访问普通私有文件接口仍应失败。
+2. 在可被已配置 kkFileView 服务访问的测试环境，预览需要外部服务处理的文档（例如旧版 `.doc`）；也可从现有 `FaFileViewModal` 调用入口验证。确认先申请 ticket、兑换 session，kkFileView 的文件来源为 `getPreviewFile/{session}`，文件名含中文、空格时仍可显示，水印开关正常。浏览器原生图片、音视频及本地文档查看器继续走原有流程，不必触发外部降级。
+3. 等待 session 超过 10 分钟，直接请求旧 session 确认失败；点击“重新加载预览”，确认生成新 session 并恢复预览。不要用 kkFileView 已缓存的转换页面判断 session 是否过期。
+4. 在凭证申请期间关闭预览、切换文件，或退出并切换账号/租户，确认旧请求结果不覆盖新预览；退出后检查 localStorage 和根路径登录 Cookie 都已清除，普通私有文件入口无法继续凭旧登录访问。
+5. 在公开测试 Bucket/公开配置及现有本地或 MinIO 环境，确认同源图片、下载和外部文档预览保持可用；检查保存的业务数据不含短效 session 或七牛签名。
+
+注意：kkFileView 是受信任的外部文件处理服务，仍需能够访问应用地址；其转换缓存与服务自身访问控制由部署侧管理，应用 session 到期不会删除已被外部服务读取、缓存的内容。已签发 session 在有效期内继续遵守第 6 节的短效凭证限制，退出不会即时撤销。
+
+用户已确认本批验证通过，第 3.1 项已更新为 `✅已完成`，本批相关代码及方案纳入 Git 提交；第 3 项整体保持 `🟡进行中`，移动端及整体验收保留原进度。
