@@ -1,6 +1,6 @@
-# 通用请求加密：Web Demo 接入与验证
+# 通用请求加密：Web / App Demo 接入与验证
 
-本批完成 Web Demo 及后台公共能力。App、`/loginV2` 尚未接入，原登录接口保持不变。
+Web、App Demo 均已由用户确认验收通过；`/loginV2` 尚未接入，原登录接口保持不变。App 共享工具、原生基座与操作步骤见 `mobile-x/docs/development/request-crypto.md`。
 
 ## 开发环境直接演示
 
