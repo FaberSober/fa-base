@@ -588,13 +588,14 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
 
     public String getFileFullPath(String fileId) {
         FileSave fileSave = getById(fileId);
+        if (fileSave == null) throw new BuzzException("文件不存在或已删除");
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
             LocalPlusFileStorage storage = fileStorageService.getFileStorage("local-plus-1");
             String fileFullPath = storage.getAbsolutePath(fileSave.getUrl());
             return fileFullPath;
         } else {
-            return fileSave.getUrl();
+            return getFileUrl(null, fileSave);
         }
     }
 
@@ -604,20 +605,16 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
     }
 
     public String getFileUrl(String server, String fileId) {
-        FileSave fileSave = getById(fileId);
-        // 本地存储
-        if (fileSave.getPlatform().startsWith("local-")) {
-            return buildLocalFileUrl(server, fileId);
-        }
-        return fileSave.getUrl();
+        return getFileUrl(server, getById(fileId));
     }
 
     public String getFileUrl(String server, FileSave fileSave) {
+        if (fileSave == null) throw new BuzzException("文件不存在或已删除");
         // 本地存储
         if (fileSave.getPlatform().startsWith("local-")) {
             return buildLocalFileUrl(server, fileSave.getId());
         }
-        return fileSave.getUrl();
+        return isPrivateQiniu(fileSave) ? getRemoteFileUrl(fileSave, false) : fileSave.getUrl();
     }
 
     private String buildLocalFileUrl(String server, String fileId) {

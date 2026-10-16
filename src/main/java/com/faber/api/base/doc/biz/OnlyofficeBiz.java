@@ -16,6 +16,7 @@ import com.faber.api.base.doc.models.filemodel.FileModel;
 import com.faber.api.base.doc.utils.FaFileUtility;
 import com.faber.api.base.doc.vo.ret.OpenFileRetVo;
 import com.faber.core.constant.FaSetting;
+import com.faber.core.exception.BuzzException;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -63,6 +64,7 @@ public class OnlyofficeBiz {
      */
     public FileModel openFileModal(String fileId, Mode mode) {
         FileSave fileSave = fileSaveBiz.getById(fileId);
+        if (fileSave == null) throw new BuzzException("文件不存在或已删除");
 
         FileModel fileModel = SpringUtil.getBean(FileModel.class);
         fileModel.setType(Type.desktop);
@@ -74,7 +76,7 @@ public class OnlyofficeBiz {
         document.setTitle(fileSave.getOriginalFilename());
         document.setFileType(fileSave.getExt());
         document.setKey(fileId); // 设置文件ID
-        document.setUrl(faSetting.getOnlyoffice().getCallbackServer() + "api/base/admin/fileSave/getFile/" + fileId);
+        document.setUrl(fileSaveBiz.getFileUrl(faSetting.getOnlyoffice().getCallbackServer(), fileSave));
 
         EditorConfig editorConfig = fileModel.getEditorConfig();
         editorConfig.setLang("zh");

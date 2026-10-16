@@ -2,6 +2,7 @@ package com.faber.api.base.admin.biz;
 
 import cn.hutool.http.HttpUtil;
 import com.faber.api.base.admin.entity.FileSave;
+import com.faber.core.constant.FaSetting;
 import com.faber.core.enums.ConfigSysQiniuAccessTypeEnum;
 import com.faber.core.enums.ConfigSysStorageActiveEnum;
 import com.faber.core.exception.BuzzException;
@@ -12,6 +13,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+import org.dromara.x.file.storage.core.FileStorageService;
+import org.dromara.x.file.storage.core.platform.LocalPlusFileStorage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -47,6 +50,10 @@ class FileSaveAccessTest {
         when(configs.getConfig()).thenReturn(config);
         biz = spy(new FileSaveBiz());
         biz.configSysService = configs;
+        biz.faSetting = new FaSetting();
+        FaSetting.Url url = new FaSetting.Url();
+        url.setServerHost("https://app.example.com/");
+        biz.faSetting.setUrl(url);
         file = new FileSave();
         file.setId("file-1");
         file.setPlatform("qiniu-1");
@@ -170,8 +177,49 @@ class FileSaveAccessTest {
         }
     }
 
+    @Test
+    void internalUrlEntryPointsSignPrivateFilesWithoutPersistingCredentialsOrRequiringHttpContext() {
+        RequestContextHolder.resetRequestAttributes();
+        String original = file.getUrl();
+        String unsigned = "https://files.example.com/assets/prod/%E4%B8%AD%E6%96%87%20%E6%96%87%E6%A1%A3.txt";
+        assertSignedUrl(unsigned, biz.getFileUrl("file-1"));
+        assertSignedUrl(unsigned, biz.getFileUrl("https://callback.example.com/", "file-1"));
+        assertSignedUrl(unsigned, biz.getFileUrl("https://callback.example.com/", file));
+        assertSignedUrl(unsigned, biz.getFileFullPath("file-1"));
+        assertEquals(original, file.getUrl());
+    }
+
+    @Test
+    void internalUrlsPreservePublicRemoteAndLocalPathSemantics() {
+        config.setQiniuAccessType(ConfigSysQiniuAccessTypeEnum.PUBLIC);
+        assertEquals(file.getUrl(), biz.getFileUrl("file-1"));
+        assertEquals(file.getUrl(), biz.getFileFullPath("file-1"));
+        config.setQiniuAccessType(ConfigSysQiniuAccessTypeEnum.PRIVATE);
+        file.setPlatform("minio-1");
+        assertEquals(file.getUrl(), biz.getFileUrl(null, file));
+        file.setPlatform("local-plus-1");
+        assertEquals("https://app.example.com/api/base/admin/fileSave/getFile/file-1", biz.getFileUrl("file-1"));
+        assertEquals("https://callback.example.com/api/base/admin/fileSave/getFile/file-1", biz.getFileUrl("https://callback.example.com/", file));
+        assertEquals("/api/base/admin/fileSave/getFile/file-1", biz.getFileUrl(null, file));
+        biz.fileStorageService = mock(FileStorageService.class);
+        LocalPlusFileStorage local = mock(LocalPlusFileStorage.class);
+        when(biz.fileStorageService.getFileStorage("local-plus-1")).thenReturn(local);
+        when(local.getAbsolutePath(file.getUrl())).thenReturn("/tmp/stored/document.txt");
+        assertEquals("/tmp/stored/document.txt", biz.getFileFullPath("file-1"));
+    }
+
+    @Test
+    void internalUrlEntryPointsRejectMissingFiles() {
+        doReturn(null).when(biz).getById("missing");
+        assertThrows(BuzzException.class, () -> biz.getFileUrl("missing"));
+        assertThrows(BuzzException.class, () -> biz.getFileFullPath("missing"));
+    }
+
     private void assertSignedUrl(String unsignedUrl) {
-        String signed = response.getRedirectedUrl();
+        assertSignedUrl(unsignedUrl, response.getRedirectedUrl());
+    }
+
+    private void assertSignedUrl(String unsignedUrl, String signed) {
         assertNotNull(signed);
         assertTrue(signed.startsWith(unsignedUrl + (unsignedUrl.contains("?") ? "&" : "?") + "e="));
         int deadlineStart = unsignedUrl.length() + 3;

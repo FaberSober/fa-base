@@ -7,12 +7,14 @@ import com.faber.api.base.doc.vo.ret.OnlyofficeRet;
 import com.faber.api.base.doc.vo.ret.OpenFileRetVo;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
+import com.faber.core.annotation.LogNoRet;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Onlyoffice在线文档对接
@@ -31,7 +33,11 @@ public class OnlyofficeController extends BaseResHandler {
     @FaLogOpr("打开文件Token")
     @GetMapping("/openFile/{fileId}")
     @ResponseBody
-    public Ret<OpenFileRetVo> openFile(@PathVariable("fileId") String fileId, @RequestParam(value = "mode", required = false) String mode) {
+    @LogNoRet
+    public Ret<OpenFileRetVo> openFile(@PathVariable("fileId") String fileId, @RequestParam(value = "mode", required = false) String mode,
+                                     HttpServletResponse response) {
+        response.setHeader("Cache-Control", "private, no-store");
+        response.setHeader("Referrer-Policy", "no-referrer");
         OpenFileRetVo data = onlyofficeBiz.openFile(fileId, Mode.valueOf(mode));
         return ok(data);
     }
