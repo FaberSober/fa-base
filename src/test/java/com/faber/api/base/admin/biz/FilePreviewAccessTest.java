@@ -62,6 +62,7 @@ class FilePreviewAccessTest {
     void invalidSessionAndDeniedDownloadNeverReadFile() {
         FilePreviewTicketBiz biz = createBiz();
         assertThrows(BuzzException.class, () -> biz.downloadBySession("expired-session"));
+        assertThrows(BuzzException.class, () -> biz.thumbnailBySession("expired-session"));
         FilePreviewTicketBiz.PreviewGrant grant = new FilePreviewTicketBiz.PreviewGrant();
         grant.setFileId("file-1");
         grant.setDownloadAllowed(false);
@@ -85,8 +86,33 @@ class FilePreviewAccessTest {
         when(bucket.getAndDelete()).thenReturn(JSON.toJSONString(grant), null);
         when(biz.fileSaveBiz.getById("file-1")).thenReturn(file());
 
-        assertTrue(biz.exchangeTicket("once").getPreviewUrl().startsWith("/api/base/admin/fileSave/getPreviewFile/"));
+        long before = System.currentTimeMillis();
+        var resource = biz.exchangeTicket("once");
+        assertTrue(resource.getPreviewUrl().startsWith("/api/base/admin/fileSave/getPreviewFile/"));
+        String session = resource.getPreviewUrl().substring(resource.getPreviewUrl().lastIndexOf('/') + 1);
+        assertEquals("/api/base/admin/fileSave/getPreviewThumbnail/" + session, resource.getThumbnailUrl());
+        assertTrue(resource.getExpiresAt() >= before + 600000);
+        assertTrue(resource.getExpiresAt() <= System.currentTimeMillis() + 600000);
         assertThrows(BuzzException.class, () -> biz.exchangeTicket("once"));
+    }
+
+    @Test
+    void thumbnailUsesOnlySessionBoundFileAndDoesNotRequireDownloadPermission() throws Exception {
+        FilePreviewTicketBiz biz = createBiz();
+        FilePreviewTicketBiz.PreviewGrant grant = new FilePreviewTicketBiz.PreviewGrant();
+        grant.setFileId("file-1");
+        grant.setDownloadAllowed(false);
+        when(biz.faRedisUtils.getStr("file-preview:session:thumbnail")).thenReturn(JSON.toJSONString(grant));
+        when(biz.fileSaveBiz.getById("file-1")).thenReturn(file());
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest(), response));
+
+        biz.thumbnailBySession("thumbnail");
+
+        verify(biz.fileSaveBiz).getFilePreview("file-1");
+        verify(biz.fileSaveBiz, never()).getFileObj(any(FileSave.class));
+        assertEquals("private, no-store", response.getHeader("Cache-Control"));
+        assertEquals("no-referrer", response.getHeader("Referrer-Policy"));
     }
 
     private FilePreviewTicketBiz createBiz() {

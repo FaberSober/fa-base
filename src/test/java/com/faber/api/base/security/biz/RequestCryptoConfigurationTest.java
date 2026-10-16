@@ -5,6 +5,7 @@ import com.faber.api.base.security.rest.RequestCryptoController;
 import com.faber.api.base.security.rest.RequestCryptoLoginController;
 import com.faber.api.base.admin.biz.AuthBiz;
 import com.faber.api.base.admin.biz.UserBiz;
+import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
 import com.faber.core.utils.FaRedisUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Validation;
@@ -53,6 +54,7 @@ class RequestCryptoConfigurationTest {
                 .withInitializer(context -> {
                     context.getBeanFactory().registerSingleton("cryptoLoginAuth", mock(AuthBiz.class));
                     context.getBeanFactory().registerSingleton("cryptoLoginUsers", mock(UserBiz.class));
+                    context.getBeanFactory().registerSingleton("cryptoRbac", mock(RbacUserRoleBiz.class));
                 })
                 .withBean(Validator.class, validators::getValidator);
     }
@@ -98,7 +100,7 @@ class RequestCryptoConfigurationTest {
                     assertThat(context).hasNotFailed().hasSingleBean(RequestCryptoBiz.class).hasSingleBean(RequestCryptoController.class)
                             .hasSingleBean(RequestCryptoLoginController.class);
                     assertThat(context.getBean(RequestCryptoBiz.class).publicKey().kid()).isEqualTo("config-test");
-                    assertThat(context.getBean(RequestCryptoBiz.class).prepare("CRYPTO_DEMO", "user1").replayEnabled()).isFalse();
+                    assertThat(context.getBean(RequestCryptoBiz.class).prepare(RequestCryptoBiz.DEMO_PATH, "POST", "user1", false).replayEnabled()).isFalse();
                 });
     }
 

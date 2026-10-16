@@ -14,6 +14,8 @@ public class FilePreviewResourceRetVo {
     private String ext;
     private Long size;
     private String previewUrl;
+    private String thumbnailUrl;
+    private Long expiresAt;
     private String downloadUrl;
     private boolean downloadAllowed;
     private String watermarkText;

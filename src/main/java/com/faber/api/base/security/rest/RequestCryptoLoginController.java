@@ -11,7 +11,7 @@ import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaNoLog;
 import com.faber.core.config.annotation.IgnoreLicense;
 import com.faber.core.config.annotation.IgnoreUserToken;
-import com.faber.core.crypto.CryptoEnvelope;
+import jakarta.servlet.http.HttpServletRequest;
 import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -38,17 +38,17 @@ public class RequestCryptoLoginController extends BaseResHandler {
     @PostMapping(RequestCryptoBiz.ADMIN_LOGIN_PATH)
     @IgnoreUserToken
     @IgnoreLicense
-    public Ret<SaTokenInfo> adminLogin(@RequestBody CryptoEnvelope envelope) {
-        var credentials = crypto.decryptLogin(envelope, RequestCryptoBiz.ADMIN_LOGIN);
-        return ok(auth.login(new LoginReqVo(credentials.username(), credentials.password())));
+    public Ret<SaTokenInfo> adminLogin(@RequestBody LoginReqVo body, HttpServletRequest request) {
+        body.setPassword(crypto.decryptField(body.getPassword(), request, "password"));
+        return ok(auth.login(body));
     }
 
     @PostMapping(RequestCryptoBiz.PORTAL_LOGIN_PATH)
     @IgnoreUserToken
     @IgnoreLicense
-    public Ret<PortalSessionRetVo> portalLogin(@RequestBody CryptoEnvelope envelope) {
-        var credentials = crypto.decryptLogin(envelope, RequestCryptoBiz.PORTAL_LOGIN);
-        var result = auth.portalLoginWithTrust(new LoginReqVo(credentials.username(), credentials.password()));
+    public Ret<PortalSessionRetVo> portalLogin(@RequestBody LoginReqVo body, HttpServletRequest request) {
+        body.setPassword(crypto.decryptField(body.getPassword(), request, "password"));
+        var result = auth.portalLoginWithTrust(body);
         var user = users.getById(getCurrentUserId());
         return ok(PortalSessionRetVo.of(result.session(), PortalUserRetVo.from(user), result.deviceTrustToken()));
     }

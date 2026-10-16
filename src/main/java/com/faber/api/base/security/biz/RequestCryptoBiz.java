@@ -1,19 +1,9 @@
 package com.faber.api.base.security.biz;
 
 import com.faber.api.base.security.config.RequestCryptoProperties;
-import com.faber.core.crypto.CryptoEnvelope;
 import com.faber.core.crypto.RequestCrypto;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.utils.FaRedisUtils;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.cfg.CoercionAction;
-import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
-import com.fasterxml.jackson.databind.type.LogicalType;
-import jakarta.validation.Validator;
-import jakarta.validation.constraints.NotBlank;
 import org.redisson.api.RBucket;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.env.Environment;
@@ -24,6 +14,12 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
+import java.nio.charset.CodingErrorAction;
+import java.util.Collections;
+import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import com.faber.core.context.BaseContextHandler;
 import java.security.KeyFactory;
 import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateCrtKey;
@@ -48,24 +44,12 @@ public class RequestCryptoBiz {
 
     private final RequestCryptoProperties properties;
     private final FaRedisUtils redis;
-    private final Validator validator;
-    private final ObjectMapper json;
     private final RSAPrivateCrtKey privateKey;
     private final String publicKey;
 
-    public RequestCryptoBiz(RequestCryptoProperties properties, FaRedisUtils redis, Validator validator,
-                            ObjectMapper objectMapper, Environment environment) {
+    public RequestCryptoBiz(RequestCryptoProperties properties, FaRedisUtils redis, Environment environment) {
         this.properties = properties;
         this.redis = redis;
-        this.validator = validator;
-        this.json = objectMapper.copy().enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-                .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
-                .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS);
-        this.json.coercionConfigFor(LogicalType.Textual)
-                .setCoercion(CoercionInputShape.Integer, CoercionAction.Fail)
-                .setCoercion(CoercionInputShape.Float, CoercionAction.Fail)
-                .setCoercion(CoercionInputShape.Boolean, CoercionAction.Fail);
         try {
             if (properties.getKid() == null || !properties.getKid().matches("[A-Za-z0-9._-]{1,64}")) {
                 throw new IllegalArgumentException();
@@ -98,84 +82,82 @@ public class RequestCryptoBiz {
     }
 
     public PublicKeyInfo publicKey() {
-        return new PublicKeyInfo(1, properties.getKid(), publicKey);
+        return new PublicKeyInfo(2, properties.getKid(), publicKey);
     }
 
-    public Preparation prepare(String purpose, String userId) {
-        requireDemo(purpose, userId);
-        return prepareTarget(purpose, DEMO_PATH, userId);
+    private static final List<Target> TARGETS = List.of(
+            new Target(ADMIN_LOGIN, ADMIN_LOGIN_PATH, "POST", "password", null),
+            new Target(PORTAL_LOGIN, PORTAL_LOGIN_PATH, "POST", "password", null),
+            new Target(DEMO_PURPOSE, DEMO_PATH, "POST", "text", DEMO_PERMISSION));
+
+    public Target target(String path, String method) {
+        return TARGETS.stream().filter(target -> target.path().equals(path) && target.method().equals(method))
+                .findFirst().orElseThrow(() -> new BuzzException("不支持的加密目标"));
     }
 
-    public Preparation prepareLogin(String purpose) {
-        return prepareTarget(purpose, loginPath(purpose), null);
-    }
-
-    private Preparation prepareTarget(String purpose, String path, String userId) {
-        if (!properties.getReplay().isEnabled()) {
-            return new Preparation(1, properties.getKid(), false, null, null);
+    public Preparation prepare(String path, String method, String userId, boolean login) {
+        Target target = target(path, method);
+        if (login != target.login()) throw new BuzzException("不支持的加密目标");
+        if (!login) requireUser(userId);
+        String challenge = null;
+        String expires = null;
+        if (properties.getReplay().isEnabled()) {
+            byte[] random = new byte[32];
+            RANDOM.nextBytes(random);
+            challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+            try {
+                bucket(challenge).set(binding(target, login ? null : userId), CHALLENGE_SECONDS, TimeUnit.SECONDS);
+            } catch (RuntimeException e) {
+                throw new BuzzException("防重放服务暂不可用");
+            }
+            expires = Long.toString(System.currentTimeMillis() + CHALLENGE_SECONDS * 1000L);
         }
-        byte[] random = new byte[32];
-        RANDOM.nextBytes(random);
-        String id = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
-        try {
-            bucket(id).set(binding(purpose, path, userId), CHALLENGE_SECONDS, TimeUnit.SECONDS);
-        } catch (RuntimeException e) {
-            throw new BuzzException("防重放服务暂不可用");
-        }
-        return new Preparation(1, properties.getKid(), true, id,
-                Long.toString(System.currentTimeMillis() + CHALLENGE_SECONDS * 1000L));
+        return new Preparation(2, properties.getKid(), target.purpose(), List.of(target.field()),
+                properties.getReplay().isEnabled(), challenge, expires);
     }
 
-    public <T> T decryptDemo(CryptoEnvelope envelope, String userId, Class<T> type) {
-        requireDemo(envelope == null ? null : envelope.purpose(), userId);
-        return decrypt(envelope, DEMO_PURPOSE, DEMO_PATH, userId, type);
-    }
-
-    public LoginCredentials decryptLogin(CryptoEnvelope envelope, String purpose) {
-        return decrypt(envelope, purpose, loginPath(purpose), null, LoginCredentials.class);
-    }
-
-    private <T> T decrypt(CryptoEnvelope envelope, String purpose, String path, String userId, Class<T> type) {
-        if (envelope == null || !purpose.equals(envelope.purpose())) throw new BuzzException("不支持的加密用途");
-        if (!properties.getKid().equals(envelope.kid())) throw new BuzzException("加密密钥不支持，请重新准备请求");
+    public String decryptField(String value, HttpServletRequest request, String field) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        Target target = target(path, request.getMethod());
+        if (!target.field().equals(field)) throw new BuzzException("不支持的加密字段");
+        String userId = target.login() ? null : BaseContextHandler.getUserId();
+        if (!target.login()) requireUser(userId);
+        String version = header(request, "FaCryptoVersion");
+        String kid = header(request, "FaCryptoKid");
+        String challenge = header(request, "FaCryptoChallengeId");
+        if (!"2".equals(version)) throw new BuzzException("字段加密协议不支持");
+        if (!properties.getKid().equals(kid)) throw new BuzzException("加密密钥不支持，请重新准备请求");
         boolean replay = properties.getReplay().isEnabled();
         if (replay) {
-            if (envelope.challengeId() == null || !envelope.challengeId().matches("[A-Za-z0-9_-]{43}")) {
-                throw new BuzzException("缺少有效挑战，请重新准备请求");
-            }
-            if (!binding(purpose, path, userId).equals(readChallenge(envelope.challengeId(), false))) {
-                throw new BuzzException("挑战已过期、已使用或不匹配");
-            }
-        } else if (envelope.challengeId() != null) {
+            if (challenge == null || !challenge.matches("[A-Za-z0-9_-]{43}")) throw new BuzzException("缺少有效挑战，请重新准备请求");
+            if (!binding(target, userId).equals(readChallenge(challenge, false))) throw new BuzzException("挑战已过期、已使用或不匹配");
+        } else if (challenge != null) {
             throw new BuzzException("防重放配置已变化，请重新准备请求");
         }
-        T body;
+        String plaintext;
         try {
-            byte[] plaintext = RequestCrypto.decrypt(envelope, privateKey, "POST", path);
-            body = json.readValue(plaintext, type);
-            if (body == null || !validator.validate(body).isEmpty()) throw new IllegalArgumentException();
+            byte[] bytes = RequestCrypto.decryptField(value, privateKey, kid, challenge, target.purpose(), target.method(), path, field);
+            plaintext = StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString();
         } catch (Exception e) {
-            throw new BuzzException("加密信封或业务数据无效");
+            throw new BuzzException("字段密文无效");
         }
-        if (replay && !binding(purpose, path, userId).equals(readChallenge(envelope.challengeId(), true))) {
-            throw new BuzzException("挑战已过期、已使用或不匹配");
-        }
-        return body;
+        if (replay && !binding(target, userId).equals(readChallenge(challenge, true))) throw new BuzzException("挑战已过期、已使用或不匹配");
+        return plaintext;
     }
 
-    private void requireDemo(String purpose, String userId) {
-        if (!DEMO_PURPOSE.equals(purpose)) throw new BuzzException("不支持的加密用途");
+    private String header(HttpServletRequest request, String name) {
+        var values = Collections.list(request.getHeaders(name));
+        if (values.size() > 1) throw new BuzzException("加密请求头重复");
+        return values.isEmpty() ? null : values.get(0);
+    }
+
+    private void requireUser(String userId) {
         if (userId == null || userId.isBlank()) throw new BuzzException("请先登录");
     }
 
-    private String loginPath(String purpose) {
-        if (ADMIN_LOGIN.equals(purpose)) return ADMIN_LOGIN_PATH;
-        if (PORTAL_LOGIN.equals(purpose)) return PORTAL_LOGIN_PATH;
-        throw new BuzzException("不支持的加密用途");
-    }
-
-    private String binding(String purpose, String path, String userId) {
-        return "1:" + properties.getKid() + ":" + purpose + ":POST:" + path + ":" + (userId == null ? "" : userId);
+    private String binding(Target target, String userId) {
+        return "2:" + properties.getKid() + ":" + target.purpose() + ":" + target.method() + ":" + target.path() + ":" + target.field() + ":" + (userId == null ? "" : userId);
     }
 
     private RBucket<String> bucket(String id) {
@@ -191,7 +173,10 @@ public class RequestCryptoBiz {
         }
     }
 
+    // shortcut: 每个目标当前只登记一个加密字段；同请求多字段需统一解密后消费挑战。
+    public record Target(String purpose, String path, String method, String field, String permission) {
+        public boolean login() { return ADMIN_LOGIN.equals(purpose) || PORTAL_LOGIN.equals(purpose); }
+    }
     public record PublicKeyInfo(int v, String kid, String publicKey) {}
-    public record Preparation(int v, String kid, boolean replayEnabled, String challengeId, String expiresAt) {}
-    public record LoginCredentials(@NotBlank String username, @NotBlank String password) {}
+    public record Preparation(int v, String kid, String purpose, List<String> fields, boolean replayEnabled, String challengeId, String expiresAt) {}
 }

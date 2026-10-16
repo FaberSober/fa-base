@@ -46,7 +46,7 @@ class RequestAgainFilterTest {
         filter.faSetting.setSafety(new FaSetting.Safety());
         for (String path : new String[]{"/api/portal/fileSave/createPreviewTicket", "/api/base/admin/fileSave/createPreviewTicket",
                 "/api/base/admin/fileSave/exchangePreviewTicket", "/api/base/admin/fileSave/getPreviewFile/test-session",
-                "/api/base/admin/fileSave/getPreviewDownload/test-session"}) {
+                "/api/base/admin/fileSave/getPreviewDownload/test-session", "/api/base/admin/fileSave/getPreviewThumbnail/test-session"}) {
             MockHttpServletRequest request = new MockHttpServletRequest("POST", path);
             request.setContent("{\"ticket\":\"test-secret\"}".getBytes(StandardCharsets.UTF_8));
             MockHttpServletResponse response = new MockHttpServletResponse();

@@ -267,7 +267,8 @@ public class RequestAgainFilter implements Filter {
         String prefix = "/api/base/admin/fileSave/";
         return "/api/portal/fileSave/createPreviewTicket".equals(uri)
                 || (prefix + "createPreviewTicket").equals(uri) || (prefix + "exchangePreviewTicket").equals(uri)
-                || uri.startsWith(prefix + "getPreviewFile/") || uri.startsWith(prefix + "getPreviewDownload/");
+                || uri.startsWith(prefix + "getPreviewFile/") || uri.startsWith(prefix + "getPreviewDownload/")
+                || uri.startsWith(prefix + "getPreviewThumbnail/");
     }
 
     /**

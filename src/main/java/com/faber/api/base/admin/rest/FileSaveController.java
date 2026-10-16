@@ -69,6 +69,15 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
         filePreviewTicketBiz.downloadBySession(session);
     }
 
+    @FaLogOpr("文件预览缩略图")
+    @GetMapping("/getPreviewThumbnail/{session}")
+    @ResponseBody
+    @IgnoreUserToken
+    @LogNoRet
+    public void getPreviewThumbnail(@PathVariable("session") String session) throws IOException {
+        filePreviewTicketBiz.thumbnailBySession(session);
+    }
+
     @FaLogOpr("文件预览下载")
     @GetMapping("/getPreviewDownload/{session}")
     @ResponseBody

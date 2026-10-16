@@ -99,6 +99,8 @@ public class FilePreviewTicketBiz {
         result.setExt(fileSave.getExt());
         result.setSize(fileSave.getSize());
         result.setPreviewUrl(PREVIEW_FILE_PATH + session);
+        result.setThumbnailUrl("/api/base/admin/fileSave/getPreviewThumbnail/" + session);
+        result.setExpiresAt(System.currentTimeMillis() + SESSION_TTL_SECONDS * 1000);
         result.setDownloadUrl("/api/base/admin/fileSave/getPreviewDownload/" + session);
         result.setDownloadAllowed(grant.isDownloadAllowed());
         result.setWatermarkText(grant.getWatermarkText());
@@ -113,7 +115,15 @@ public class FilePreviewTicketBiz {
         streamBySession(session, true);
     }
 
-    private void streamBySession(String session, boolean requireDownloadPermission) throws IOException {
+    public void thumbnailBySession(String session) throws IOException {
+        FileSave file = getSessionFile(session, false);
+        HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
+        response.setHeader("Cache-Control", "private, no-store");
+        response.setHeader("Referrer-Policy", "no-referrer");
+        fileSaveBiz.getFilePreview(file.getId());
+    }
+
+    private FileSave getSessionFile(String session, boolean requireDownloadPermission) {
         String normalizedSession = StrUtil.trim(session);
         if (StrUtil.isBlank(normalizedSession)) {
             throw new BuzzException("预览会话不能为空");
@@ -136,7 +146,11 @@ public class FilePreviewTicketBiz {
             throw new BuzzException("当前文件不允许下载");
         }
 
-        FileSave fileSave = getFileOrThrow(grant.getFileId());
+        return getFileOrThrow(grant.getFileId());
+    }
+
+    private void streamBySession(String session, boolean requireDownloadPermission) throws IOException {
+        FileSave fileSave = getSessionFile(session, requireDownloadPermission);
         File file = fileSaveBiz.getFileObj(fileSave);
         boolean temporaryFile = !isLocalFile(fileSave);
         try {

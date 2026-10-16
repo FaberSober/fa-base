@@ -5,7 +5,8 @@ import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaNoLog;
 import com.faber.core.config.annotation.IgnoreUserToken;
 import com.faber.core.config.annotation.IgnoreLicense;
-import com.faber.core.config.annotation.Permission;
+import com.faber.api.base.rbac.biz.RbacUserRoleBiz;
+import com.faber.core.exception.auth.UserNoPermissionException;
 import com.faber.core.context.BaseContextHandler;
 import com.faber.core.utils.BaseResHandler;
 import com.faber.core.vo.msg.Ret;
@@ -20,9 +21,11 @@ import org.springframework.web.bind.annotation.*;
 public class RequestCryptoController extends BaseResHandler {
 
     private final RequestCryptoBiz biz;
+    private final RbacUserRoleBiz rbac;
 
-    public RequestCryptoController(RequestCryptoBiz biz) {
+    public RequestCryptoController(RequestCryptoBiz biz, RbacUserRoleBiz rbac) {
         this.biz = biz;
+        this.rbac = rbac;
     }
 
     @GetMapping("/public-key")
@@ -33,17 +36,20 @@ public class RequestCryptoController extends BaseResHandler {
     }
 
     @PostMapping("/prepare")
-    @Permission(permission = RequestCryptoBiz.DEMO_PERMISSION)
     public Ret<RequestCryptoBiz.Preparation> prepare(@RequestBody PrepareRequest request) {
-        return ok(biz.prepare(request.purpose(), BaseContextHandler.getUserId()));
+        var target = biz.target(request.path(), request.method());
+        if (target.login() || target.permission() == null || !rbac.checkUserLinkUrl(BaseContextHandler.getUserId(), target.permission())) {
+            throw new UserNoPermissionException("无权访问");
+        }
+        return ok(biz.prepare(request.path(), request.method(), BaseContextHandler.getUserId(), false));
     }
 
     @PostMapping("/prepare-login")
     @IgnoreUserToken
     @IgnoreLicense
     public Ret<RequestCryptoBiz.Preparation> prepareLogin(@RequestBody PrepareRequest request) {
-        return ok(biz.prepareLogin(request.purpose()));
+        return ok(biz.prepare(request.path(), request.method(), null, true));
     }
 
-    public record PrepareRequest(String purpose) {}
+    public record PrepareRequest(String path, String method) {}
 }
