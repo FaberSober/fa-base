@@ -5,7 +5,7 @@ import jakarta.annotation.Resource;
 
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
-import com.faber.api.base.admin.annotation.FileAccess;
+import com.faber.core.annotation.FaFileAccess;
 import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.biz.FilePreviewTicketBiz;
 import com.faber.api.base.admin.entity.FileSave;
@@ -117,7 +117,7 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
 
     @FaLogOpr("文件分片获取")
     @GetMapping("/getFile/{fileId}")
-    @FileAccess(allowPublicResource = true)
+    @FaFileAccess(allowPublicResource = true)
     @ResponseBody
     @IgnoreUserToken
     @LogNoRet
@@ -127,7 +127,7 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
 
     @FaLogOpr("图片缩略图")
     @GetMapping("/getFilePreview/{fileId}")
-    @FileAccess(allowPublicResource = true)
+    @FaFileAccess(allowPublicResource = true)
     @ResponseBody
     @IgnoreUserToken
     @LogNoRet
@@ -137,7 +137,7 @@ public class FileSaveController extends BaseController<FileSaveBiz, FileSave, St
 
     @FaLogOpr("文件字符获取")
     @GetMapping("/getFileStr/{fileId}")
-    @FileAccess
+    @FaFileAccess
     @ResponseBody
     @IgnoreUserToken
     @LogNoRet

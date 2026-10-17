@@ -4,7 +4,7 @@ import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.faber.api.base.admin.annotation.FileAccess;
+import com.faber.core.annotation.FaFileAccess;
 import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserTokenBiz;
@@ -150,7 +150,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
     }
 
     private boolean requiresFileAuthentication(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        FileAccess fileAccess = getMethodAnno(handler, FileAccess.class);
+        FaFileAccess fileAccess = getMethodAnno(handler, FaFileAccess.class);
         if (fileAccess == null) {
             return false;
         }
@@ -169,7 +169,7 @@ public class UserAuthRestInterceptor extends AbstractInterceptor {
         response.setHeader("Cache-Control", "private, no-store");
         response.setHeader("Referrer-Policy", "no-referrer");
         boolean required = !fileAccess.allowPublicResource() || !fileSaveBiz.isPublicSystemResource(fileId);
-        request.setAttribute(FileAccess.AUTH_REQUIRED, required);
+        request.setAttribute(FaFileAccess.AUTH_REQUIRED, required);
         return required;
     }
 

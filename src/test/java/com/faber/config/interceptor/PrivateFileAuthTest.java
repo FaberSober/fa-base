@@ -1,7 +1,7 @@
 package com.faber.config.interceptor;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.faber.api.base.admin.annotation.FileAccess;
+import com.faber.core.annotation.FaFileAccess;
 import com.faber.api.base.admin.biz.FileSaveBiz;
 import com.faber.api.base.admin.biz.UserBiz;
 import com.faber.api.base.admin.biz.UserDeviceBiz;
@@ -74,7 +74,7 @@ class PrivateFileAuthTest {
                 assertFalse(interceptor.preHandle(request, response, handler(method)));
                 assertEquals(401, response.getStatus());
                 assertEquals("private, no-store", response.getHeader("Cache-Control"));
-                assertEquals(Boolean.TRUE, request.getAttribute(FileAccess.AUTH_REQUIRED));
+                assertEquals(Boolean.TRUE, request.getAttribute(FaFileAccess.AUTH_REQUIRED));
             }
             stp.verify(StpUtil::getTokenValue, times(3));
         }
