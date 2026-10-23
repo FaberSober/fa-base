@@ -514,6 +514,15 @@ public class FileSaveBiz extends BaseBiz<FileSaveMapper, FileSave> implements St
      */
     @Override
     public void syncStorageDatabaseConfig() {
+        if (faSetting.getFile().isLocalOverride()) {
+            LocalPlusFileStorage storage = fileStorageService.getFileStorage("local-plus-1");
+            if (storage == null) {
+                throw new BuzzException("已开启本地文件存储覆盖，但未配置local-plus-1存储平台");
+            }
+            faSetting.getFile().updateSaveType(ConfigSysStorageActiveEnum.LOCAL_PLUS);
+            log.info("本地文件存储覆盖已开启，保留YAML路径配置，跳过数据库存储设置");
+            return;
+        }
         log.info("------------ Scan Database Storage Config ------------");
         FaConfig faConfig = configSysService.getConfig();
         if (faConfig.getStoreActive() == null) {
