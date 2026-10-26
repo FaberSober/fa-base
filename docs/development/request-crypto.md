@@ -1,6 +1,6 @@
 # 通用字段加密与 Header 防重放
 
-当前为字段协议 v2，正在人工验收（🔍验证中）。它替换已验收的整包信封接入：JSON 保持原业务结构，仅指定字符串字段变成密文；挑战和密钥标识放 Header。旧 `/login` 保留，两个 `/loginV2` 只接受新协议，不回退明文。
+当前为字段协议 v2：JSON 保持原业务结构，仅指定字符串字段变成密文；挑战和密钥标识放 Header。旧 `/login` 保留，两个 `/loginV2` 只接受新协议，不回退明文。新增 Web 纯 HTTP 兼容，状态为 🔍验证中，等待客户内网验收。
 
 ## 请求格式与协议
 
@@ -65,7 +65,11 @@ return ok(authBiz.login(body));
 
 ## 配置、发布与兼容
 
-- `FA_CRYPTO_ENABLED` 控制新能力，`FA_CRYPTO_REPLAY_ENABLED` 控制挑战，沿用 `application.yml`；本项目两项显式默认开启。配置改动重启后生效，多实例保持一致并共用 Redis。
+- Web 同时支持 HTTPS、localhost 和纯 HTTP 内网 IP。`crypto.subtle` 可用时沿用原生 Web Crypto；不可用时按需加载随前端资源发布的 `node-forge`，保持 AES-256-GCM、RSA-OAEP SHA-256 / MGF1 SHA-256、AAD 和密文格式一致，无需浏览器白名单或外网 CDN。
+- HTTP 实现的 AES 密钥、IV 和 OAEP seed 均由浏览器 `crypto.getRandomValues` 生成；缺失或调用失败时拒绝请求，不能改用 `Math.random` 或明文。原生加密报错时直接失败，不切换实现重试。
+- HTTP 兼容无需新增配置或调整后台协议，重新构建并发布共享 UI 与管理端资源即可；发布时一并上传动态分包，避免旧 HTML/JS 缓存与新资源混用。继续启用 `FA_CRYPTO_ENABLED` 并使用客户独立生产私钥，关闭该开关不能让当前前端自动改用旧登录接口。
+- 应用层加密不替代 TLS。HTTP 页面、脚本、公钥和会话凭据仍可能被窃听或篡改；兼容 HTTP 只解决浏览器加密 API 的可用性限制。
+- `FA_CRYPTO_ENABLED` 控制新能力，`FA_CRYPTO_REPLAY_ENABLED` 控制挑战，沿用 `application.yml`；当前默认启用加密、关闭防重放，可用环境变量覆盖。配置改动重启后生效，多实例保持一致并共用 Redis。
 - `dev` 使用 `classpath:crypto/dev-public-request-key.pem`、`kid=dev-public-v1`，仅供假数据测试，视为公开数据。`FA_CRYPTO_PRIVATE_KEY_FILE`、`FA_CRYPTO_KID` 可覆盖；生产显式启用 `prod` 并使用客户独立外置 RSA-2048 PKCS#8 私钥。classpath 测试密钥在 `prod`、`dev,prod` 或其他环境拒绝加载。
 - `prod` 默认外置路径为 `${user.home}/.config/fa-admin/request-crypto.pem`；可用环境变量指定 macOS/Windows 的绝对路径。不提交客户私钥到仓库，不能用开发公开密钥保护真实数据。
 - 本次 `/loginV2`、准备与 Demo 协议一起升级，需后台、管理端、App 配套发布；不兼容上一批的整包 `/loginV2`。旧 `/login`、Portal 网页、Desktop、短信/Token/注册保持原行为。回滚配合旧版本资源，不依赖自动明文降级。
@@ -74,7 +78,9 @@ return ok(authBiz.login(body));
 
 ## 验证
 
-本批通过 27 项 Java、23 项 JS/TS/UTS 定向测试及 7 个 TypeScript 文件类型检查，Android / iOS 资源在 HBuilderV 配套 `5.31.2026100911-alpha` 编译通过；详细记录以 PLAN 当前批次为准。Java 测试用测试密钥和模拟 Redis/认证依赖；跨端样例包括实际 Web Crypto、Swift（macOS）及 Android Kotlin（JVM，测试用 Base64 适配），不能替代设备或真实基础设施验证。HBuilderV 资源编译使用指向当前源码的临时项目入口，避免同名工程混淆。
+HTTP 兼容本次验证（2026-10-26）：23 项 JS/TS 定向测试、6 项 Java `RequestCryptoTest` 测试通过；覆盖缺少 `subtle` 时的登录与旧信封、UTF-8/边界长度、两种防重放模式、随机化、AAD/密文篡改、安全随机源失效、签名/Header 与失败清理。两个 HTTP JS 密文样例已由现有 Java 代码解密。共享加密模块 TypeScript 检查、浏览器目标独立打包与无 Node 全局变量环境的加密检查、冻结锁文件离线校验通过。未执行完整前端构建或客户内网实测。
+
+字段协议改造历史验证：27 项 Java、23 项 JS/TS/UTS 定向测试及 7 个 TypeScript 文件类型检查通过，Android / iOS 资源在 HBuilderV 配套 `5.31.2026100911-alpha` 编译通过；详细记录以 PLAN 对应批次为准。Java 测试用测试密钥和模拟 Redis/认证依赖；跨端样例包括实际 Web Crypto、Swift（macOS）及 Android Kotlin（JVM，测试用 Base64 适配），不能替代设备或真实基础设施验证。HBuilderV 资源编译使用指向当前源码的临时项目入口，避免同名工程混淆。
 
 人工验收（Web、Android、iOS）：
 
@@ -87,4 +93,10 @@ return ok(authBiz.login(body));
 7. App 退出再登录、设备信任和现有设备列表正常；旧 `/login`、Portal 网页及 Token/短信等既有入口保持兼容。无 Demo 菜单权限用户不能准备/解密 Demo；许可异常时两个新登录和公钥/登录准备保持原可达性。
 8. 跨域环境确认预检和网关转发三项 Header。生产发布、Windows 运行及真机签名未由本次自动验证覆盖。
 
-功能 7–10 保持 🔍验证中，用户确认后再完成验收与 Git 提交。
+HTTP 内网验收：
+
+1. 发布新前端资源，关闭先前配置的“不安全来源视为安全”浏览器白名单，清理站点缓存后用 `http://客户IP[:端口]` 访问；控制台 `crypto.subtle` 应仍不可用，登录不再提示必须使用 HTTPS。
+2. 验证正确密码登录、错误密码提示及再次提交；F12 中 `/loginV2` 的 password 应为三个 Base64 片段，认证与设备信任行为正常。
+3. 在加密 Demo 输入中文、Emoji、换行和空文本，生成后提交可还原，篡改后被拒绝；防重放启用时原样重放应被拒绝。
+
+HTTP 兼容保持 🔍验证中，用户确认后完成验收；既有功能的验收状态以 PLAN 为准。
