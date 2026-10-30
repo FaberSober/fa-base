@@ -49,4 +49,7 @@ public class JobLog implements Serializable {
     @ExcelProperty("错误日志")
     private String errMsg;
 
+    @ExcelProperty("日志相对路径")
+    private String logPath;
+
 }

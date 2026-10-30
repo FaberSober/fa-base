@@ -79,6 +79,11 @@ public class RequestAgainFilter implements Filter {
 
             // 判断是否是跳过判断的URL
             String uri = getRequestPath(request);
+            boolean jobLogReadRequest = isJobLogReadRequest(request.getMethod(), uri);
+            if (jobLogReadRequest) {
+                response.setHeader("FaNoLog", "1");
+                response.setHeader("Cache-Control", "private, no-store");
+            }
             boolean filePreviewRequest = isFilePreviewCredentialRequest(uri);
             if (filePreviewRequest) {
                 response.setHeader("Cache-Control", "private, no-store");
@@ -146,6 +151,12 @@ public class RequestAgainFilter implements Filter {
                         }
                     }
                 }
+            }
+
+            if (jobLogReadRequest) {
+                // 完成签名校验后直接输出，下载不经过响应正文缓存，也不创建 API 日志。
+                filterChain.doFilter(requestWrapper, response);
+                return;
             }
 
             // 交给下一个过滤器或servlet处理
@@ -261,6 +272,11 @@ public class RequestAgainFilter implements Filter {
 
     static boolean matchesSkipUrl(String uri) {
         return SKIP_URLS.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, uri));
+    }
+
+    static boolean isJobLogReadRequest(String method, String uri) {
+        return ("GET".equalsIgnoreCase(method) && uri.matches("/api/base/admin/jobLog/read/\\d+"))
+                || ("POST".equalsIgnoreCase(method) && uri.matches("/api/base/admin/jobLog/download/\\d+"));
     }
 
     static boolean isFilePreviewCredentialRequest(String uri) {

@@ -49,4 +49,7 @@ public class Job extends BaseDelEntity implements JobInfo {
     @ExcelProperty("任务描述")
     private String jobDesc;
 
+    @ExcelProperty("记录详细日志")
+    private Boolean detailLogEnabled = false;
+
 }
