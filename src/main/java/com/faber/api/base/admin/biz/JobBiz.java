@@ -5,6 +5,7 @@ import cn.hutool.core.util.ClassUtil;
 import cn.hutool.core.util.ObjUtil;
 import com.faber.api.base.admin.entity.Job;
 import com.faber.api.base.admin.flow.JobFlowDefinitionValidator;
+import com.faber.api.base.admin.flow.JobFlowPreflight;
 import com.faber.config.quartz.BaseJob;
 import java.util.Collection;
 import java.util.Set;
@@ -52,9 +53,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
             String name = job.getJobName() != null ? job.getJobName() : old == null ? null : old.getJobName();
             if (name == null || name.isBlank() || name.length() > 100) throw new BuzzException("流程名称须为1–100字符");
             String definition = job.getFlowDefinition() != null ? job.getFlowDefinition() : old == null ? null : old.getFlowDefinition();
-            Set<String> registered = ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class).stream()
-                    .filter(BaseJob.class::isAssignableFrom).map(Class::getName).collect(Collectors.toSet());
-            JobFlowDefinitionValidator.validate(definition, registered);
+            JobFlowDefinitionValidator.validate(definition, registeredFlowClasses());
             if (Boolean.TRUE.equals(job.getStatus())) throw new BuzzException("流程执行尚未接入，不能启用调度");
             job.setFlowDefinition(definition);
             job.setClazzPath("");
@@ -84,6 +83,18 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     public boolean saveOrUpdateBatch(Collection<Job> jobs, int batchSize) {
         jobs.forEach(this::saveBefore);
         return super.saveOrUpdateBatch(jobs, batchSize);
+    }
+
+    private Set<String> registeredFlowClasses() {
+        return ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class).stream()
+                .filter(BaseJob.class::isAssignableFrom).map(Class::getName).collect(Collectors.toSet());
+    }
+
+    public JobFlowPreflight preflightFlow(Integer id) {
+        Job job = getById(id);
+        if (job == null) throw new NoDataException();
+        if (!Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("仅流程任务支持运行前检查");
+        return JobFlowPreflight.inspect(job.getId(), job.getJobName(), job.getFlowDefinition(), registeredFlowClasses());
     }
 
     private void requireOrdinary(Job job) {

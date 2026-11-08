@@ -3,6 +3,7 @@ package com.faber.api.base.admin.rest;
 import cn.hutool.core.map.MapUtil;
 import com.faber.api.base.admin.biz.JobBiz;
 import com.faber.api.base.admin.entity.Job;
+import com.faber.api.base.admin.flow.JobFlowPreflight;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.IgnoreUserToken;
@@ -20,6 +21,13 @@ import java.util.Map;
 @Controller
 @RequestMapping("/api/base/admin/job")
 public class JobController extends BaseController<JobBiz, Job, Integer> {
+
+    @FaLogOpr("流程运行前检查")
+    @GetMapping("/preflightFlow/{id}")
+    @ResponseBody
+    public Ret<JobFlowPreflight> preflightFlow(@PathVariable int id) {
+        return ok(baseBiz.preflightFlow(id));
+    }
 
     @FaLogOpr("立即执行")
     @GetMapping("/runOneTime/{id}")
