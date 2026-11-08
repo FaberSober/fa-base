@@ -31,13 +31,18 @@ public class JobLog implements Serializable {
     private Integer id;
 
     @SqlEquals
-    @ExcelProperty("任务ID")
+    @ExcelProperty("任务配置ID（无独立配置的节点为空）")
     private Integer jobId;
 
+    @ExcelProperty("本轮任务类型:0普通/1流程")
     private Integer jobType;
+    @ExcelProperty("触发来源:0历史或未知/1手动/2Cron/3流程节点")
     private Integer triggerSource;
-    private String flowSnapshot;
+    @ExcelProperty("本轮流程定义版本ID（仅流程整体日志）")
+    private Integer definitionVersionId;
+    @ExcelProperty("执行类路径快照")
     private String clazzPath;
+    @ExcelProperty("任务名称快照")
     private String jobName;
 
     @ExcelProperty("创建时间")
@@ -46,10 +51,10 @@ public class JobLog implements Serializable {
     @ExcelProperty("结束时间")
     private Date endTime;
 
-    @ExcelProperty("执行结果：1-执行中/2-成功/9-失败")
+    @ExcelProperty("执行结果:1执行中/2成功/8未确认/9失败")
     private JobLogStatusEnum status;
 
-    @ExcelProperty("执行花费时间")
+    @ExcelProperty("执行耗时(秒)")
     private Long duration;
 
     @ExcelProperty("错误日志")

@@ -35,6 +35,7 @@ public class Job extends BaseDelEntity implements JobInfo {
     private static final long serialVersionUID = 1L;
 
     @TableId(type = IdType.AUTO)
+    @ExcelProperty("ID")
     private Integer id;
 
     @SqlSearch
@@ -46,7 +47,13 @@ public class Job extends BaseDelEntity implements JobInfo {
     @ExcelProperty("任务类型:0普通/1流程")
     private Integer jobType;
 
+    @ExcelProperty("当前流程定义JSON（仅流程任务）")
     private String flowDefinition;
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @TableField(insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    @ExcelProperty("当前流程定义版本ID（仅流程任务）")
+    private Integer currentDefinitionVersionId;
 
     @SqlSearch
     @ExcelProperty("cron表达式")

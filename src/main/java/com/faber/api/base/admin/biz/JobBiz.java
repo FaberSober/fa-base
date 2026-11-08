@@ -6,6 +6,7 @@ import cn.hutool.core.util.ObjUtil;
 import com.faber.api.base.admin.entity.Job;
 import com.faber.api.base.admin.flow.JobFlowDefinitionValidator;
 import com.faber.api.base.admin.flow.JobFlowPreflight;
+import com.faber.api.base.admin.flow.JobDefinitionVersions;
 import com.faber.config.quartz.BaseJob;
 import java.util.Collection;
 import java.util.Set;
@@ -47,6 +48,39 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     private JobTask jobTask;
 
     @Autowired private JobLogMapper jobLogMapper;
+    @Autowired private JobDefinitionVersions definitionVersions;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean save(Job job) {
+        boolean saved = super.save(job);
+        if (saved) recordDefinitionVersion(job);
+        return saved;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateById(Job job) {
+        if (job.getId() == null || baseMapper.selectOne(new QueryWrapper<Job>().eq("id", job.getId()).last("FOR UPDATE")) == null)
+            return false;
+        boolean saved = super.updateById(job);
+        if (saved) recordDefinitionVersion(job);
+        return saved;
+    }
+
+    private void recordDefinitionVersion(Job input) {
+        Job saved = baseMapper.selectOne(new QueryWrapper<Job>().eq("id", input.getId()).last("FOR UPDATE"));
+        if (saved != null && Integer.valueOf(1).equals(saved.getJobType()))
+            input.setCurrentDefinitionVersionId(definitionVersions.ensureCurrent(saved).getId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean saveOrUpdate(Job job) {
+        if (job.getId() != null && baseMapper.selectOne(new QueryWrapper<Job>().eq("id", job.getId()).last("FOR UPDATE")) != null)
+            return updateById(job);
+        return save(job);
+    }
 
     @Override
     protected void saveBefore(Job job) {
@@ -73,23 +107,41 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public boolean saveBatch(Collection<Job> jobs) {
+        return saveBatch(jobs, DEFAULT_IMPORT_BATCH_SIZE);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateBatchById(Collection<Job> jobs) {
+        return updateBatchById(jobs, DEFAULT_IMPORT_BATCH_SIZE);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean saveOrUpdateBatch(Collection<Job> jobs) {
+        return saveOrUpdateBatch(jobs, DEFAULT_IMPORT_BATCH_SIZE);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean saveBatch(Collection<Job> jobs, int batchSize) {
-        jobs.forEach(this::saveBefore);
-        return super.saveBatch(jobs, batchSize);
+        for (Job job : jobs) if (!save(job)) throw new BuzzException("批量保存任务失败");
+        return true;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateBatchById(Collection<Job> jobs, int batchSize) {
-        jobs.forEach(this::saveBefore);
-        return super.updateBatchById(jobs, batchSize);
+        for (Job job : jobs) if (!updateById(job)) throw new BuzzException("批量更新任务失败");
+        return true;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean saveOrUpdateBatch(Collection<Job> jobs, int batchSize) {
-        jobs.forEach(this::saveBefore);
-        return super.saveOrUpdateBatch(jobs, batchSize);
+        for (Job job : jobs) if (!saveOrUpdate(job)) throw new BuzzException("批量保存任务失败");
+        return true;
     }
 
     private Set<String> registeredFlowClasses() {

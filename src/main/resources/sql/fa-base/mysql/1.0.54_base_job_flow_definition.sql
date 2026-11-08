@@ -3,16 +3,16 @@
 -- @@info: 轻量DAG任务流编排完整数据结构
 -- ------------------------- info -------------------------
 
-ALTER TABLE `base_job` ADD COLUMN `job_type` int NOT NULL DEFAULT 0 COMMENT '任务类型:0普通/1流程', ADD COLUMN `flow_definition` longtext DEFAULT NULL COMMENT '流程定义JSON';
+ALTER TABLE `base_job` ADD COLUMN `job_type` int NOT NULL DEFAULT 0 COMMENT '任务类型:0普通/1流程', ADD COLUMN `flow_definition` longtext DEFAULT NULL COMMENT '流程定义JSON', ADD COLUMN `current_definition_version_id` int(11) DEFAULT NULL COMMENT '当前流程定义版本ID，普通任务及旧配置可空';
 
 -- 流程节点直接引用注册类，无独立任务配置时 job_id 允许为空。
 ALTER TABLE `base_job_log`
     MODIFY COLUMN `job_id` int(11) DEFAULT NULL COMMENT '独立任务或流程配置ID，类路径节点可为空',
     ADD COLUMN `job_type` int NOT NULL DEFAULT 0 COMMENT '本轮任务类型:0普通/1流程',
     ADD COLUMN `trigger_source` int NOT NULL DEFAULT 0 COMMENT '触发来源:0历史/1手动/2Cron/3流程节点',
-    ADD COLUMN `flow_snapshot` longtext DEFAULT NULL COMMENT '本轮流程完整配置快照',
     ADD COLUMN `clazz_path` varchar(255) DEFAULT NULL COMMENT '执行类路径快照，历史记录可空',
-    ADD COLUMN `job_name` varchar(255) DEFAULT NULL COMMENT '任务名称快照，历史记录可空';
+    ADD COLUMN `job_name` varchar(255) DEFAULT NULL COMMENT '任务名称快照，历史记录可空',
+    ADD COLUMN `definition_version_id` int(11) DEFAULT NULL COMMENT '本轮不可变流程定义版本ID，普通任务为空';
 
 CREATE TABLE IF NOT EXISTS `base_job_flow_node_run` (
     `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '节点运行ID',
@@ -34,3 +34,23 @@ CREATE TABLE IF NOT EXISTS `base_job_flow_node_run` (
     KEY `idx_flow_node_status` (`flow_log_id`, `status`),
     KEY `idx_flow_node_recovery` (`status`, `upd_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='BASE-流程节点运行记录';
+
+-- 历史版本不可修改；内容变化才创建新版本，运行只关联版本ID。
+CREATE TABLE IF NOT EXISTS `base_job_definition_version` (
+    `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '流程定义版本ID',
+    `job_id` int(11) NOT NULL COMMENT '所属流程任务配置ID',
+    `version_no` int NOT NULL COMMENT '任务内递增版本号，从1开始',
+    `job_name` varchar(255) NOT NULL COMMENT '任务名称快照',
+    `detail_log_enabled` tinyint(1) NOT NULL DEFAULT 0 COMMENT '详细日志开关快照:0关闭/1开启',
+    `flow_definition` longtext NOT NULL COMMENT '不可变流程定义JSON，包含节点位置',
+    `content_hash` char(64) NOT NULL COMMENT '名称、日志开关及规范化定义的SHA-256，应用计算',
+    `crt_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '版本创建时间',
+    `crt_user` varchar(32) DEFAULT NULL COMMENT '版本创建用户ID',
+    `crt_name` varchar(255) DEFAULT NULL COMMENT '版本创建用户名',
+    `crt_host` varchar(255) DEFAULT NULL COMMENT '版本创建来源IP',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_job_definition_version` (`job_id`, `version_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='BASE-不可变流程定义历史版本';
+
+CREATE INDEX `idx_job_current_definition_version` ON `base_job` (`current_definition_version_id`);
+CREATE INDEX `idx_job_log_definition_version` ON `base_job_log` (`definition_version_id`);

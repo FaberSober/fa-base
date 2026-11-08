@@ -13,8 +13,6 @@ import com.faber.core.annotation.FaJob;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +26,7 @@ public class JobFlowRunStore {
     @Resource private JobLogMapper logs;
     @Resource private JobFlowNodeRunMapper nodes;
     @Resource private JobLogBiz logBiz;
-    private static final ObjectMapper JSON = new ObjectMapper();
+    @Resource private JobDefinitionVersions definitionVersions;
     public record Launch(JobFlowNodeRun node, JobLog log, boolean detailLogEnabled) {}
 
     @Transactional(rollbackFor = Exception.class)
@@ -40,12 +38,11 @@ public class JobFlowRunStore {
             throw new BuzzException("该流程仍有执行中或未确认的运行，不能重复启动");
         Set<String> registered = ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class).stream().filter(BaseJob.class::isAssignableFrom).map(Class::getName).collect(Collectors.toSet());
         JobFlowDefinitionValidator.validate(job.getFlowDefinition(), registered);
-        ObjectNode definition = (ObjectNode) read(job.getFlowDefinition());
-        definition.put("name", job.getJobName());
-        definition.put("detailLogEnabled", Boolean.TRUE.equals(job.getDetailLogEnabled()));
+        JobDefinitionVersion version = definitionVersions.ensureCurrent(job);
         JobLog parent = new JobLog();
         parent.setJobId(jobId); parent.setJobType(1); parent.setTriggerSource(1); parent.setJobName(job.getJobName());
-        parent.setFlowSnapshot(definition.toString()); parent.setBeginTime(new Date()); parent.setStatus(JobLogStatusEnum.DOING); parent.setTrackingVersion(1); parent.setDuration(0L);
+        parent.setDefinitionVersionId(version.getId()); parent.setBeginTime(new Date()); parent.setStatus(JobLogStatusEnum.DOING); parent.setTrackingVersion(1); parent.setDuration(0L);
+        JsonNode definition = definitionVersions.definition(parent);
         logBiz.beginExecution(parent);
         for (JsonNode node : definition.path("nodes")) {
             JobFlowNodeRun run = new JobFlowNodeRun();
@@ -61,7 +58,10 @@ public class JobFlowRunStore {
     public JobFlowRunView view(Integer logId) {
         JobLog parent = logs.selectById(logId);
         if (parent == null || !Integer.valueOf(1).equals(parent.getJobType())) throw new NoDataException();
-        return new JobFlowRunView(parent, nodes.selectList(new QueryWrapper<JobFlowNodeRun>().eq("flow_log_id", logId).orderByAsc("id")));
+        return new JobFlowRunView(parent, nodeRuns(logId), definitionVersions.definition(parent));
+    }
+    private List<JobFlowNodeRun> nodeRuns(Integer logId) {
+        return nodes.selectList(new QueryWrapper<JobFlowNodeRun>().eq("flow_log_id", logId).orderByAsc("id"));
     }
     public List<JobLog> history(Integer jobId) {
         return logs.selectPage(new Page<>(1, 20), new QueryWrapper<JobLog>().eq("job_id", jobId).eq("job_type", 1).orderByDesc("id")).getRecords();
@@ -71,8 +71,8 @@ public class JobFlowRunStore {
     public Launch claim(Integer logId) {
         JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", logId).last("FOR UPDATE"));
         if (parent == null || parent.getStatus() != JobLogStatusEnum.DOING) return null;
-        List<JobFlowNodeRun> runs = view(logId).nodes();
-        JsonNode definition = read(parent.getFlowSnapshot());
+        List<JobFlowNodeRun> runs = nodeRuns(logId);
+        JsonNode definition = definitionVersions.definition(parent);
         var decision = JobFlowSerialPlanner.next(definition, runs);
         for (JobFlowNodeRun run : runs) if (decision.blocked().contains(run.getNodeId())) {
             run.setStatus(60); run.setReason(runs.stream().anyMatch(item -> item.getStatus() == 80) ? "存在未确认工作，串行通道暂停，未启动" : "前驱失败或阻断，未启动"); run.setUpdTime(new Date()); nodes.updateById(run);
@@ -114,7 +114,7 @@ public class JobFlowRunStore {
     public void failSubmission(Integer logId, String reason) {
         JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", logId).last("FOR UPDATE"));
         if (parent == null || parent.getStatus() != JobLogStatusEnum.DOING) return;
-        List<JobFlowNodeRun> runs = view(logId).nodes();
+        List<JobFlowNodeRun> runs = nodeRuns(logId);
         if (runs.stream().anyMatch(run -> run.getStatus() == 20 || run.getStatus() == 30)) return;
         for (JobFlowNodeRun run : runs) if (run.getStatus() == 0 || run.getStatus() == 10) {
             run.setStatus(60); run.setReason(reason); run.setUpdTime(new Date()); nodes.updateById(run);
@@ -131,16 +131,12 @@ public class JobFlowRunStore {
         parent.setErrMsg(unknown ? "节点结果未确认，后续未放行" : failed ? "部分节点失败或被阻断，请查看节点记录" : null);
         logBiz.finishExecution(parent);
     }
-    static JsonNode read(String source) {
-        try { return JSON.readTree(source); } catch (java.io.IOException e) { throw new BuzzException("流程执行快照损坏"); }
-    }
-
     /** 重启不重跑任何可能产生副作用的节点；未确认结果继续占用该流程运行互斥。 */
     @Transactional(rollbackFor = Exception.class)
     public void recoverInterrupted() {
         for (JobLog parent : logs.selectList(new QueryWrapper<JobLog>().eq("job_type", 1).eq("status", 1))) {
             logs.selectOne(new QueryWrapper<JobLog>().eq("id", parent.getId()).last("FOR UPDATE"));
-            for (JobFlowNodeRun run : view(parent.getId()).nodes()) {
+            for (JobFlowNodeRun run : nodeRuns(parent.getId())) {
                 if (run.getStatus() == 20 || run.getStatus() == 30) {
                     if (run.getJobLogId() != null) {
                         JobLog business = logs.selectById(run.getJobLogId());
