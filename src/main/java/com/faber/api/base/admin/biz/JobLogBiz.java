@@ -16,6 +16,7 @@ import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -25,6 +26,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -40,6 +42,33 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
     @Resource private JobMapper jobMapper;
     @Resource private JobLogFileService logFiles;
     @Resource private FaSetting faSetting;
+
+    /** 开始记录和主表计数属于同一事务，避免只有日志或只有计数。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void beginExecution(JobLog record) {
+        if (!save(record)) throw new IllegalStateException("登记任务执行失败");
+        if (jobMapper.incrementExecutionCount(record) != 1) {
+            throw new IllegalStateException("任务不存在或已删除");
+        }
+        jobMapper.publishStart(record);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void recordDispatch(JobLog record) {
+        if (baseMapper.publishDispatch(record) == 1) jobMapper.publishDispatch(record);
+    }
+
+    /** 条件终态更新是唯一累计入口；重复回调、重试不重复计数。 */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean finishExecution(JobLog record) {
+        if (record.getStatus() == null || record.getStatus() == JobLogStatusEnum.DOING) {
+            throw new IllegalArgumentException("任务尚未结束");
+        }
+        if (baseMapper.finishExecution(record) != 1) return false;
+        jobMapper.incrementFinishedStats(record);
+        jobMapper.publishFinish(record);
+        return true;
+    }
 
     /** 开关按每次执行快照；日志设施故障不影响任务本身。 */
     public JobLogFileService.ExecutionLog openExecutionLog(JobLog record) {
@@ -90,8 +119,13 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
         return logFiles.cleanup(cutoff, (id, relativePath) -> {
             JobLog record = getById(id);
             if (record == null || !relativePath.equals(record.getLogPath())) return true;
-            return record.getStatus() != JobLogStatusEnum.DOING && record.getEndTime() != null
-                    && record.getEndTime().toInstant().isBefore(cutoff);
+            Date retentionEnd = record.getEndTime();
+            // 未确认记录没有真实业务结束时间；文件服务还会校验文件最后写入时间。
+            if (record.getStatus() == JobLogStatusEnum.UNCONFIRMED && retentionEnd == null) {
+                retentionEnd = record.getDispatchEndTime();
+            }
+            return record.getStatus() != JobLogStatusEnum.DOING && retentionEnd != null
+                    && retentionEnd.toInstant().isBefore(cutoff);
         });
     }
 

@@ -52,4 +52,16 @@ public class JobLog implements Serializable {
     @ExcelProperty("日志相对路径")
     private String logPath;
 
+    @ExcelProperty("主流程返回时间")
+    private Date dispatchEndTime;
+
+    @ExcelProperty("触发耗时(ms)")
+    private Long dispatchDurationMs;
+
+    @ExcelProperty("总耗时(ms)")
+    private Long durationMs;
+
+    @ExcelProperty("统计口径:0旧/1完整/2未确认")
+    private Integer trackingVersion;
+
 }

@@ -183,6 +183,19 @@ class JobLogBizTest {
         }
     }
 
+    @Test
+    void unconfirmedClosedLogsCanExpireWithoutInventingABusinessEndTime() throws Exception {
+        Instant old = Instant.now().minus(40, ChronoUnit.DAYS);
+        JobLog record = record(8, JobLogStatusEnum.UNCONFIRMED);
+        record.setDispatchEndTime(Date.from(old));
+        try (var execution = files.open(record)) { record.setLogPath(execution.getRelativePath()); }
+        Files.setLastModifiedTime(files.resolve(record.getLogPath()), FileTime.from(old));
+        doReturn(record).when(biz).getById(8);
+        assertEquals(1, biz.cleanupExpiredFiles());
+        assertNull(record.getEndTime());
+        assertFalse(Files.exists(files.resolve(record.getLogPath())));
+    }
+
     private JobLog record(int id, JobLogStatusEnum status) {
         JobLog record = new JobLog();
         record.setId(id);

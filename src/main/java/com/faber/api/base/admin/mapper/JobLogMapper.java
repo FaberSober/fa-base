@@ -2,6 +2,7 @@ package com.faber.api.base.admin.mapper;
 
 import com.faber.core.config.mybatis.base.FaBaseMapper;
 import com.faber.api.base.admin.entity.JobLog;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * BASE-系统定时任务-执行日志
@@ -11,5 +12,6 @@ import com.faber.api.base.admin.entity.JobLog;
  * @date 2022-09-07 16:03:51
  */
 public interface JobLogMapper extends FaBaseMapper<JobLog> {
-	
+    int publishDispatch(@Param("record") JobLog record);
+    int finishExecution(@Param("record") JobLog record);
 }

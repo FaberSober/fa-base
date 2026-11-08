@@ -3,4 +3,47 @@
 
 <mapper namespace="com.faber.api.base.admin.mapper.JobMapper">
 
+    <sql id="activeJob">
+        id = #{record.jobId} AND deleted =
+        <choose><when test="_databaseId == 'postgre'">false</when><otherwise>0</otherwise></choose>
+    </sql>
+
+    <update id="incrementExecutionCount">
+        UPDATE base_job SET execute_count = execute_count + 1,
+            stats_since = COALESCE(stats_since, #{record.beginTime})
+        WHERE <include refid="activeJob"/>
+    </update>
+
+    <update id="publishStart">
+        UPDATE base_job SET last_job_log_id = #{record.id}, last_execute_time = #{record.beginTime},
+            last_end_time = NULL, last_status = 1, last_duration_ms = NULL,
+            last_dispatch_duration_ms = NULL, last_tracking_version = #{record.trackingVersion}
+        WHERE <include refid="activeJob"/>
+          AND (last_execute_time IS NULL OR last_execute_time &lt; #{record.beginTime}
+            OR (last_execute_time = #{record.beginTime}
+              AND (last_job_log_id IS NULL OR last_job_log_id &lt; #{record.id})))
+    </update>
+
+    <update id="publishDispatch">
+        UPDATE base_job SET last_dispatch_duration_ms = #{record.dispatchDurationMs}
+        WHERE <include refid="activeJob"/> AND last_job_log_id = #{record.id}
+    </update>
+
+    <update id="incrementFinishedStats">
+        UPDATE base_job SET
+            success_count = success_count + CASE WHEN #{record.status.value} = 2 THEN 1 ELSE 0 END,
+            fail_count = fail_count + CASE WHEN #{record.status.value} = 9 THEN 1 ELSE 0 END
+        <if test="record.trackingVersion == 1 and record.durationMs != null and (record.status.value == 2 or record.status.value == 9)">
+            , total_duration_ms = total_duration_ms + #{record.durationMs},
+            duration_sample_count = duration_sample_count + 1
+        </if>
+        WHERE <include refid="activeJob"/>
+    </update>
+
+    <update id="publishFinish">
+        UPDATE base_job SET last_end_time = #{record.endTime}, last_status = #{record.status.value},
+            last_duration_ms = #{record.durationMs}, last_dispatch_duration_ms = #{record.dispatchDurationMs},
+            last_tracking_version = #{record.trackingVersion}
+        WHERE <include refid="activeJob"/> AND last_job_log_id = #{record.id}
+    </update>
 </mapper>

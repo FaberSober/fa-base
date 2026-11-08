@@ -9,6 +9,7 @@ import lombok.Getter;
 public enum JobLogStatusEnum implements IEnum<Integer> {
     DOING(1, "执行中"),
     DONE(2, "成功"),
+    UNCONFIRMED(8, "未确认"),
     ERROR(9, "失败");
 
     @JsonValue

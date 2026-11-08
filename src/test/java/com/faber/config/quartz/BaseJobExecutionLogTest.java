@@ -57,7 +57,7 @@ class BaseJobExecutionLogTest {
         Path path = files.resolve(execution.getRelativePath());
         JobLogBiz biz = mock(JobLogBiz.class);
         when(biz.openExecutionLog(record)).thenReturn(execution);
-        when(biz.updateById(any())).thenAnswer(invocation -> {
+        when(biz.finishExecution(any())).thenAnswer(invocation -> {
             String text = Files.readString(path);
             assertTrue(text.contains(failure == null ? "任务执行成功" : "任务执行失败"));
             JobRunLogger.info("终态发布时上下文已经清理");
@@ -89,6 +89,6 @@ class BaseJobExecutionLogTest {
             assertTrue(text.contains(failure.getClass().getName()));
         }
         assertNull(BaseContextHandler.getUserId());
-        verify(biz, times(1)).updateById(record);
+        verify(biz, times(1)).finishExecution(record);
     }
 }

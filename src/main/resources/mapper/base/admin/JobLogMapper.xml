@@ -3,4 +3,17 @@
 
 <mapper namespace="com.faber.api.base.admin.mapper.JobLogMapper">
 
+    <update id="publishDispatch">
+        UPDATE base_job_log SET dispatch_end_time = #{record.dispatchEndTime},
+            dispatch_duration_ms = #{record.dispatchDurationMs}
+        WHERE id = #{record.id} AND status = 1 AND dispatch_end_time IS NULL
+    </update>
+
+    <update id="finishExecution">
+        UPDATE base_job_log SET end_time = #{record.endTime}, duration = #{record.duration},
+            duration_ms = #{record.durationMs}, dispatch_end_time = #{record.dispatchEndTime},
+            dispatch_duration_ms = #{record.dispatchDurationMs}, status = #{record.status.value},
+            err_msg = #{record.errMsg}, tracking_version = #{record.trackingVersion}
+        WHERE id = #{record.id} AND status = 1
+    </update>
 </mapper>

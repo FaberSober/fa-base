@@ -2,6 +2,8 @@ package com.faber.api.base.admin.mapper;
 
 import com.faber.core.config.mybatis.base.FaBaseMapper;
 import com.faber.api.base.admin.entity.Job;
+import com.faber.api.base.admin.entity.JobLog;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * 系统定时任务
@@ -12,4 +14,9 @@ import com.faber.api.base.admin.entity.Job;
  */
 public interface JobMapper extends FaBaseMapper<Job> {
 
+    int incrementExecutionCount(@Param("record") JobLog record);
+    int publishStart(@Param("record") JobLog record);
+    int publishDispatch(@Param("record") JobLog record);
+    int incrementFinishedStats(@Param("record") JobLog record);
+    int publishFinish(@Param("record") JobLog record);
 }
