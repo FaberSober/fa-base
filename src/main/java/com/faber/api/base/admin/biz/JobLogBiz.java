@@ -4,6 +4,8 @@ import com.faber.api.base.admin.entity.JobLog;
 import com.faber.api.base.admin.entity.Job;
 import com.faber.api.base.admin.enums.JobLogStatusEnum;
 import com.faber.api.base.admin.mapper.JobMapper;
+import com.faber.api.base.admin.mapper.JobFlowNodeRunMapper;
+import com.faber.api.base.admin.entity.JobFlowNodeRun;
 import com.faber.api.base.admin.mapper.JobLogMapper;
 import com.faber.api.base.admin.vo.ret.JobLogReadVo;
 import com.faber.config.quartz.logging.JobLogFileService;
@@ -40,6 +42,7 @@ import java.util.List;
 @Slf4j
 public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
     @Resource private JobMapper jobMapper;
+    @Resource private JobFlowNodeRunMapper flowNodeRuns;
     @Resource private JobLogFileService logFiles;
     @Resource private FaSetting faSetting;
 
@@ -47,6 +50,7 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
     @Transactional(rollbackFor = Exception.class)
     public void beginExecution(JobLog record) {
         if (!save(record)) throw new IllegalStateException("登记任务执行失败");
+        if (record.getJobId() == null) return;
         if (jobMapper.incrementExecutionCount(record) != 1) {
             throw new IllegalStateException("任务不存在或已删除");
         }
@@ -55,7 +59,7 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
 
     @Transactional(rollbackFor = Exception.class)
     public void recordDispatch(JobLog record) {
-        if (baseMapper.publishDispatch(record) == 1) jobMapper.publishDispatch(record);
+        if (baseMapper.publishDispatch(record) == 1 && record.getJobId() != null) jobMapper.publishDispatch(record);
     }
 
     /** 条件终态更新是唯一累计入口；重复回调、重试不重复计数。 */
@@ -65,17 +69,28 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
             throw new IllegalArgumentException("任务尚未结束");
         }
         if (baseMapper.finishExecution(record) != 1) return false;
-        jobMapper.incrementFinishedStats(record);
-        jobMapper.publishFinish(record);
+        if (record.getJobId() != null) {
+            jobMapper.incrementFinishedStats(record);
+            jobMapper.publishFinish(record);
+        }
         return true;
     }
 
     /** 开关按每次执行快照；日志设施故障不影响任务本身。 */
     public JobLogFileService.ExecutionLog openExecutionLog(JobLog record) {
+        try {
+            Job job = record.getJobId() == null ? null : jobMapper.selectById(record.getJobId());
+            return openExecutionLog(record, job != null && Boolean.TRUE.equals(job.getDetailLogEnabled()));
+        } catch (Exception e) {
+            log.error("读取任务详细日志配置失败，执行记录：{}", record.getId(), e);
+            return null;
+        }
+    }
+
+    public JobLogFileService.ExecutionLog openExecutionLog(JobLog record, boolean detailLogEnabled) {
         JobLogFileService.ExecutionLog execution = null;
         try {
-            Job job = jobMapper.selectById(record.getJobId());
-            if (job == null || !Boolean.TRUE.equals(job.getDetailLogEnabled())) return null;
+            if (!detailLogEnabled) return null;
             execution = logFiles.open(record);
             record.setLogPath(execution.getRelativePath());
             if (!updateById(record)) throw new IllegalStateException("登记任务日志路径失败");
@@ -136,6 +151,11 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
     }
 
     private void checkRemovable(Collection<JobLog> records) {
+        if (records.stream().anyMatch(record -> Integer.valueOf(1).equals(record.getJobType())
+                || flowNodeRuns.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<JobFlowNodeRun>()
+                        .eq(JobFlowNodeRun::getJobLogId, record.getId())) > 0)) {
+            throw new BuzzException("流程关联日志暂不支持删除");
+        }
         if (records.stream().anyMatch(record -> record.getStatus() == JobLogStatusEnum.DOING)) {
             throw new BuzzException("任务执行中，请结束后再删除执行记录");
         }

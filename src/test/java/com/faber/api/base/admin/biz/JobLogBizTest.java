@@ -41,6 +41,7 @@ class JobLogBizTest {
         setting.getJobLog().setRootPath(directory.toString());
         files = new JobLogFileService(setting);
         biz = spy(new JobLogBiz());
+        ReflectionTestUtils.setField(biz, "flowNodeRuns", mock(com.faber.api.base.admin.mapper.JobFlowNodeRunMapper.class));
         jobMapper = mock(JobMapper.class);
         mapper = mock(JobLogMapper.class);
         ReflectionTestUtils.setField(biz, "jobMapper", jobMapper);

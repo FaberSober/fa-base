@@ -4,6 +4,10 @@ import cn.hutool.core.map.MapUtil;
 import com.faber.api.base.admin.biz.JobBiz;
 import com.faber.api.base.admin.entity.Job;
 import com.faber.api.base.admin.flow.JobFlowPreflight;
+import com.faber.api.base.admin.flow.JobFlowRunner;
+import com.faber.api.base.admin.flow.JobFlowRunView;
+import com.faber.api.base.admin.entity.JobLog;
+import jakarta.annotation.Resource;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.annotation.FaLogOpr;
 import com.faber.core.config.annotation.IgnoreUserToken;
@@ -21,6 +25,21 @@ import java.util.Map;
 @Controller
 @RequestMapping("/api/base/admin/job")
 public class JobController extends BaseController<JobBiz, Job, Integer> {
+
+    @Resource private JobFlowRunner flowRunner;
+
+    @FaLogOpr("手动执行流程")
+    @PostMapping("/runFlow/{id}")
+    @ResponseBody
+    public Ret<JobFlowRunView> runFlow(@PathVariable int id) { return ok(flowRunner.start(id)); }
+
+    @GetMapping("/flowRun/{logId}")
+    @ResponseBody
+    public Ret<JobFlowRunView> flowRun(@PathVariable int logId) { return ok(flowRunner.view(logId)); }
+
+    @GetMapping("/flowRuns/{jobId}")
+    @ResponseBody
+    public Ret<List<JobLog>> flowRuns(@PathVariable int jobId) { return ok(flowRunner.history(jobId)); }
 
     @FaLogOpr("流程运行前检查")
     @GetMapping("/preflightFlow/{id}")

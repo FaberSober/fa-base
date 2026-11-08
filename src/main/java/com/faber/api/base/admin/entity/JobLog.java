@@ -34,6 +34,12 @@ public class JobLog implements Serializable {
     @ExcelProperty("任务ID")
     private Integer jobId;
 
+    private Integer jobType;
+    private Integer triggerSource;
+    private String flowSnapshot;
+    private String clazzPath;
+    private String jobName;
+
     @ExcelProperty("创建时间")
     private Date beginTime;
 

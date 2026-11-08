@@ -10,6 +10,11 @@ import com.faber.config.quartz.BaseJob;
 import java.util.Collection;
 import java.util.Set;
 import com.faber.api.base.admin.mapper.JobMapper;
+import com.faber.api.base.admin.mapper.JobLogMapper;
+import com.faber.api.base.admin.entity.JobLog;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.faber.core.vo.query.QueryParams;
+import java.io.Serializable;
 import com.faber.config.quartz.JobTask;
 import com.faber.core.annotation.FaJob;
 import com.faber.core.exception.BuzzException;
@@ -40,6 +45,8 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
 
     @Autowired
     private JobTask jobTask;
+
+    @Autowired private JobLogMapper jobLogMapper;
 
     @Override
     protected void saveBefore(Job job) {
@@ -98,7 +105,54 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     }
 
     private void requireOrdinary(Job job) {
-        if (Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("流程执行尚未接入，请先保存编排定义");
+        if (Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("流程任务请使用流程执行入口，Cron调度尚未接入");
+    }
+
+    private void lockAndCheckRemoval(Serializable id) {
+        baseMapper.selectOne(new QueryWrapper<Job>().eq("id", id).last("FOR UPDATE"));
+        if (jobLogMapper.selectCount(new QueryWrapper<JobLog>().eq("job_id", id).eq("job_type", 1).in("status", 1, 8)) > 0)
+            throw new BuzzException("流程仍有执行中或未确认的运行，不能删除");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeById(Serializable id) { lockAndCheckRemoval(id); return super.removeById(id); }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removeBatchByIds(List<Serializable> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        ids.stream().sorted(Comparator.comparing(Object::toString)).forEach(this::lockAndCheckRemoval);
+        super.removeBatchByIds(ids);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removePerById(Serializable id) { lockAndCheckRemoval(id); super.removePerById(id); }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removePerByIds(Collection<? extends Serializable> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        ids.stream().sorted(Comparator.comparing(Object::toString)).forEach(this::lockAndCheckRemoval);
+        super.removePerByIds(ids);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removePerBatchByIds(List<Serializable> ids) { removePerByIds(ids); }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removeByQuery(QueryParams query) {
+        if (count(getQueryWrapper(query)) > 1000) throw new BuzzException("删除数据超过1000条，请使用批量删除");
+        removeBatchByIds(list(parseQuery(query)).stream().map(job -> (Serializable) job.getId()).toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removeMine() {
+        removeBatchByIds(list(new QueryWrapper<Job>().eq("crt_user", getCurrentUserId())).stream().map(job -> (Serializable) job.getId()).toList());
     }
 
     public void runOneTime(Long id) {

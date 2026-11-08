@@ -42,7 +42,7 @@ public class JobLogFileService {
         long maxBytes = setting.getJobLog().getMaxFileSize().toBytes();
         if (maxBytes < 1024) throw new BuzzException("任务日志文件上限不能小于 1 KiB");
         String date = DATE.format(record.getBeginTime().toInstant().atZone(ZoneId.systemDefault()));
-        String relativePath = date + "/" + record.getJobId() + "/" + record.getId() + ".log";
+        String relativePath = date + "/" + (record.getJobId() == null ? record.getId() : record.getJobId()) + "/" + record.getId() + ".log";
         Path path = resolve(relativePath);
         Files.createDirectories(path.getParent());
         // 创建目录后再次检查，防止将日志写到根目录之外的符号链接。
