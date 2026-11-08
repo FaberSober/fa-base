@@ -4,6 +4,10 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ClassUtil;
 import cn.hutool.core.util.ObjUtil;
 import com.faber.api.base.admin.entity.Job;
+import com.faber.api.base.admin.flow.JobFlowDefinitionValidator;
+import com.faber.config.quartz.BaseJob;
+import java.util.Collection;
+import java.util.Set;
 import com.faber.api.base.admin.mapper.JobMapper;
 import com.faber.config.quartz.JobTask;
 import com.faber.core.annotation.FaJob;
@@ -14,6 +18,7 @@ import com.faber.core.web.biz.BaseBiz;
 import org.quartz.CronExpression;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -35,11 +40,62 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     @Autowired
     private JobTask jobTask;
 
+    @Override
+    protected void saveBefore(Job job) {
+        Job old = job.getId() == null ? null : getById(job.getId());
+        int oldType = old == null || old.getJobType() == null ? 0 : old.getJobType();
+        int type = job.getJobType() == null ? oldType : job.getJobType();
+        if (type != 0 && type != 1) throw new BuzzException("任务类型无效");
+        if (old != null && type != oldType) throw new BuzzException("创建后不能切换任务类型");
+        job.setJobType(type);
+        if (type == 1) {
+            String name = job.getJobName() != null ? job.getJobName() : old == null ? null : old.getJobName();
+            if (name == null || name.isBlank() || name.length() > 100) throw new BuzzException("流程名称须为1–100字符");
+            String definition = job.getFlowDefinition() != null ? job.getFlowDefinition() : old == null ? null : old.getFlowDefinition();
+            Set<String> registered = ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class).stream()
+                    .filter(BaseJob.class::isAssignableFrom).map(Class::getName).collect(Collectors.toSet());
+            JobFlowDefinitionValidator.validate(definition, registered);
+            if (Boolean.TRUE.equals(job.getStatus())) throw new BuzzException("流程执行尚未接入，不能启用调度");
+            job.setFlowDefinition(definition);
+            job.setClazzPath("");
+            job.setStatus(false);
+        } else {
+            if (job.getFlowDefinition() != null && !job.getFlowDefinition().isBlank()) throw new BuzzException("普通任务不能保存流程定义");
+            if (old == null && (job.getClazzPath() == null || job.getClazzPath().isBlank())) throw new BuzzException("请选择任务执行类");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean saveBatch(Collection<Job> jobs, int batchSize) {
+        jobs.forEach(this::saveBefore);
+        return super.saveBatch(jobs, batchSize);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateBatchById(Collection<Job> jobs, int batchSize) {
+        jobs.forEach(this::saveBefore);
+        return super.updateBatchById(jobs, batchSize);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean saveOrUpdateBatch(Collection<Job> jobs, int batchSize) {
+        jobs.forEach(this::saveBefore);
+        return super.saveOrUpdateBatch(jobs, batchSize);
+    }
+
+    private void requireOrdinary(Job job) {
+        if (Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("流程执行尚未接入，请先保存编排定义");
+    }
+
     public void runOneTime(Long id) {
         Job job = getById(id);
         if (job == null) {
             throw new NoDataException();
         }
+        requireOrdinary(job);
         jobTask.runTaskImmediately(job);
     }
 
@@ -48,6 +104,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         if (job == null) {
             throw new NoDataException();
         }
+        requireOrdinary(job);
         jobTask.startJob(job);
 
         job.setStatus(true);
@@ -82,7 +139,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     }
 
     public List<Job> getStartUpJobs() {
-        return lambdaQuery().eq(Job::getStatus, true).list();
+        return lambdaQuery().eq(Job::getStatus, true).eq(Job::getJobType, 0).list();
     }
 
     public List<DictOption<String>> getAllJobs() {

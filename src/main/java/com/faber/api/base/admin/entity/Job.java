@@ -41,6 +41,13 @@ public class Job extends BaseDelEntity implements JobInfo {
     @ExcelProperty("任务名称")
     private String jobName;
 
+    /** 0普通任务，1流程任务；历史数据为0。 */
+    @SqlEquals
+    @ExcelProperty("任务类型:0普通/1流程")
+    private Integer jobType;
+
+    private String flowDefinition;
+
     @SqlSearch
     @ExcelProperty("cron表达式")
     private String cron;
