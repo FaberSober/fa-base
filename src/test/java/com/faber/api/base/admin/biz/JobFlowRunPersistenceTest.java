@@ -299,6 +299,144 @@ class JobFlowRunPersistenceTest {
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM base_job_log WHERE trigger_source=3", Integer.class));
     }
 
+    private Job parallelFlow() {
+        Job job = createFlow();
+        job.setFlowDefinition("""
+          {"schemaVersion":1,"name":"并行汇合","maxConcurrency":2,"nodes":[
+          {"id":"a","name":"A","clazzPath":"com.faber.config.quartz.customer.JobFlowDemoWait","position":{"x":0,"y":0}},
+          {"id":"b","name":"B","clazzPath":"com.faber.config.quartz.customer.JobFlowDemoAsync","position":{"x":0,"y":100}},
+          {"id":"c","name":"C","clazzPath":"com.faber.config.quartz.customer.JobFlowDemoFailure","position":{"x":200,"y":0}}],
+          "edges":[{"source":"a","target":"c"},{"source":"b","target":"c"}]}
+          """);
+        jobs.updateById(job); return job;
+    }
+
+    @Test void concurrentClaimsRespectCapacityAndJoinWithoutDuplicateBusinessLogs() throws Exception {
+        Job job = parallelFlow(); int id = store.begin(job.getId()).log().getId();
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(4);
+        var gate = new java.util.concurrent.CountDownLatch(1);
+        try {
+            var futures = new java.util.ArrayList<java.util.concurrent.Future<JobFlowRunStore.Launch>>();
+            for (int i = 0; i < 4; i++) futures.add(pool.submit(() -> {
+                BaseContextHandler.useAdmin();
+                try { gate.await(); return store.claim(id); } finally { BaseContextHandler.remove(); }
+            }));
+            gate.countDown();
+            var launches = new java.util.ArrayList<JobFlowRunStore.Launch>();
+            for (var future : futures) { var launch = future.get(10, java.util.concurrent.TimeUnit.SECONDS); if (launch != null) launches.add(launch); }
+            assertEquals(2, launches.size());
+            assertEquals(java.util.Set.of("a", "b"), launches.stream().map(v -> v.node().getNodeId()).collect(java.util.stream.Collectors.toSet()));
+            assertNull(store.claim(id));
+            complete(launches.get(0), JobLogStatusEnum.DONE); assertNull(store.claim(id));
+            complete(launches.get(1), JobLogStatusEnum.DONE);
+            var join = store.claim(id); assertEquals("c", join.node().getNodeId()); assertNull(store.claim(id));
+            complete(join, JobLogStatusEnum.DONE); store.claim(id);
+            assertEquals(JobLogStatusEnum.DONE, store.view(id).log().getStatus());
+            assertEquals(4, jdbc.queryForObject("SELECT COUNT(*) FROM base_job_log", Integer.class));
+        } finally { gate.countDown(); pool.shutdownNow(); }
+    }
+
+    @Test void runnerRunsIndependentWorkWhileTrackedAsyncBranchWaitsAndJoinsOnlyAfterCompletion() throws Exception {
+        Job job = parallelFlow();
+        var runner = new com.faber.api.base.admin.flow.JobFlowRunner();
+        var pool = new com.faber.core.config.thread.TrackingThreadPoolTaskExecutor();
+        pool.setCorePoolSize(4); pool.setMaxPoolSize(4); pool.initialize();
+        var asyncPool = new com.faber.core.config.thread.TrackingThreadPoolTaskExecutor();
+        asyncPool.setCorePoolSize(2); asyncPool.setMaxPoolSize(2); asyncPool.initialize();
+        var asyncStarted = new java.util.concurrent.CountDownLatch(1);
+        var otherFinished = new java.util.concurrent.CountDownLatch(1);
+        var releaseAsync = new java.util.concurrent.CountDownLatch(1);
+        var joinStarted = new java.util.concurrent.CountDownLatch(1);
+        var factory = org.mockito.Mockito.mock(org.springframework.beans.factory.config.AutowireCapableBeanFactory.class);
+        org.mockito.Mockito.when(factory.createBean(org.mockito.ArgumentMatchers.any(Class.class))).thenAnswer(invocation -> {
+            Class<?> type = invocation.getArgument(0);
+            var task = new com.faber.config.quartz.BaseJob() {
+                @Override protected void run() {
+                    if (type == com.faber.config.quartz.customer.JobFlowDemoAsync.class) {
+                        asyncPool.execute(() -> {
+                            asyncStarted.countDown();
+                            try { assertTrue(releaseAsync.await(10, java.util.concurrent.TimeUnit.SECONDS)); }
+                            catch (InterruptedException error) { Thread.currentThread().interrupt(); throw new IllegalStateException(error); }
+                        });
+                    } else if (type == com.faber.config.quartz.customer.JobFlowDemoWait.class) otherFinished.countDown();
+                    else joinStarted.countDown();
+                }
+            };
+            ReflectionTestUtils.setField(task, "jobLogBiz", biz); return task;
+        });
+        ReflectionTestUtils.setField(runner, "store", store); ReflectionTestUtils.setField(runner, "logBiz", biz);
+        ReflectionTestUtils.setField(runner, "beanFactory", factory); ReflectionTestUtils.setField(runner, "executor", pool);
+        try {
+            runner.recover(); var view = runner.start(job.getId());
+            assertTrue(asyncStarted.await(10, java.util.concurrent.TimeUnit.SECONDS));
+            assertTrue(otherFinished.await(10, java.util.concurrent.TimeUnit.SECONDS));
+            assertEquals(1, joinStarted.getCount());
+            assertEquals(JobLogStatusEnum.DOING, store.view(view.log().getId()).log().getStatus());
+            releaseAsync.countDown();
+            assertTrue(joinStarted.await(10, java.util.concurrent.TimeUnit.SECONDS));
+        } finally {
+            releaseAsync.countDown();
+            asyncPool.setWaitForTasksToCompleteOnShutdown(true); asyncPool.setAwaitTerminationSeconds(10); asyncPool.shutdown();
+            pool.setWaitForTasksToCompleteOnShutdown(true); pool.setAwaitTerminationSeconds(10); pool.shutdown();
+        }
+    }
+
+    @Test void rejectedNodeSubmissionDoesNotLeaveClaimedNodesRunning() {
+        Job job = parallelFlow();
+        var runner = new com.faber.api.base.admin.flow.JobFlowRunner();
+        var queue = new java.util.ArrayDeque<Runnable>();
+        var submitted = new java.util.concurrent.atomic.AtomicInteger();
+        ReflectionTestUtils.setField(runner, "store", store); ReflectionTestUtils.setField(runner, "logBiz", biz);
+        ReflectionTestUtils.setField(runner, "executor", (java.util.concurrent.Executor) task -> {
+            if (submitted.getAndIncrement() == 0) queue.add(task);
+            else throw new java.util.concurrent.RejectedExecutionException("测试拒绝节点投递");
+        });
+        runner.recover(); var run = runner.start(job.getId()); queue.remove().run();
+        var view = store.view(run.log().getId());
+        assertEquals(JobLogStatusEnum.ERROR, view.log().getStatus());
+        assertTrue(view.nodes().stream().noneMatch(node -> node.getStatus() == 20 || node.getStatus() == 30));
+        assertTrue(view.nodes().stream().anyMatch(node -> node.getStatus() == 50));
+    }
+
+    @Test void closingTrackingPoolCancelsQueuedNodeClaims() throws Exception {
+        Job job = parallelFlow();
+        var pool = new com.faber.core.config.thread.TrackingThreadPoolTaskExecutor();
+        pool.setCorePoolSize(1); pool.setMaxPoolSize(1); pool.initialize();
+        var blockerStarted = new java.util.concurrent.CountDownLatch(1);
+        var blockerRelease = new java.util.concurrent.CountDownLatch(1);
+        pool.execute(() -> {
+            blockerStarted.countDown();
+            try { blockerRelease.await(); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+        });
+        assertTrue(blockerStarted.await(5, java.util.concurrent.TimeUnit.SECONDS));
+        var runner = new com.faber.api.base.admin.flow.JobFlowRunner();
+        var first = new java.util.ArrayDeque<Runnable>();
+        var submitted = new java.util.concurrent.atomic.AtomicInteger();
+        ReflectionTestUtils.setField(runner, "store", store); ReflectionTestUtils.setField(runner, "logBiz", biz);
+        ReflectionTestUtils.setField(runner, "executor", (java.util.concurrent.Executor) task -> {
+            if (submitted.getAndIncrement() == 0) first.add(task); else pool.execute(task);
+        });
+        try {
+            runner.recover(); var run = runner.start(job.getId()); first.remove().run();
+            assertEquals(2, store.view(run.log().getId()).nodes().stream().filter(node -> node.getStatus() == 20).count());
+            pool.shutdown();
+            var view = store.view(run.log().getId());
+            assertTrue(view.nodes().stream().noneMatch(node -> node.getStatus() == 20 || node.getStatus() == 30));
+            assertEquals(JobLogStatusEnum.ERROR, view.log().getStatus());
+        } finally { blockerRelease.countDown(); pool.shutdown(); }
+    }
+
+    @Test void rejectedAdvanceBlocksWaitingNodesButWaitsForActiveWorkToFinish() {
+        Job job = parallelFlow(); int id = store.begin(job.getId()).log().getId();
+        var active = store.claim(id);
+        store.failSubmission(id, "推进投递被拒绝");
+        assertEquals(JobLogStatusEnum.DOING, store.view(id).log().getStatus());
+        assertNull(store.claim(id));
+        complete(active, JobLogStatusEnum.DONE); store.claim(id);
+        assertEquals(JobLogStatusEnum.ERROR, store.view(id).log().getStatus());
+        assertTrue(store.view(id).nodes().stream().allMatch(node -> node.getStatus() == 40 || node.getStatus() == 60));
+    }
+
     private void createSchema() {
         jdbc.execute("""
             CREATE TABLE base_job_definition_version (

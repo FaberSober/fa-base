@@ -5,7 +5,7 @@ import com.faber.api.base.admin.entity.JobFlowNodeRun;
 import com.faber.api.base.admin.entity.JobLog;
 import com.faber.api.base.admin.enums.JobLogStatusEnum;
 import com.faber.api.base.admin.flow.JobFlowRunStore;
-import com.faber.api.base.admin.flow.JobFlowSerialPlanner;
+import com.faber.api.base.admin.flow.JobFlowPlanner;
 import com.faber.api.base.admin.mapper.JobFlowNodeRunMapper;
 import com.faber.api.base.admin.mapper.JobLogMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,26 +23,61 @@ class JobFlowSerialRunTest {
            "edges":[{"source":"a","target":"b"},{"source":"b","target":"c"}]}
           """);
     }
-    private JobFlowNodeRun node(String id, int state) { var node = new JobFlowNodeRun(); node.setNodeId(id); node.setStatus(state); return node; }
+    private JobFlowNodeRun node(String id, int state) { var node = new JobFlowNodeRun(); node.setNodeId(id); node.setClazzPath("task." + id); node.setStatus(state); return node; }
+    private JsonNode parallelDefinition() throws Exception {
+        var value = (com.fasterxml.jackson.databind.node.ObjectNode) definition();
+        value.put("maxConcurrency", 2); return value;
+    }
+    @Test void capacityIncludesClaimedAndRunningNodes() throws Exception {
+        JsonNode flow = parallelDefinition();
+        assertEquals("independent", JobFlowPlanner.next(flow, List.of(node("a", 20), node("b", 0), node("c", 0), node("independent", 0))).next());
+        assertNull(JobFlowPlanner.next(flow, List.of(node("a", 20), node("b", 0), node("c", 0), node("independent", 30))).next());
+        ((com.fasterxml.jackson.databind.node.ObjectNode) flow).put("maxConcurrency", 1);
+        assertNull(JobFlowPlanner.next(flow, List.of(node("a", 30), node("b", 0), node("c", 0), node("independent", 0))).next());
+    }
+    @Test void sameClassIsSerializedWhileOtherClassesCanUseCapacity() throws Exception {
+        JsonNode flow = parallelDefinition();
+        var active = node("a", 30); var independent = node("independent", 0);
+        independent.setClazzPath(active.getClazzPath());
+        assertNull(JobFlowPlanner.next(flow, List.of(active, node("b", 0), node("c", 0), independent)).next());
+        independent.setClazzPath("another.Task");
+        assertEquals("independent", JobFlowPlanner.next(flow, List.of(active, node("b", 0), node("c", 0), independent)).next());
+    }
+    @Test void completedBranchAdvancesWithoutWaitingForWholeLayer() throws Exception {
+        assertEquals("b", JobFlowPlanner.next(parallelDefinition(), List.of(node("a", 40), node("b", 10), node("c", 0), node("independent", 30))).next());
+    }
+    @Test void mergeWaitsForEveryPredecessorAndTheirRealTerminalState() throws Exception {
+        JsonNode flow = new ObjectMapper().readTree("""
+          {"maxConcurrency":3,"nodes":[{"id":"a"},{"id":"b"},{"id":"c"}],
+           "edges":[{"source":"a","target":"c"},{"source":"b","target":"c"}]}
+          """);
+        assertNull(JobFlowPlanner.next(flow, List.of(node("a", 40), node("b", 30), node("c", 0))).next());
+        assertEquals("c", JobFlowPlanner.next(flow, List.of(node("a", 40), node("b", 40), node("c", 0))).next());
+        assertEquals(List.of("c"), JobFlowPlanner.next(flow, List.of(node("a", 40), node("b", 50), node("c", 0))).blocked());
+    }
+    @Test void unconfirmedNodePausesEvenWhenParallelCapacityRemains() throws Exception {
+        var decision = JobFlowPlanner.next(parallelDefinition(), List.of(node("a", 80), node("b", 10), node("c", 0), node("independent", 0)));
+        assertNull(decision.next()); assertEquals(List.of("b", "c", "independent"), decision.blocked());
+    }
     @Test void mainMethodReturnDoesNotReleaseExecutingAsyncNode() throws Exception {
-        var decision = JobFlowSerialPlanner.next(definition(), List.of(node("a", 30), node("b", 0), node("c", 0), node("independent", 0)));
+        var decision = JobFlowPlanner.next(definition(), List.of(node("a", 30), node("b", 0), node("c", 0), node("independent", 0)));
         assertNull(decision.next()); assertTrue(decision.blocked().isEmpty());
-        assertEquals("b", JobFlowSerialPlanner.next(definition(), List.of(node("a", 40), node("b", 0), node("c", 0), node("independent", 0))).next());
+        assertEquals("b", JobFlowPlanner.next(definition(), List.of(node("a", 40), node("b", 0), node("c", 0), node("independent", 0))).next());
     }
     @Test void failedAncestorsBlockDescendantsButNotIndependentBranch() throws Exception {
         for (int status : List.of(50)) {
-            var decision = JobFlowSerialPlanner.next(definition(), List.of(node("a", status), node("b", 0), node("c", 0), node("independent", 0)));
+            var decision = JobFlowPlanner.next(definition(), List.of(node("a", status), node("b", 0), node("c", 0), node("independent", 0)));
             assertEquals(List.of("b", "c"), decision.blocked()); assertEquals("independent", decision.next());
         }
     }
     @Test void unconfirmedWorkRetainsSerialCapacityAndBlocksEveryUnstartedNode() throws Exception {
-        var decision = JobFlowSerialPlanner.next(definition(), List.of(node("a",80), node("b",0), node("c",0), node("independent",0)));
+        var decision = JobFlowPlanner.next(definition(), List.of(node("a",80), node("b",0), node("c",0), node("independent",0)));
         assertNull(decision.next()); assertEquals(List.of("b","c","independent"), decision.blocked());
     }
     @Test void decisionPreservesSnapshotAndNodeRecords() throws Exception {
         JsonNode snapshot = definition(); JsonNode before = snapshot.deepCopy();
         var runs = List.of(node("a", 50), node("b", 0), node("c", 0), node("independent", 0));
-        JobFlowSerialPlanner.next(snapshot, runs);
+        JobFlowPlanner.next(snapshot, runs);
         assertEquals(before, snapshot); assertEquals(0, runs.get(1).getStatus()); assertEquals(0, runs.get(2).getStatus());
     }
     @Test void repeatedCompletionCallbackCannotAdvanceTwice() {
@@ -55,7 +90,7 @@ class JobFlowSerialRunTest {
         assertTrue(store.completeNode(business)); assertFalse(store.completeNode(business));
     }
     @Test void claimedButNotStartedNodeBlocksAllNewClaims() throws Exception {
-        assertNull(JobFlowSerialPlanner.next(definition(), List.of(node("a", 20), node("b", 0), node("c", 0), node("independent", 0))).next());
+        assertNull(JobFlowPlanner.next(definition(), List.of(node("a", 20), node("b", 0), node("c", 0), node("independent", 0))).next());
     }
     @Test void flowAndNodeBusinessLogsCannotBeDeletedEvenAfterCompletion() {
         JobLogBiz biz = spy(new JobLogBiz()); var nodes = mock(JobFlowNodeRunMapper.class);

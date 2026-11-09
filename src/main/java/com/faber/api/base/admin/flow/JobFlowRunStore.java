@@ -73,9 +73,9 @@ public class JobFlowRunStore {
         if (parent == null || parent.getStatus() != JobLogStatusEnum.DOING) return null;
         List<JobFlowNodeRun> runs = nodeRuns(logId);
         JsonNode definition = definitionVersions.definition(parent);
-        var decision = JobFlowSerialPlanner.next(definition, runs);
+        var decision = JobFlowPlanner.next(definition, runs);
         for (JobFlowNodeRun run : runs) if (decision.blocked().contains(run.getNodeId())) {
-            run.setStatus(60); run.setReason(runs.stream().anyMatch(item -> item.getStatus() == 80) ? "存在未确认工作，串行通道暂停，未启动" : "前驱失败或阻断，未启动"); run.setUpdTime(new Date()); nodes.updateById(run);
+            run.setStatus(60); run.setReason(runs.stream().anyMatch(item -> item.getStatus() == 80) ? "存在未确认工作，暂停启动新节点" : "前驱失败或阻断，未启动"); run.setUpdTime(new Date()); nodes.updateById(run);
         }
         if (decision.next() == null) {
             if (runs.stream().noneMatch(run -> Set.of(0, 10, 20, 30).contains(run.getStatus()))) finishParent(parent, runs);
@@ -115,11 +115,11 @@ public class JobFlowRunStore {
         JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", logId).last("FOR UPDATE"));
         if (parent == null || parent.getStatus() != JobLogStatusEnum.DOING) return;
         List<JobFlowNodeRun> runs = nodeRuns(logId);
-        if (runs.stream().anyMatch(run -> run.getStatus() == 20 || run.getStatus() == 30)) return;
         for (JobFlowNodeRun run : runs) if (run.getStatus() == 0 || run.getStatus() == 10) {
             run.setStatus(60); run.setReason(reason); run.setUpdTime(new Date()); nodes.updateById(run);
         }
-        finishParent(parent, runs);
+        // 执行器拒绝后停止新领取；已接受的并行工作仍需等待真实终态再汇总。
+        if (runs.stream().noneMatch(run -> run.getStatus() == 20 || run.getStatus() == 30)) finishParent(parent, runs);
     }
     private void finishParent(JobLog parent, List<JobFlowNodeRun> runs) {
         boolean unknown = runs.stream().anyMatch(run -> run.getStatus() == 80);
