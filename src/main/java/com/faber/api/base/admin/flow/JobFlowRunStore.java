@@ -164,6 +164,30 @@ public class JobFlowRunStore {
         return new Launch(run, business, definition.path("detailLogEnabled").asBoolean(false));
     }
 
+    /** 仅用已提交的业务终态补齐遗漏回调，不重跑、不猜测仍在执行的业务。 */
+    @Transactional(rollbackFor = Exception.class)
+    public JobFlowRunView reconcile(Integer logId, Integer jobId) {
+        JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", logId).last("FOR UPDATE"));
+        if (parent == null || !Integer.valueOf(1).equals(parent.getJobType()) || !Objects.equals(jobId, parent.getJobId())) throw new NoDataException();
+        if (parent.getStatus() != JobLogStatusEnum.DOING && parent.getStatus() != JobLogStatusEnum.STOPPING) return view(logId, jobId);
+        for (JobFlowNodeRun run : nodeRuns(logId)) {
+            if (!Set.of(20, 30).contains(run.getStatus()) || run.getJobLogId() == null) continue;
+            JobLog business = logs.selectOne(new QueryWrapper<JobLog>().eq("id", run.getJobLogId()).last("FOR UPDATE"));
+            if (business == null || business.getStatus() == null) continue;
+            Integer state = switch (business.getStatus()) {
+                case DONE -> 40;
+                case ERROR -> 50;
+                case UNCONFIRMED -> 80;
+                case STOPPED -> 70;
+                default -> null;
+            };
+            if (state == null) continue;
+            nodes.update(null, new UpdateWrapper<JobFlowNodeRun>().eq("id", run.getId()).in("status", 20, 30)
+                    .set("status", state).set("end_time", business.getEndTime()).set("reason", business.getErrMsg()).set("upd_time", new Date()));
+        }
+        return view(logId, jobId);
+    }
+
     /** 取消尚未调用的节点；运行中的工作继续真实收尾。 */
     @Transactional(rollbackFor = Exception.class)
     public JobFlowRunView stop(Integer logId, Integer jobId) {
@@ -231,7 +255,7 @@ public class JobFlowRunStore {
         if (runs.stream().noneMatch(run -> run.getStatus() == 20 || run.getStatus() == 30)) finishParent(parent, runs);
     }
     private void finishParent(JobLog parent, List<JobFlowNodeRun> runs) {
-        boolean stopped = parent.getStatus() == JobLogStatusEnum.STOPPING;
+        boolean stopped = parent.getStatus() == JobLogStatusEnum.STOPPING || runs.stream().anyMatch(run -> run.getStatus() == 70);
         boolean unknown = runs.stream().anyMatch(run -> run.getStatus() == 80);
         boolean failed = runs.stream().anyMatch(run -> run.getStatus() == 50 || run.getStatus() == 60);
         parent.setStatus(unknown ? JobLogStatusEnum.UNCONFIRMED : failed ? JobLogStatusEnum.ERROR : stopped ? JobLogStatusEnum.STOPPED : JobLogStatusEnum.DONE);

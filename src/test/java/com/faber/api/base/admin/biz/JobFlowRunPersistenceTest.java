@@ -590,6 +590,44 @@ class JobFlowRunPersistenceTest {
         }
     }
 
+    @Test void reconcileUsesCommittedBusinessResultsWithoutDuplicatingCallbacks() {
+        Job job = createFlow(); int id = store.begin(job.getId()).log().getId();
+        for (String expected : List.of("a", "b", "c", "d")) {
+            var launch = store.claim(id); assertEquals(expected, launch.node().getNodeId()); store.markRunning(launch.node().getId());
+            JobLog business = launch.log(); business.setStatus(JobLogStatusEnum.DONE); business.setTrackingVersion(1);
+            business.setEndTime(new Date()); business.setDurationMs(1L); assertTrue(biz.finishExecution(business));
+            store.reconcile(id, job.getId()); store.reconcile(id, job.getId());
+            assertFalse(store.completeNode(business));
+            assertEquals(40, nodes.selectById(launch.node().getId()).getStatus());
+        }
+        assertNull(store.claim(id)); assertEquals(JobLogStatusEnum.DONE, store.view(id).log().getStatus());
+        store.reconcile(id, job.getId()); assertNull(store.claim(id));
+        assertEquals(1L, jobs.selectById(job.getId()).getSuccessCount());
+        assertEquals(5L, logs.selectCount(null));
+    }
+
+    @Test void reconcileDoesNotGuessRunningWorkOrChangeTerminalUnknownRuns() {
+        Job job = createFlow(); int id = store.begin(job.getId()).log().getId(); var launch = store.claim(id);
+        assertThrows(com.faber.core.exception.NoDataException.class, () -> store.reconcile(id, job.getId() + 1));
+        store.reconcile(id, job.getId()); assertEquals(20, nodes.selectById(launch.node().getId()).getStatus());
+        JobLog business = launch.log(); business.setStatus(JobLogStatusEnum.UNCONFIRMED); business.setTrackingVersion(2);
+        assertTrue(biz.finishExecution(business)); store.reconcile(id, job.getId()); store.claim(id);
+        assertEquals(JobLogStatusEnum.UNCONFIRMED, store.view(id).log().getStatus());
+        assertEquals(80, nodes.selectById(launch.node().getId()).getStatus());
+        store.reconcile(id, job.getId()); assertThrows(BuzzException.class, () -> store.begin(job.getId()));
+    }
+
+    @Test void reconcileStoppingRunFinishesFromCommittedFailureWithoutLaunchingPendingWork() {
+        Job job = createFlow(); int id = store.begin(job.getId()).log().getId(); var launch = store.claim(id);
+        store.markRunning(launch.node().getId()); store.stop(id, job.getId());
+        JobLog business = launch.log(); business.setStatus(JobLogStatusEnum.ERROR); business.setTrackingVersion(1);
+        business.setEndTime(new Date()); business.setDurationMs(1L); assertTrue(biz.finishExecution(business));
+        store.reconcile(id, job.getId()); assertNull(store.claim(id));
+        assertEquals(JobLogStatusEnum.ERROR, store.view(id).log().getStatus());
+        assertEquals(1L, jobs.selectById(job.getId()).getFailCount());
+        assertEquals(2L, logs.selectCount(null));
+    }
+
     private void createSchema() {
         jdbc.execute("""
             CREATE TABLE base_job_definition_version (

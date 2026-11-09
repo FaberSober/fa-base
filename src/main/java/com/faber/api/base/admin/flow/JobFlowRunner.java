@@ -43,6 +43,12 @@ public class JobFlowRunner {
         if (view == null) { log.info("跳过流程定时触发，调度已暂停、配置不存在或仍有执行中/未确认运行：{}", jobId); return; }
         enqueue(view.log().getId());
     }
+    public JobFlowRunView reconcile(Integer logId, Integer jobId) {
+        if (!ready) throw new com.faber.core.exception.BuzzException("流程运行恢复检查尚未完成，请稍后再试");
+        JobFlowRunView current = store.reconcile(logId, jobId);
+        if (current.log().getStatus() == JobLogStatusEnum.DOING || current.log().getStatus() == JobLogStatusEnum.STOPPING) enqueue(logId);
+        return store.view(logId, jobId);
+    }
     public JobFlowRunView stop(Integer logId, Integer jobId) { return store.stop(logId, jobId); }
     public JobFlowRunView view(Integer logId) { return store.view(logId); }
     public JobFlowRunView view(Integer logId, Integer jobId) { return store.view(logId, jobId); }
