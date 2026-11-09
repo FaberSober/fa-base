@@ -91,15 +91,22 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         if (type != 0 && type != 1) throw new BuzzException("任务类型无效");
         if (old != null && type != oldType) throw new BuzzException("创建后不能切换任务类型");
         job.setJobType(type);
+        if (old == null && job.getStatus() == null) job.setStatus(false);
         if (type == 1) {
             String name = job.getJobName() != null ? job.getJobName() : old == null ? null : old.getJobName();
             if (name == null || name.isBlank() || name.length() > 100) throw new BuzzException("流程名称须为1–100字符");
             String definition = job.getFlowDefinition() != null ? job.getFlowDefinition() : old == null ? null : old.getFlowDefinition();
             JobFlowDefinitionValidator.validate(definition, registeredFlowClasses());
-            if (Boolean.TRUE.equals(job.getStatus())) throw new BuzzException("流程执行尚未接入，不能启用调度");
+            boolean enabled = old != null && Boolean.TRUE.equals(old.getStatus());
+            if (job.getStatus() != null && Boolean.TRUE.equals(job.getStatus()) != enabled)
+                throw new BuzzException("请通过启用/暂停调度操作修改流程调度状态");
+            if (enabled && job.getCron() != null && !java.util.Objects.equals(job.getCron(), old.getCron()))
+                throw new BuzzException("请先暂停调度，再修改Cron");
+            String cron = job.getCron() != null ? job.getCron() : old == null ? null : old.getCron();
+            if (cron == null || !CronExpression.isValidExpression(cron)) throw new BuzzException("Cron表达式无效");
             job.setFlowDefinition(definition);
             job.setClazzPath("");
-            job.setStatus(false);
+            job.setStatus(enabled);
         } else {
             if (job.getFlowDefinition() != null && !job.getFlowDefinition().isBlank()) throw new BuzzException("普通任务不能保存流程定义");
             if (old == null && (job.getClazzPath() == null || job.getClazzPath().isBlank())) throw new BuzzException("请选择任务执行类");
@@ -157,11 +164,13 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     }
 
     private void requireOrdinary(Job job) {
-        if (Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("流程任务请使用流程执行入口，Cron调度尚未接入");
+        if (Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("流程任务请使用编排页面的执行入口");
     }
 
     private void lockAndCheckRemoval(Serializable id) {
-        baseMapper.selectOne(new QueryWrapper<Job>().eq("id", id).last("FOR UPDATE"));
+        Job removing = baseMapper.selectOne(new QueryWrapper<Job>().eq("id", id).last("FOR UPDATE"));
+        if (removing != null && Integer.valueOf(1).equals(removing.getJobType()) && Boolean.TRUE.equals(removing.getStatus()))
+            throw new BuzzException("请先暂停流程调度，再删除");
         if (jobLogMapper.selectCount(new QueryWrapper<JobLog>().eq("job_id", id).eq("job_type", 1).in("status", 1, 8)) > 0)
             throw new BuzzException("流程仍有执行中或未确认的运行，不能删除");
     }
@@ -216,28 +225,44 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         jobTask.runTaskImmediately(job);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void startJob(Integer id) {
-        Job job = getById(id);
+        Job job = baseMapper.selectOne(new QueryWrapper<Job>().eq("id", id).last("FOR UPDATE"));
         if (job == null) {
             throw new NoDataException();
         }
-        requireOrdinary(job);
-        jobTask.startJob(job);
-
-        job.setStatus(true);
-        updateById(job);
+        if (Integer.valueOf(1).equals(job.getJobType())) {
+            JobFlowDefinitionValidator.validate(job.getFlowDefinition(), registeredFlowClasses());
+            if (job.getCron() == null || !CronExpression.isValidExpression(job.getCron())) throw new BuzzException("Cron表达式无效");
+        }
+        if (!jobTask.startJob(job)) throw new BuzzException("启用调度失败，请检查Cron及调度器状态");
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization() {
+            @Override public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) jobTask.remove(job);
+            }
+        });
+        Job patch = new Job(); patch.setDetailLogEnabled(null); patch.setId(id); patch.setStatus(true);
+        if (baseMapper.updateById(patch) != 1)
+            throw new BuzzException("更新调度状态失败");
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void endJob(Integer id) {
-        Job job = getById(id);
+        Job job = baseMapper.selectOne(new QueryWrapper<Job>().eq("id", id).last("FOR UPDATE"));
         if (job == null) {
             throw new NoDataException();
         }
 
-        jobTask.remove(job);
-
-        job.setStatus(false);
-        updateById(job);
+        boolean registered = jobTask.checkJob(job);
+        if (registered && !jobTask.remove(job)) throw new BuzzException("暂停调度失败，请重试");
+        if (registered) org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization() {
+            @Override public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) jobTask.startJob(job);
+            }
+        });
+        Job patch = new Job(); patch.setDetailLogEnabled(null); patch.setId(id); patch.setStatus(false);
+        if (baseMapper.updateById(patch) != 1)
+            throw new BuzzException("更新调度状态失败");
     }
 
     public List<String> quartzLatest(String cron, Integer times) throws ParseException  {
@@ -256,7 +281,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     }
 
     public List<Job> getStartUpJobs() {
-        return lambdaQuery().eq(Job::getStatus, true).eq(Job::getJobType, 0).list();
+        return lambdaQuery().eq(Job::getStatus, true).list();
     }
 
     public List<RegisteredJobVo> getRegisteredJobs() { return registeredJobs.catalog(); }

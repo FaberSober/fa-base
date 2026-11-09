@@ -81,24 +81,32 @@ public class JobTask {
 //    @Log(desc = "开启定时任务")
     public boolean startJob(JobInfo job) {
         Scheduler scheduler = schedulerFactoryBean.getScheduler();
+        boolean created = false;
         try {
-            JobDetail jobDetail = this.getJobDetail(job);
+            JobDetail jobDetail = this.getJobDetail(job).getJobBuilder().withIdentity(getJobKeyName(job)).build();
             // 触发器
             TriggerKey triggerKey = TriggerKey.triggerKey(this.getJobKeyName(job), Scheduler.DEFAULT_GROUP);
-            CronTrigger trigger = TriggerBuilder.newTrigger()
-                    .withIdentity(triggerKey)
-                    .withSchedule(CronScheduleBuilder.cronSchedule(job.getCron())).build();
+            CronScheduleBuilder schedule = CronScheduleBuilder.cronSchedule(job.getCron());
+            if (job instanceof com.faber.api.base.admin.entity.Job entity && Integer.valueOf(1).equals(entity.getJobType()))
+                schedule = schedule.withMisfireHandlingInstructionDoNothing();
+            CronTrigger trigger = TriggerBuilder.newTrigger().withIdentity(triggerKey).withSchedule(schedule).build();
             scheduler.scheduleJob(jobDetail, trigger);
+            created = true;
             // 启动
             if (!scheduler.isShutdown()) {
                 scheduler.start();
                 log.info("----- 任务[{}]启动成功 ----->>>", triggerKey.getName());
                 return true;
             } else {
-                log.info("----- 任务[{}]已经运行，请勿再次启动 ----->>>", triggerKey.getName());
+                scheduler.deleteJob(JobKey.jobKey(getJobKeyName(job)));
+                log.info("----- 调度器已关闭，撤销任务[{}] ----->>>", triggerKey.getName());
             }
         } catch (Exception e) {
 //            throw new RuntimeException(e);
+            if (created) {
+                try { scheduler.deleteJob(JobKey.jobKey(getJobKeyName(job))); }
+                catch (SchedulerException cleanup) { log.error("撤销本次调度注册失败：{}", job.getId(), cleanup); }
+            }
             log.error(e.getMessage(), e);
         }
         return false;
@@ -162,7 +170,8 @@ public class JobTask {
     }
 
     private JobDetail getJobDetail(JobInfo job) throws ClassNotFoundException {
-        Class clazz = Class.forName(job.getClazzPath());
+        Class<? extends org.quartz.Job> clazz = job instanceof com.faber.api.base.admin.entity.Job entity && Integer.valueOf(1).equals(entity.getJobType())
+                ? JobFlowQuartzJob.class : Class.forName(job.getClazzPath()).asSubclass(org.quartz.Job.class);
         return JobBuilder.newJob(clazz)
                 .usingJobData("jobId", job.getId())
                 .build();

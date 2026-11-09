@@ -530,6 +530,20 @@ class JobFlowRunPersistenceTest {
         return log.getId();
     }
 
+    @Test void scheduledRunsSkipDisabledAndOverlappingWithoutCreatingLogs() {
+        Job job = createFlow();
+        assertNull(store.beginScheduled(job.getId()));
+        jdbc.update("UPDATE base_job SET status=true WHERE id=?", job.getId());
+        var scheduled = store.beginScheduled(job.getId());
+        assertNotNull(scheduled); assertEquals(2, scheduled.log().getTriggerSource());
+        assertNull(store.beginScheduled(job.getId()));
+        assertThrows(BuzzException.class, () -> store.begin(job.getId()));
+        jdbc.update("UPDATE base_job_log SET status=8 WHERE id=?", scheduled.log().getId());
+        assertNull(store.beginScheduled(job.getId()));
+        assertEquals(1L, logs.selectCount(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<JobLog>().eq("job_id", job.getId())));
+        assertNull(store.beginScheduled(Integer.MAX_VALUE));
+    }
+
     private void createSchema() {
         jdbc.execute("""
             CREATE TABLE base_job_definition_version (

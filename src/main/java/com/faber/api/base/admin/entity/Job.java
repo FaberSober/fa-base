@@ -61,7 +61,7 @@ public class Job extends BaseDelEntity implements JobInfo {
 
     @SqlEquals
     @ExcelProperty("是否启动")
-    private Boolean status = false;
+    private Boolean status;
 
     @SqlSearch
     @ExcelProperty("任务执行方法")

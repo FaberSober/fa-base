@@ -29,17 +29,25 @@ public class JobFlowRunStore {
     public record Launch(JobFlowNodeRun node, JobLog log, boolean detailLogEnabled) {}
 
     @Transactional(rollbackFor = Exception.class)
-    public JobFlowRunView begin(Integer jobId) {
+    public JobFlowRunView begin(Integer jobId) { return beginRun(jobId, false); }
+
+    @Transactional(rollbackFor = Exception.class)
+    public JobFlowRunView beginScheduled(Integer jobId) { return beginRun(jobId, true); }
+
+    private JobFlowRunView beginRun(Integer jobId, boolean scheduled) {
         Job job = jobs.selectOne(new QueryWrapper<Job>().eq("id", jobId).last("FOR UPDATE"));
-        if (job == null) throw new NoDataException();
+        if (job == null) { if (scheduled) return null; throw new NoDataException(); }
         if (!Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("请选择流程任务");
-        if (logs.selectCount(new QueryWrapper<JobLog>().eq("job_id", jobId).eq("job_type", 1).in("status", 1, 8)) > 0)
+        if (scheduled && !Boolean.TRUE.equals(job.getStatus())) return null;
+        if (logs.selectCount(new QueryWrapper<JobLog>().eq("job_id", jobId).eq("job_type", 1).in("status", 1, 8)) > 0) {
+            if (scheduled) return null;
             throw new BuzzException("该流程仍有执行中或未确认的运行，不能重复启动");
+        }
         Set<String> registered = RegisteredJobService.registeredPaths();
         JobFlowDefinitionValidator.validate(job.getFlowDefinition(), registered);
         JobDefinitionVersion version = definitionVersions.ensureCurrent(job);
         JobLog parent = new JobLog();
-        parent.setJobId(jobId); parent.setJobType(1); parent.setTriggerSource(1); parent.setJobName(job.getJobName());
+        parent.setJobId(jobId); parent.setJobType(1); parent.setTriggerSource(scheduled ? 2 : 1); parent.setJobName(job.getJobName());
         parent.setDefinitionVersionId(version.getId()); parent.setBeginTime(new Date()); parent.setStatus(JobLogStatusEnum.DOING); parent.setTrackingVersion(1); parent.setDuration(0L);
         JsonNode definition = definitionVersions.definition(parent);
         logBiz.beginExecution(parent);

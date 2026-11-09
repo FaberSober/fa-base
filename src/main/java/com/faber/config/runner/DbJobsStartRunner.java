@@ -28,6 +28,8 @@ public class DbJobsStartRunner implements CommandLineRunner {
     @Resource
     private JobTask jobTask;
 
+    @Resource private com.faber.api.base.admin.flow.JobFlowRunner flowRunner;
+
     @Resource
     private FaSetting faSetting;
 
@@ -38,6 +40,7 @@ public class DbJobsStartRunner implements CommandLineRunner {
             return;
         }
 
+        flowRunner.recover();
         log.info("------------ 系统设置开机启动执行：扫描数据库中已经开启的定时任务 BEGIN ------------");
         List<Job> jobList = jobBiz.getStartUpJobs();
 
