@@ -79,6 +79,9 @@ class JobFlowRunPersistenceTest {
         globalConfig.setMetaObjectHandler(new MysqlMetaObjectHandler(new FaSetting()));
 
         MybatisSqlSessionFactoryBean factory = new MybatisSqlSessionFactoryBean();
+        var pagination = new com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor();
+        pagination.addInnerInterceptor(new com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor(com.baomidou.mybatisplus.annotation.DbType.POSTGRE_SQL));
+        factory.setPlugins(pagination);
         factory.setDataSource(dataSource);
         factory.setConfiguration(configuration);
         factory.setGlobalConfig(globalConfig);
@@ -435,6 +438,43 @@ class JobFlowRunPersistenceTest {
         complete(active, JobLogStatusEnum.DONE); store.claim(id);
         assertEquals(JobLogStatusEnum.ERROR, store.view(id).log().getStatus());
         assertTrue(store.view(id).nodes().stream().allMatch(node -> node.getStatus() == 40 || node.getStatus() == 60));
+    }
+
+    @Test void historyPagesUseDatabasePagingAndFiltersWithoutLeakingOtherJobs() {
+        Job job = createFlow(); Job other = createFlow();
+        for (int i = 0; i < 25; i++) {
+            JobLog log = new JobLog(); log.setJobId(job.getId()); log.setJobType(1); log.setTriggerSource(i % 2 + 1);
+            log.setStatus(i % 2 == 0 ? JobLogStatusEnum.DONE : JobLogStatusEnum.ERROR);
+            log.setBeginTime(java.sql.Timestamp.valueOf("2026-11-09 08:00:00")); logs.insert(log);
+        }
+        JobLog outsider = new JobLog(); outsider.setJobId(other.getId()); outsider.setJobType(1); outsider.setTriggerSource(1);
+        outsider.setStatus(JobLogStatusEnum.DONE); outsider.setBeginTime(new Date()); logs.insert(outsider);
+        JobLog ordinary = new JobLog(); ordinary.setJobId(job.getId()); ordinary.setJobType(0); ordinary.setStatus(JobLogStatusEnum.DONE); ordinary.setBeginTime(new Date()); logs.insert(ordinary);
+        var query = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery();
+        var page1 = store.historyPage(job.getId(), query).getData();
+        assertEquals(25, page1.getTotal()); assertEquals(20, page1.getRows().size());
+        query.setCurrent(2); var page2 = store.historyPage(job.getId(), query).getData();
+        assertEquals(5, page2.getRows().size()); assertTrue(page1.getRows().get(19).getId() > page2.getRows().get(0).getId());
+        var filters = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery.Filters(); query.setQuery(filters); query.setCurrent(1);
+        filters.setStatus(2); filters.setTriggerSource(1); filters.setBeginTimeFrom("2026-11-09 08:00:00"); filters.setBeginTimeTo("2026-11-09 08:00:00");
+        assertEquals(13, store.historyPage(job.getId(), query).getData().getTotal());
+        filters.setLogId(outsider.getId()); assertEquals(0, store.historyPage(job.getId(), query).getData().getTotal());
+        filters.setLogId(page2.getRows().get(0).getId()); filters.setStatus(null); filters.setTriggerSource(null);
+        assertEquals(1, store.historyPage(job.getId(), query).getData().getTotal());
+    }
+
+    @Test void historyRejectsInvalidInputsAndDetailChecksJobOwnership() {
+        Job job = createFlow(); var run = store.begin(job.getId()); Job other = createFlow();
+        assertThrows(com.faber.core.exception.NoDataException.class, () -> store.view(run.log().getId(), other.getId()));
+        assertEquals(run.log().getId(), store.view(run.log().getId(), job.getId()).log().getId());
+        var query = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery();
+        query.setCurrent(0); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
+        query.setCurrent(1); query.setPageSize(101); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
+        query.setPageSize(20); var filters = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery.Filters(); query.setQuery(filters);
+        filters.setStatus(3); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
+        filters.setStatus(null); filters.setTriggerSource(3); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
+        filters.setTriggerSource(null); filters.setBeginTimeFrom("2026-02-30 00:00:00"); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
+        filters.setBeginTimeFrom("2026-11-10 00:00:00"); filters.setBeginTimeTo("2026-11-09 00:00:00"); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
     }
 
     private void createSchema() {

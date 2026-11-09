@@ -1,5 +1,7 @@
 package com.faber.api.base.admin.flow;
 
+import com.faber.core.vo.msg.TableRet;
+import com.faber.api.base.admin.vo.req.JobFlowHistoryQuery;
 import com.faber.api.base.admin.biz.JobLogBiz;
 import com.faber.api.base.admin.entity.JobLog;
 import com.faber.api.base.admin.enums.JobLogStatusEnum;
@@ -35,6 +37,8 @@ public class JobFlowRunner {
         return view;
     }
     public JobFlowRunView view(Integer logId) { return store.view(logId); }
+    public JobFlowRunView view(Integer logId, Integer jobId) { return store.view(logId, jobId); }
+    public TableRet<JobLog> historyPage(Integer jobId, JobFlowHistoryQuery request) { return store.historyPage(jobId, request); }
     public java.util.List<JobLog> history(Integer jobId) { return store.history(jobId); }
 
     @EventListener(ApplicationReadyEvent.class)

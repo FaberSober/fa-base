@@ -1,5 +1,7 @@
 package com.faber.api.base.admin.flow;
 
+import com.faber.core.vo.msg.TableRet;
+import com.faber.api.base.admin.vo.req.JobFlowHistoryQuery;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -51,10 +53,46 @@ public class JobFlowRunStore {
         return view(parent.getId());
     }
 
-    public JobFlowRunView view(Integer logId) {
+    public JobFlowRunView view(Integer logId) { return view(logId, null); }
+    public JobFlowRunView view(Integer logId, Integer jobId) {
         JobLog parent = logs.selectById(logId);
-        if (parent == null || !Integer.valueOf(1).equals(parent.getJobType())) throw new NoDataException();
+        if (parent == null || !Integer.valueOf(1).equals(parent.getJobType()) || (jobId != null && !jobId.equals(parent.getJobId()))) throw new NoDataException();
         return new JobFlowRunView(parent, nodeRuns(logId), definitionVersions.definition(parent));
+    }
+
+    public TableRet<JobLog> historyPage(Integer jobId, JobFlowHistoryQuery request) {
+        if (jobId == null || jobId < 1 || request == null || request.getCurrent() < 1 || !Set.of(20, 50, 100).contains(request.getPageSize()))
+            throw new BuzzException("分页参数无效，每页条数仅支持20/50/100");
+        var filters = request.getQuery();
+        QueryWrapper<JobLog> query = new QueryWrapper<JobLog>().eq("job_id", jobId).eq("job_type", 1);
+        if (filters != null) {
+            if (filters.getLogId() != null) {
+                if (filters.getLogId() < 1) throw new BuzzException("运行ID须为正整数");
+                query.eq("id", filters.getLogId());
+            }
+            if (filters.getStatus() != null) {
+                if (!Set.of(1, 2, 8, 9).contains(filters.getStatus())) throw new BuzzException("执行状态无效");
+                query.eq("status", filters.getStatus());
+            }
+            if (filters.getTriggerSource() != null) {
+                if (!Set.of(0, 1, 2).contains(filters.getTriggerSource())) throw new BuzzException("触发来源无效");
+                query.eq("trigger_source", filters.getTriggerSource());
+            }
+            java.sql.Timestamp from = historyTime(filters.getBeginTimeFrom()), to = historyTime(filters.getBeginTimeTo());
+            if (from != null && to != null && from.after(to)) throw new BuzzException("开始时间范围无效");
+            if (from != null) query.ge("begin_time", from);
+            if (to != null) query.le("begin_time", to);
+        }
+        query.select("id", "job_id", "job_type", "trigger_source", "job_name", "status", "begin_time", "end_time", "duration_ms", "definition_version_id")
+                .orderByDesc("id");
+        return new TableRet<>(logs.selectPage(new Page<>(request.getCurrent(), request.getPageSize()), query));
+    }
+    private static java.sql.Timestamp historyTime(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            var format = java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss").withResolverStyle(java.time.format.ResolverStyle.STRICT);
+            return java.sql.Timestamp.valueOf(java.time.LocalDateTime.parse(value, format));
+        } catch (java.time.DateTimeException error) { throw new BuzzException("时间格式须为yyyy-MM-dd HH:mm:ss且日期有效"); }
     }
     private List<JobFlowNodeRun> nodeRuns(Integer logId) {
         return nodes.selectList(new QueryWrapper<JobFlowNodeRun>().eq("flow_log_id", logId).orderByAsc("id"));

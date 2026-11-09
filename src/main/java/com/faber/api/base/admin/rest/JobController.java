@@ -1,5 +1,7 @@
 package com.faber.api.base.admin.rest;
 
+import com.faber.core.vo.msg.TableRet;
+import com.faber.api.base.admin.vo.req.JobFlowHistoryQuery;
 import cn.hutool.core.map.MapUtil;
 import com.faber.api.base.admin.biz.JobBiz;
 import com.faber.api.base.admin.entity.Job;
@@ -41,7 +43,13 @@ public class JobController extends BaseController<JobBiz, Job, Integer> {
 
     @GetMapping("/flowRun/{logId}")
     @ResponseBody
-    public Ret<JobFlowRunView> flowRun(@PathVariable int logId) { return ok(flowRunner.view(logId)); }
+    public Ret<JobFlowRunView> flowRun(@PathVariable int logId, @RequestParam(required = false) Integer jobId) { return ok(flowRunner.view(logId, jobId)); }
+
+    @PostMapping("/flowRunsPage/{jobId}")
+    @ResponseBody
+    public TableRet<JobLog> flowRunsPage(@PathVariable int jobId, @RequestBody JobFlowHistoryQuery request) {
+        return flowRunner.historyPage(jobId, request);
+    }
 
     @GetMapping("/flowRuns/{jobId}")
     @ResponseBody
