@@ -1,13 +1,13 @@
 package com.faber.api.base.admin.biz;
 
 import cn.hutool.core.date.DateUtil;
-import cn.hutool.core.util.ClassUtil;
+import com.faber.api.base.admin.flow.RegisteredJobService;
+import com.faber.api.base.admin.vo.ret.RegisteredJobVo;
 import cn.hutool.core.util.ObjUtil;
 import com.faber.api.base.admin.entity.Job;
 import com.faber.api.base.admin.flow.JobFlowDefinitionValidator;
 import com.faber.api.base.admin.flow.JobFlowPreflight;
 import com.faber.api.base.admin.flow.JobDefinitionVersions;
-import com.faber.config.quartz.BaseJob;
 import java.util.Collection;
 import java.util.Set;
 import com.faber.api.base.admin.mapper.JobMapper;
@@ -49,6 +49,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
 
     @Autowired private JobLogMapper jobLogMapper;
     @Autowired private JobDefinitionVersions definitionVersions;
+    @Autowired private RegisteredJobService registeredJobs;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -145,8 +146,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     }
 
     private Set<String> registeredFlowClasses() {
-        return ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class).stream()
-                .filter(BaseJob.class::isAssignableFrom).map(Class::getName).collect(Collectors.toSet());
+        return RegisteredJobService.registeredPaths();
     }
 
     public JobFlowPreflight preflightFlow(Integer id) {
@@ -259,8 +259,10 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         return lambdaQuery().eq(Job::getStatus, true).eq(Job::getJobType, 0).list();
     }
 
+    public List<RegisteredJobVo> getRegisteredJobs() { return registeredJobs.catalog(); }
+
     public List<DictOption<String>> getAllJobs() {
-        return ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class)
+        return RegisteredJobService.registeredTypes()
                 .stream()
                 .map(clazz -> new DictOption<String>(clazz.getName(), clazz.getAnnotation(FaJob.class).value()))
                 .sorted(Comparator.comparing(DictOption::getLabel))
@@ -269,7 +271,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
 
     public List<DictOption<String>> getIdleJobs() {
         List<Job> activeJobs = lambdaQuery().list();
-        return ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class)
+        return RegisteredJobService.registeredTypes()
                 .stream()
                 .filter(i -> activeJobs.stream().noneMatch(j -> ObjUtil.equals(j.getClazzPath(), i.getName())))
                 .map(clazz -> new DictOption<String>(clazz.getName(), clazz.getAnnotation(FaJob.class).value()))

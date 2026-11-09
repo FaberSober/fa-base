@@ -5,7 +5,7 @@ import com.faber.config.quartz.logging.JobRunLogger;
 import com.faber.core.annotation.FaJob;
 
 /** 无业务副作用，供页面验证流程并发和依赖。 */
-@FaJob("流程演示：等待3秒")
+@FaJob(value = "流程演示：等待3秒", group = "流程演示", description = "等待3秒后成功，无业务副作用", tags = {"同步"})
 public class JobFlowDemoWait extends BaseJob {
     @Override protected void run() {
         JobRunLogger.info("演示等待开始，3秒后成功");

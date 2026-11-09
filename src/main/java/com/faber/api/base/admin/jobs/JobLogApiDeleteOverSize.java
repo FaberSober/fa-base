@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Deprecated
-@FaJob("旧版日志数量清理（已停用）")
+@FaJob(value = "旧版日志数量清理（已停用）", group = "日志维护", description = "已停用的旧版按数量清理任务", tags = {"清理"})
 public class JobLogApiDeleteOverSize extends BaseJob {
 
     @Override

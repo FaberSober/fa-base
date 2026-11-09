@@ -28,6 +28,12 @@ public class JobController extends BaseController<JobBiz, Job, Integer> {
 
     @Resource private JobFlowRunner flowRunner;
 
+    @GetMapping("/getRegisteredJobs")
+    @ResponseBody
+    public Ret<List<com.faber.api.base.admin.vo.ret.RegisteredJobVo>> getRegisteredJobs() {
+        return ok(baseBiz.getRegisteredJobs());
+    }
+
     @FaLogOpr("手动执行流程")
     @PostMapping("/runFlow/{id}")
     @ResponseBody

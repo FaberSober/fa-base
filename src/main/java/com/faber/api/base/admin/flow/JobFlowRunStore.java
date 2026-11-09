@@ -1,6 +1,5 @@
 package com.faber.api.base.admin.flow;
 
-import cn.hutool.core.util.ClassUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -8,8 +7,6 @@ import com.faber.api.base.admin.biz.JobLogBiz;
 import com.faber.api.base.admin.entity.*;
 import com.faber.api.base.admin.mapper.*;
 import com.faber.api.base.admin.enums.JobLogStatusEnum;
-import com.faber.config.quartz.BaseJob;
-import com.faber.core.annotation.FaJob;
 import com.faber.core.exception.BuzzException;
 import com.faber.core.exception.NoDataException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -17,7 +14,6 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /** 锁定父运行记录后推进，一次仅领取一个节点。所有业务执行必须在事务返回后发生。 */
 @Service
@@ -36,7 +32,7 @@ public class JobFlowRunStore {
         if (!Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("请选择流程任务");
         if (logs.selectCount(new QueryWrapper<JobLog>().eq("job_id", jobId).eq("job_type", 1).in("status", 1, 8)) > 0)
             throw new BuzzException("该流程仍有执行中或未确认的运行，不能重复启动");
-        Set<String> registered = ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class).stream().filter(BaseJob.class::isAssignableFrom).map(Class::getName).collect(Collectors.toSet());
+        Set<String> registered = RegisteredJobService.registeredPaths();
         JobFlowDefinitionValidator.validate(job.getFlowDefinition(), registered);
         JobDefinitionVersion version = definitionVersions.ensureCurrent(job);
         JobLog parent = new JobLog();

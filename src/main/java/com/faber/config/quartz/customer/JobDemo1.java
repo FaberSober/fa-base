@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
  * @date 2022/11/28 13:41
  */
 @Slf4j
-@FaJob("定时任务DEMO")
+@FaJob(value = "定时任务DEMO", group = "流程演示", description = "随机成功或失败的三批次演示任务", tags = {"演示"})
 public class JobDemo1 extends BaseJob {
 
     @Override

@@ -7,7 +7,7 @@ import jakarta.annotation.Resource;
 import java.util.concurrent.Executor;
 
 /** 使用框架受跟踪线程池，主方法返回后仍须等待异步工作完成。 */
-@FaJob("流程演示：异步等待6秒")
+@FaJob(value = "流程演示：异步等待6秒", group = "流程演示", description = "异步等待6秒后成功，主方法返回后继续跟踪", tags = {"异步"})
 public class JobFlowDemoAsync extends BaseJob {
     @Resource(name = "executor") private Executor executor;
     @Override protected void run() {

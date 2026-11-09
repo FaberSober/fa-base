@@ -1,11 +1,9 @@
 package com.faber.api.base.admin.flow;
 
-import cn.hutool.core.util.ClassUtil;
 import com.faber.api.base.admin.biz.JobLogBiz;
 import com.faber.api.base.admin.entity.JobLog;
 import com.faber.api.base.admin.enums.JobLogStatusEnum;
 import com.faber.config.quartz.BaseJob;
-import com.faber.core.annotation.FaJob;
 import com.faber.core.config.thread.TaskExecutionTracker;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -90,8 +88,7 @@ public class JobFlowRunner {
         BaseJob task = null;
         boolean invoked = false;
         try {
-            Class<? extends BaseJob> type = ClassUtil.scanPackageByAnnotation("com.faber", FaJob.class).stream()
-                    .filter(BaseJob.class::isAssignableFrom).filter(clazz -> clazz.getName().equals(launch.node().getClazzPath()))
+            Class<? extends BaseJob> type = RegisteredJobService.registeredTypes().stream().filter(clazz -> clazz.getName().equals(launch.node().getClazzPath()))
                     .findFirst().orElseThrow(() -> new IllegalStateException("快照引用的任务类已不可用")).asSubclass(BaseJob.class);
             task = beanFactory.createBean(type);
             BaseJob instance = task;
