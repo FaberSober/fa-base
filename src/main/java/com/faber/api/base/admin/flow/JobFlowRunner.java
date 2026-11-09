@@ -1,5 +1,6 @@
 package com.faber.api.base.admin.flow;
 
+import com.faber.api.base.admin.vo.ret.JobFlowHistoryStats;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.api.base.admin.vo.req.JobFlowHistoryQuery;
 import com.faber.api.base.admin.biz.JobLogBiz;
@@ -38,6 +39,7 @@ public class JobFlowRunner {
     }
     public JobFlowRunView view(Integer logId) { return store.view(logId); }
     public JobFlowRunView view(Integer logId, Integer jobId) { return store.view(logId, jobId); }
+    public JobFlowHistoryStats historyStats(Integer jobId, JobFlowHistoryQuery query) { return store.historyStats(jobId, query); }
     public TableRet<JobLog> historyPage(Integer jobId, JobFlowHistoryQuery request) { return store.historyPage(jobId, request); }
     public java.util.List<JobLog> history(Integer jobId) { return store.history(jobId); }
 

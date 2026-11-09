@@ -477,6 +477,59 @@ class JobFlowRunPersistenceTest {
         filters.setBeginTimeFrom("2026-11-10 00:00:00"); filters.setBeginTimeTo("2026-11-09 00:00:00"); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
     }
 
+    @Test void historyStatsAggregateOnlyMatchingFlowRunsAndValidDurationSamples() {
+        Job job = createFlow(); Job other = createFlow();
+        int success = historyStatLog(job.getId(), 1, JobLogStatusEnum.DONE, 1, 1000L);
+        historyStatLog(job.getId(), 1, JobLogStatusEnum.ERROR, 1, 2001L);
+        historyStatLog(job.getId(), 1, JobLogStatusEnum.DOING, 1, 9999L);
+        historyStatLog(job.getId(), 1, JobLogStatusEnum.UNCONFIRMED, 1, 9999L);
+        historyStatLog(job.getId(), 1, JobLogStatusEnum.DONE, 2, 9999L);
+        historyStatLog(job.getId(), 1, JobLogStatusEnum.ERROR, 1, null);
+        historyStatLog(job.getId(), 1, JobLogStatusEnum.DONE, 1, -1L);
+        historyStatLog(other.getId(), 1, JobLogStatusEnum.DONE, 1, 9999L);
+        historyStatLog(job.getId(), 0, JobLogStatusEnum.DONE, 1, 9999L);
+        var query = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery();
+        var stats = store.historyStats(job.getId(), query);
+        assertEquals(7L, stats.total()); assertEquals(3L, stats.success()); assertEquals(2L, stats.failed());
+        assertEquals(1L, stats.doing()); assertEquals(1L, stats.unconfirmed());
+        assertEquals(2L, stats.durationSamples()); assertEquals(1501L, stats.avgDurationMs());
+        query.setCurrent(2); query.setPageSize(50);
+        assertEquals(stats, store.historyStats(job.getId(), query));
+        var filters = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery.Filters(); query.setQuery(filters);
+        filters.setStatus(2); filters.setTriggerSource(1);
+        filters.setBeginTimeFrom("2026-11-09 08:00:00"); filters.setBeginTimeTo("2026-11-09 08:00:00");
+        assertEquals(3L, store.historyStats(job.getId(), query).total());
+        filters.setLogId(success);
+        assertEquals(1000L, store.historyStats(job.getId(), query).avgDurationMs());
+        assertEquals(store.historyPage(job.getId(), query).getData().getTotal(), store.historyStats(job.getId(), query).total());
+        filters.setTriggerSource(2);
+        var empty = store.historyStats(job.getId(), query);
+        assertEquals(0L, empty.total()); assertEquals(0L, empty.success()); assertEquals(0L, empty.failed());
+        assertEquals(0L, empty.doing()); assertEquals(0L, empty.unconfirmed());
+        assertEquals(0L, empty.durationSamples()); assertNull(empty.avgDurationMs());
+    }
+
+    @Test void historyStatsPreserveZeroDurationAndRejectInvalidFilters() {
+        Job job = createFlow(); historyStatLog(job.getId(), 1, JobLogStatusEnum.DONE, 1, 0L);
+        var query = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery();
+        assertEquals(0L, store.historyStats(job.getId(), query).avgDurationMs());
+        var filters = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery.Filters(); query.setQuery(filters);
+        filters.setStatus(1); assertNull(store.historyStats(job.getId(), query).avgDurationMs());
+        filters.setStatus(3); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
+        filters.setStatus(null); filters.setTriggerSource(3); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
+        filters.setTriggerSource(null); filters.setLogId(0); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
+        filters.setLogId(null); filters.setBeginTimeFrom("2026-02-30 00:00:00"); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
+        filters.setBeginTimeFrom("2026-11-10 00:00:00"); filters.setBeginTimeTo("2026-11-09 00:00:00");
+        assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
+    }
+
+    private int historyStatLog(int jobId, int jobType, JobLogStatusEnum status, int tracking, Long duration) {
+        JobLog log = new JobLog(); log.setJobId(jobId); log.setJobType(jobType); log.setTriggerSource(1);
+        log.setStatus(status); log.setTrackingVersion(tracking); log.setDurationMs(duration);
+        log.setBeginTime(java.sql.Timestamp.valueOf("2026-11-09 08:00:00")); logs.insert(log);
+        return log.getId();
+    }
+
     private void createSchema() {
         jdbc.execute("""
             CREATE TABLE base_job_definition_version (

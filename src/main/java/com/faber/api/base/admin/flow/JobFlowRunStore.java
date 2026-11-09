@@ -1,5 +1,6 @@
 package com.faber.api.base.admin.flow;
 
+import com.faber.api.base.admin.vo.ret.JobFlowHistoryStats;
 import com.faber.core.vo.msg.TableRet;
 import com.faber.api.base.admin.vo.req.JobFlowHistoryQuery;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -61,6 +62,31 @@ public class JobFlowRunStore {
     }
 
     public TableRet<JobLog> historyPage(Integer jobId, JobFlowHistoryQuery request) {
+        QueryWrapper<JobLog> query = historyQuery(jobId, request);
+        query.select("id", "job_id", "job_type", "trigger_source", "job_name", "status", "begin_time", "end_time", "duration_ms", "definition_version_id").orderByDesc("id");
+        return new TableRet<>(logs.selectPage(new Page<>(request.getCurrent(), request.getPageSize()), query));
+    }
+
+    public JobFlowHistoryStats historyStats(Integer jobId, JobFlowHistoryQuery request) {
+        QueryWrapper<JobLog> query = historyQuery(jobId, request);
+        String sample = "status IN (2,9) AND tracking_version=1 AND duration_ms IS NOT NULL AND duration_ms>=0";
+        query.select("COUNT(*) AS total", "SUM(CASE WHEN status=1 THEN 1 ELSE 0 END) AS doing",
+                "SUM(CASE WHEN status=2 THEN 1 ELSE 0 END) AS success", "SUM(CASE WHEN status=9 THEN 1 ELSE 0 END) AS failed",
+                "SUM(CASE WHEN status=8 THEN 1 ELSE 0 END) AS unconfirmed",
+                "SUM(CASE WHEN " + sample + " THEN 1 ELSE 0 END) AS duration_samples",
+                "AVG(CASE WHEN " + sample + " THEN duration_ms ELSE NULL END) AS avg_duration_ms");
+        Map<String, Object> values = new HashMap<>();
+        logs.selectMaps(query).get(0).forEach((key, value) -> values.put(key.toLowerCase(Locale.ROOT), value));
+        Object average = values.get("avg_duration_ms");
+        Long avg = average == null ? null : new java.math.BigDecimal(average.toString()).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact();
+        return new JobFlowHistoryStats(statCount(values, "total"), statCount(values, "doing"),
+                statCount(values, "success"), statCount(values, "failed"), statCount(values, "unconfirmed"), statCount(values, "duration_samples"), avg);
+    }
+    private static Long statCount(Map<String, Object> values, String key) {
+        Object value = values.get(key);
+        return value == null ? 0L : ((Number) value).longValue();
+    }
+    private QueryWrapper<JobLog> historyQuery(Integer jobId, JobFlowHistoryQuery request) {
         if (jobId == null || jobId < 1 || request == null || request.getCurrent() < 1 || !Set.of(20, 50, 100).contains(request.getPageSize()))
             throw new BuzzException("分页参数无效，每页条数仅支持20/50/100");
         var filters = request.getQuery();
@@ -83,9 +109,7 @@ public class JobFlowRunStore {
             if (from != null) query.ge("begin_time", from);
             if (to != null) query.le("begin_time", to);
         }
-        query.select("id", "job_id", "job_type", "trigger_source", "job_name", "status", "begin_time", "end_time", "duration_ms", "definition_version_id")
-                .orderByDesc("id");
-        return new TableRet<>(logs.selectPage(new Page<>(request.getCurrent(), request.getPageSize()), query));
+        return query;
     }
     private static java.sql.Timestamp historyTime(String value) {
         if (value == null || value.isBlank()) return null;
