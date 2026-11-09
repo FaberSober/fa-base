@@ -471,7 +471,7 @@ class JobFlowRunPersistenceTest {
         query.setCurrent(0); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
         query.setCurrent(1); query.setPageSize(101); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
         query.setPageSize(20); var filters = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery.Filters(); query.setQuery(filters);
-        filters.setStatus(3); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
+        filters.setStatus(6); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
         filters.setStatus(null); filters.setTriggerSource(3); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
         filters.setTriggerSource(null); filters.setBeginTimeFrom("2026-02-30 00:00:00"); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
         filters.setBeginTimeFrom("2026-11-10 00:00:00"); filters.setBeginTimeTo("2026-11-09 00:00:00"); assertThrows(BuzzException.class, () -> store.historyPage(job.getId(), query));
@@ -515,7 +515,7 @@ class JobFlowRunPersistenceTest {
         assertEquals(0L, store.historyStats(job.getId(), query).avgDurationMs());
         var filters = new com.faber.api.base.admin.vo.req.JobFlowHistoryQuery.Filters(); query.setQuery(filters);
         filters.setStatus(1); assertNull(store.historyStats(job.getId(), query).avgDurationMs());
-        filters.setStatus(3); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
+        filters.setStatus(6); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
         filters.setStatus(null); filters.setTriggerSource(3); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
         filters.setTriggerSource(null); filters.setLogId(0); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
         filters.setLogId(null); filters.setBeginTimeFrom("2026-02-30 00:00:00"); assertThrows(BuzzException.class, () -> store.historyStats(job.getId(), query));
@@ -542,6 +542,52 @@ class JobFlowRunPersistenceTest {
         assertNull(store.beginScheduled(job.getId()));
         assertEquals(1L, logs.selectCount(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<JobLog>().eq("job_id", job.getId())));
         assertNull(store.beginScheduled(Integer.MAX_VALUE));
+    }
+
+    @Test void stopCancelsQueuedLaunchAndIsIdempotentWithoutChangingSchedule() {
+        Job job = createFlow(); var start = store.begin(job.getId()); int id = start.log().getId();
+        var queued = store.claim(id);
+        assertThrows(com.faber.core.exception.NoDataException.class, () -> store.stop(id, job.getId() + 100));
+        var stopped = store.stop(id, job.getId());
+        assertEquals(JobLogStatusEnum.STOPPED, stopped.log().getStatus());
+        assertTrue(stopped.nodes().stream().allMatch(n -> n.getStatus() == 70));
+        assertEquals(JobLogStatusEnum.STOPPED, logs.selectById(queued.log().getId()).getStatus());
+        assertFalse(store.markRunning(queued.node().getId())); assertNull(store.claim(id));
+        assertEquals(stopped.log().getEndTime(), store.stop(id, job.getId()).log().getEndTime());
+        assertFalse(jobs.selectById(job.getId()).getStatus());
+        assertNotNull(store.begin(job.getId()));
+    }
+
+    @Test void stopWaitsForRunningWorkAndDoesNotCountAsSuccessOrFailure() {
+        Job job = createFlow(); int id = store.begin(job.getId()).log().getId(); var active = store.claim(id);
+        assertTrue(store.markRunning(active.node().getId()));
+        assertEquals(JobLogStatusEnum.STOPPING, store.stop(id, job.getId()).log().getStatus());
+        assertNull(store.claim(id)); assertThrows(BuzzException.class, () -> store.begin(job.getId()));
+        complete(active, JobLogStatusEnum.DONE); store.failSubmission(id, "推进被拒绝");
+        assertEquals(JobLogStatusEnum.STOPPED, store.view(id).log().getStatus());
+        assertEquals(0L, jobs.selectById(job.getId()).getSuccessCount());
+        assertEquals(0L, jobs.selectById(job.getId()).getFailCount());
+        assertEquals(0L, jobs.selectById(job.getId()).getDurationSampleCount());
+    }
+
+    @Test void stoppingPreservesFailureAndUnknownPriorityAndRestartSafety() {
+        Job job = createFlow(); int id = store.begin(job.getId()).log().getId(); var active = store.claim(id);
+        store.markRunning(active.node().getId()); store.stop(id, job.getId());
+        complete(active, JobLogStatusEnum.ERROR); store.claim(id);
+        assertEquals(JobLogStatusEnum.ERROR, store.view(id).log().getStatus());
+        id = store.begin(job.getId()).log().getId(); active = store.claim(id); store.markRunning(active.node().getId());
+        store.stop(id, job.getId()); store.recoverInterrupted();
+        assertEquals(JobLogStatusEnum.UNCONFIRMED, store.view(id).log().getStatus());
+    }
+
+    @Test void stopPreservesCommittedBusinessFailureBeforeNodeCallback() {
+        for (var state : List.of(JobLogStatusEnum.ERROR, JobLogStatusEnum.UNCONFIRMED)) {
+            Job job = createFlow(); int id = store.begin(job.getId()).log().getId(); var queued = store.claim(id);
+            JobLog business = queued.log(); business.setStatus(state); business.setTrackingVersion(state == JobLogStatusEnum.ERROR ? 1 : 2);
+            assertTrue(biz.finishExecution(business));
+            assertEquals(state, store.stop(id, job.getId()).log().getStatus());
+            assertEquals(state == JobLogStatusEnum.ERROR ? 50 : 80, nodes.selectById(queued.node().getId()).getStatus());
+        }
     }
 
     private void createSchema() {

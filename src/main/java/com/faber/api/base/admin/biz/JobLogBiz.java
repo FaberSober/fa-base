@@ -65,7 +65,7 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
     /** 条件终态更新是唯一累计入口；重复回调、重试不重复计数。 */
     @Transactional(rollbackFor = Exception.class)
     public boolean finishExecution(JobLog record) {
-        if (record.getStatus() == null || record.getStatus() == JobLogStatusEnum.DOING) {
+        if (record.getStatus() == null || (record.getStatus() == JobLogStatusEnum.DOING || record.getStatus() == JobLogStatusEnum.STOPPING)) {
             throw new IllegalArgumentException("任务尚未结束");
         }
         if (baseMapper.finishExecution(record) != 1) return false;
@@ -108,7 +108,7 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
         JobLog record = requireRecord(id);
         try {
             JobLogReadVo result = logFiles.read(record.getLogPath(), offset, maxBytes,
-                    record.getStatus() != JobLogStatusEnum.DOING);
+                    (record.getStatus() != JobLogStatusEnum.DOING && record.getStatus() != JobLogStatusEnum.STOPPING));
             result.setStatus(record.getStatus());
             return result;
         } catch (IOException e) {
@@ -139,7 +139,7 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
             if (record.getStatus() == JobLogStatusEnum.UNCONFIRMED && retentionEnd == null) {
                 retentionEnd = record.getDispatchEndTime();
             }
-            return record.getStatus() != JobLogStatusEnum.DOING && retentionEnd != null
+            return (record.getStatus() != JobLogStatusEnum.DOING && record.getStatus() != JobLogStatusEnum.STOPPING) && retentionEnd != null
                     && retentionEnd.toInstant().isBefore(cutoff);
         });
     }
@@ -156,7 +156,7 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
                         .eq(JobFlowNodeRun::getJobLogId, record.getId())) > 0)) {
             throw new BuzzException("流程关联日志暂不支持删除");
         }
-        if (records.stream().anyMatch(record -> record.getStatus() == JobLogStatusEnum.DOING)) {
+        if (records.stream().anyMatch(record -> (record.getStatus() == JobLogStatusEnum.DOING || record.getStatus() == JobLogStatusEnum.STOPPING))) {
             throw new BuzzException("任务执行中，请结束后再删除执行记录");
         }
     }

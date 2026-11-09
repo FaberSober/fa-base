@@ -42,6 +42,11 @@ public class JobController extends BaseController<JobBiz, Job, Integer> {
     @ResponseBody
     public Ret<JobFlowRunView> runFlow(@PathVariable int id) { return ok(flowRunner.start(id)); }
 
+    @FaLogOpr("停止当前流程")
+    @PostMapping("/stopFlow/{logId}")
+    @ResponseBody
+    public Ret<JobFlowRunView> stopFlow(@PathVariable int logId, @RequestParam int jobId) { return ok(flowRunner.stop(logId, jobId)); }
+
     @GetMapping("/flowRun/{logId}")
     @ResponseBody
     public Ret<JobFlowRunView> flowRun(@PathVariable int logId, @RequestParam(required = false) Integer jobId) { return ok(flowRunner.view(logId, jobId)); }

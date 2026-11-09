@@ -51,7 +51,7 @@ public class JobLog implements Serializable {
     @ExcelProperty("结束时间")
     private Date endTime;
 
-    @ExcelProperty("执行结果:1执行中/2成功/8未确认/9失败")
+    @ExcelProperty("执行结果:1执行中/2成功/3停止中/7已停止/8未确认/9失败")
     private JobLogStatusEnum status;
 
     @ExcelProperty("执行耗时(秒)")

@@ -91,7 +91,7 @@ public class Job extends BaseDelEntity implements JobInfo {
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @TableField(insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
-    @ExcelProperty("最近执行结果")
+    @ExcelProperty("最近执行结果:1执行中/2成功/3停止中/7已停止/8未确认/9失败")
     private JobLogStatusEnum lastStatus;
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)

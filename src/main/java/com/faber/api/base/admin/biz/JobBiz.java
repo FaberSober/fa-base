@@ -171,7 +171,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         Job removing = baseMapper.selectOne(new QueryWrapper<Job>().eq("id", id).last("FOR UPDATE"));
         if (removing != null && Integer.valueOf(1).equals(removing.getJobType()) && Boolean.TRUE.equals(removing.getStatus()))
             throw new BuzzException("请先暂停流程调度，再删除");
-        if (jobLogMapper.selectCount(new QueryWrapper<JobLog>().eq("job_id", id).eq("job_type", 1).in("status", 1, 8)) > 0)
+        if (jobLogMapper.selectCount(new QueryWrapper<JobLog>().eq("job_id", id).eq("job_type", 1).in("status", 1, 3, 8)) > 0)
             throw new BuzzException("流程仍有执行中或未确认的运行，不能删除");
     }
 

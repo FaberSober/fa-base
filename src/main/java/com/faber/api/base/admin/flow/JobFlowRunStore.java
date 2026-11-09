@@ -39,7 +39,7 @@ public class JobFlowRunStore {
         if (job == null) { if (scheduled) return null; throw new NoDataException(); }
         if (!Integer.valueOf(1).equals(job.getJobType())) throw new BuzzException("请选择流程任务");
         if (scheduled && !Boolean.TRUE.equals(job.getStatus())) return null;
-        if (logs.selectCount(new QueryWrapper<JobLog>().eq("job_id", jobId).eq("job_type", 1).in("status", 1, 8)) > 0) {
+        if (logs.selectCount(new QueryWrapper<JobLog>().eq("job_id", jobId).eq("job_type", 1).in("status", 1, 3, 8)) > 0) {
             if (scheduled) return null;
             throw new BuzzException("该流程仍有执行中或未确认的运行，不能重复启动");
         }
@@ -81,6 +81,7 @@ public class JobFlowRunStore {
         query.select("COUNT(*) AS total", "SUM(CASE WHEN status=1 THEN 1 ELSE 0 END) AS doing",
                 "SUM(CASE WHEN status=2 THEN 1 ELSE 0 END) AS success", "SUM(CASE WHEN status=9 THEN 1 ELSE 0 END) AS failed",
                 "SUM(CASE WHEN status=8 THEN 1 ELSE 0 END) AS unconfirmed",
+                "SUM(CASE WHEN status=3 THEN 1 ELSE 0 END) AS stopping", "SUM(CASE WHEN status=7 THEN 1 ELSE 0 END) AS stopped",
                 "SUM(CASE WHEN " + sample + " THEN 1 ELSE 0 END) AS duration_samples",
                 "AVG(CASE WHEN " + sample + " THEN duration_ms ELSE NULL END) AS avg_duration_ms");
         Map<String, Object> values = new HashMap<>();
@@ -88,7 +89,7 @@ public class JobFlowRunStore {
         Object average = values.get("avg_duration_ms");
         Long avg = average == null ? null : new java.math.BigDecimal(average.toString()).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact();
         return new JobFlowHistoryStats(statCount(values, "total"), statCount(values, "doing"),
-                statCount(values, "success"), statCount(values, "failed"), statCount(values, "unconfirmed"), statCount(values, "duration_samples"), avg);
+                statCount(values, "success"), statCount(values, "failed"), statCount(values, "unconfirmed"), statCount(values, "duration_samples"), avg, statCount(values, "stopping"), statCount(values, "stopped"));
     }
     private static Long statCount(Map<String, Object> values, String key) {
         Object value = values.get(key);
@@ -105,7 +106,7 @@ public class JobFlowRunStore {
                 query.eq("id", filters.getLogId());
             }
             if (filters.getStatus() != null) {
-                if (!Set.of(1, 2, 8, 9).contains(filters.getStatus())) throw new BuzzException("执行状态无效");
+                if (!Set.of(1, 2, 3, 7, 8, 9).contains(filters.getStatus())) throw new BuzzException("执行状态无效");
                 query.eq("status", filters.getStatus());
             }
             if (filters.getTriggerSource() != null) {
@@ -136,7 +137,13 @@ public class JobFlowRunStore {
     @Transactional(rollbackFor = Exception.class)
     public Launch claim(Integer logId) {
         JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", logId).last("FOR UPDATE"));
-        if (parent == null || parent.getStatus() != JobLogStatusEnum.DOING) return null;
+        if (parent == null) return null;
+        if (parent.getStatus() == JobLogStatusEnum.STOPPING) {
+            List<JobFlowNodeRun> stopping = nodeRuns(logId);
+            if (stopping.stream().noneMatch(run -> run.getStatus() == 30)) finishParent(parent, stopping);
+            return null;
+        }
+        if (parent.getStatus() != JobLogStatusEnum.DOING) return null;
         List<JobFlowNodeRun> runs = nodeRuns(logId);
         JsonNode definition = definitionVersions.definition(parent);
         var decision = JobFlowPlanner.next(definition, runs);
@@ -155,6 +162,36 @@ public class JobFlowRunStore {
         run.setJobLogId(business.getId()); run.setBeginTime(business.getBeginTime()); run.setStatus(20); run.setUpdTime(new Date());
         if (nodes.updateById(run) != 1) throw new IllegalStateException("登记节点启动失败");
         return new Launch(run, business, definition.path("detailLogEnabled").asBoolean(false));
+    }
+
+    /** 取消尚未调用的节点；运行中的工作继续真实收尾。 */
+    @Transactional(rollbackFor = Exception.class)
+    public JobFlowRunView stop(Integer logId, Integer jobId) {
+        JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", logId).last("FOR UPDATE"));
+        if (parent == null || !Integer.valueOf(1).equals(parent.getJobType()) || !Objects.equals(jobId, parent.getJobId())) throw new NoDataException();
+        if (parent.getStatus() != JobLogStatusEnum.DOING && parent.getStatus() != JobLogStatusEnum.STOPPING) return view(logId, jobId);
+        logs.update(null, new UpdateWrapper<JobLog>().eq("id", logId).set("status", 3).set("err_msg", "已请求停止，等待已启动任务收尾"));
+        parent.setStatus(JobLogStatusEnum.STOPPING);
+        jobs.update(null, new UpdateWrapper<Job>().eq("id", jobId).eq("last_job_log_id", logId).set("last_status", 3));
+        for (JobFlowNodeRun run : nodeRuns(logId)) if (Set.of(0, 10, 20).contains(run.getStatus())) {
+            Date now = new Date();
+            if (run.getStatus() == 20 && run.getJobLogId() != null) {
+                JobLog business = logs.selectOne(new QueryWrapper<JobLog>().eq("id", run.getJobLogId()).last("FOR UPDATE"));
+                if (business.getStatus() != JobLogStatusEnum.DOING) {
+                    run.setStatus(business.getStatus() == JobLogStatusEnum.DONE ? 40 : business.getStatus() == JobLogStatusEnum.ERROR ? 50 : business.getStatus() == JobLogStatusEnum.STOPPED ? 70 : 80);
+                    run.setEndTime(business.getEndTime()); run.setReason(business.getErrMsg()); run.setUpdTime(now); nodes.updateById(run);
+                    continue;
+                }
+                business.setStatus(JobLogStatusEnum.STOPPED); business.setEndTime(now); business.setTrackingVersion(1);
+                business.setDurationMs(Math.max(0, now.getTime() - business.getBeginTime().getTime()));
+                business.setDuration(business.getDurationMs() / 1000); business.setErrMsg("流程停止，业务尚未调用");
+                if (!logBiz.finishExecution(business)) throw new IllegalStateException("取消排队节点日志失败");
+            }
+            run.setStatus(70); run.setReason("人工停止，业务未启动"); run.setEndTime(now); run.setUpdTime(now); nodes.updateById(run);
+        }
+        List<JobFlowNodeRun> runs = nodeRuns(logId);
+        if (runs.stream().noneMatch(run -> run.getStatus() == 30)) finishParent(parent, runs);
+        return view(logId, jobId);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -179,7 +216,13 @@ public class JobFlowRunStore {
     @Transactional(rollbackFor = Exception.class)
     public void failSubmission(Integer logId, String reason) {
         JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", logId).last("FOR UPDATE"));
-        if (parent == null || parent.getStatus() != JobLogStatusEnum.DOING) return;
+        if (parent == null) return;
+        if (parent.getStatus() == JobLogStatusEnum.STOPPING) {
+            List<JobFlowNodeRun> stopping = nodeRuns(logId);
+            if (stopping.stream().noneMatch(run -> run.getStatus() == 30)) finishParent(parent, stopping);
+            return;
+        }
+        if (parent.getStatus() != JobLogStatusEnum.DOING) return;
         List<JobFlowNodeRun> runs = nodeRuns(logId);
         for (JobFlowNodeRun run : runs) if (run.getStatus() == 0 || run.getStatus() == 10) {
             run.setStatus(60); run.setReason(reason); run.setUpdTime(new Date()); nodes.updateById(run);
@@ -188,19 +231,20 @@ public class JobFlowRunStore {
         if (runs.stream().noneMatch(run -> run.getStatus() == 20 || run.getStatus() == 30)) finishParent(parent, runs);
     }
     private void finishParent(JobLog parent, List<JobFlowNodeRun> runs) {
+        boolean stopped = parent.getStatus() == JobLogStatusEnum.STOPPING;
         boolean unknown = runs.stream().anyMatch(run -> run.getStatus() == 80);
         boolean failed = runs.stream().anyMatch(run -> run.getStatus() == 50 || run.getStatus() == 60);
-        parent.setStatus(unknown ? JobLogStatusEnum.UNCONFIRMED : failed ? JobLogStatusEnum.ERROR : JobLogStatusEnum.DONE);
+        parent.setStatus(unknown ? JobLogStatusEnum.UNCONFIRMED : failed ? JobLogStatusEnum.ERROR : stopped ? JobLogStatusEnum.STOPPED : JobLogStatusEnum.DONE);
         parent.setTrackingVersion(unknown ? 2 : 1); parent.setEndTime(unknown ? null : new Date());
         parent.setDurationMs(unknown ? null : Math.max(0, parent.getEndTime().getTime() - parent.getBeginTime().getTime()));
         parent.setDuration(unknown ? 0L : parent.getDurationMs() / 1000);
-        parent.setErrMsg(unknown ? "节点结果未确认，后续未放行" : failed ? "部分节点失败或被阻断，请查看节点记录" : null);
+        parent.setErrMsg(unknown ? "节点结果未确认，后续未放行" : failed ? "部分节点失败或被阻断，请查看节点记录" : stopped ? "人工停止本轮流程" : null);
         logBiz.finishExecution(parent);
     }
     /** 重启不重跑任何可能产生副作用的节点；未确认结果继续占用该流程运行互斥。 */
     @Transactional(rollbackFor = Exception.class)
     public void recoverInterrupted() {
-        for (JobLog parent : logs.selectList(new QueryWrapper<JobLog>().eq("job_type", 1).eq("status", 1))) {
+        for (JobLog parent : logs.selectList(new QueryWrapper<JobLog>().eq("job_type", 1).in("status", 1, 3))) {
             logs.selectOne(new QueryWrapper<JobLog>().eq("id", parent.getId()).last("FOR UPDATE"));
             for (JobFlowNodeRun run : nodeRuns(parent.getId())) {
                 if (run.getStatus() == 20 || run.getStatus() == 30) {
