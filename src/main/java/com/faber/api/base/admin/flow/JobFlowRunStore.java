@@ -69,6 +69,13 @@ public class JobFlowRunStore {
         return new JobFlowRunView(parent, nodeRuns(logId), definitionVersions.definition(parent));
     }
 
+    /** 单次有界游标扫描，不加载历史正文或定义。 */
+    public List<JobLog> activeRunPage(int afterId) {
+        return logs.selectPage(new Page<JobLog>(1, 100, false), new QueryWrapper<JobLog>()
+                .select("id", "job_id").eq("job_type", 1).in("status", 1, 3)
+                .gt("id", afterId).orderByAsc("id")).getRecords();
+    }
+
     public TableRet<JobLog> historyPage(Integer jobId, JobFlowHistoryQuery request) {
         QueryWrapper<JobLog> query = historyQuery(jobId, request);
         query.select("id", "job_id", "job_type", "trigger_source", "job_name", "status", "begin_time", "end_time", "duration_ms", "definition_version_id").orderByDesc("id");

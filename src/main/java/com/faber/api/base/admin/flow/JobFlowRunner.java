@@ -26,6 +26,8 @@ import java.util.function.Consumer;
 @Service
 public class JobFlowRunner {
     private volatile boolean ready;
+    private int scanCursor;
+    private final java.util.Set<Integer> scanPending = java.util.concurrent.ConcurrentHashMap.newKeySet();
     @Resource private JobFlowRunStore store;
     @Resource private JobLogBiz logBiz;
     @Resource(name = "executor") private Executor executor;
@@ -58,6 +60,40 @@ public class JobFlowRunner {
 
     @EventListener(ApplicationReadyEvent.class)
     public synchronized void recover() { if (ready) return; store.recoverInterrupted(); ready = true; }
+
+    /** 单实例补偿；每轮至多100条，失败记录不阻塞游标轮转。 */
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 30000, initialDelay = 30000)
+    public synchronized void reconcileActiveRuns() {
+        if (!ready) return;
+        com.faber.core.context.BaseContextHandler.useAdmin();
+        try {
+            var page = store.activeRunPage(scanCursor);
+            if (page.isEmpty()) { scanCursor = 0; return; }
+            for (JobLog record : page) {
+                scanCursor = record.getId();
+                try {
+                    if (scanPending.contains(record.getId())) continue;
+                    JobFlowRunView current = store.reconcile(record.getId(), record.getJobId());
+                    boolean active = current.nodes().stream().anyMatch(node -> node.getStatus() == 20 || node.getStatus() == 30);
+                    boolean advance = !active;
+                    if (current.log().getStatus() == JobLogStatusEnum.DOING) {
+                        var decision = JobFlowPlanner.next(current.definition(), current.nodes());
+                        advance |= decision.next() != null || !decision.blocked().isEmpty();
+                    } else if (current.log().getStatus() != JobLogStatusEnum.STOPPING) continue;
+                    if (advance && scanPending.add(record.getId())) enqueueScan(record.getId());
+                } catch (Exception error) { log.warn("核对活动流程失败，运行ID：{}", record.getId(), error); }
+            }
+        } catch (Exception error) { log.warn("扫描活动流程失败，将在下轮重试", error); }
+        finally { com.faber.core.context.BaseContextHandler.remove(); }
+    }
+
+    private void enqueueScan(Integer id) {
+        submit(() -> {
+            try { advance(id); }
+            catch (Throwable error) { log.warn("补偿推进失败，运行ID：{}", id, error); }
+            finally { scanPending.remove(id); }
+        }, error -> { scanPending.remove(id); log.warn("补偿推进未被接受，等待下轮重试，运行ID：{}", id, error); });
+    }
 
     private void enqueue(Integer flowLogId) {
         submit(() -> {

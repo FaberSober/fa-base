@@ -628,6 +628,23 @@ class JobFlowRunPersistenceTest {
         assertEquals(2L, logs.selectCount(null));
     }
 
+    @Test void activeRunPagesAreBoundedAndExcludeOrdinaryAndTerminalRecords() {
+        Job job = createFlow();
+        for (int i = 0; i < 105; i++) {
+            JobLog log = new JobLog(); log.setJobId(job.getId()); log.setJobType(1);
+            log.setStatus(i % 2 == 0 ? JobLogStatusEnum.DOING : JobLogStatusEnum.STOPPING);
+            log.setBeginTime(new Date()); logs.insert(log);
+        }
+        historyStatLog(job.getId(), 0, JobLogStatusEnum.DOING, 1, null);
+        historyStatLog(job.getId(), 1, JobLogStatusEnum.UNCONFIRMED, 2, null);
+        historyStatLog(job.getId(), 1, JobLogStatusEnum.DONE, 1, 1L);
+        var first = store.activeRunPage(0); assertEquals(100, first.size());
+        assertNull(first.get(0).getStatus()); assertNull(first.get(0).getErrMsg());
+        var second = store.activeRunPage(first.get(99).getId()); assertEquals(5, second.size());
+        assertTrue(second.get(0).getId() > first.get(99).getId());
+        assertTrue(store.activeRunPage(second.get(4).getId()).isEmpty());
+    }
+
     private void createSchema() {
         jdbc.execute("""
             CREATE TABLE base_job_definition_version (
