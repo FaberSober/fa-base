@@ -645,6 +645,97 @@ class JobFlowRunPersistenceTest {
         assertTrue(store.activeRunPage(second.get(4).getId()).isEmpty());
     }
 
+    @Test void restartPreservesCommittedResultsAndDoesNotStartPendingNodes() {
+        for (var state : List.of(JobLogStatusEnum.DONE, JobLogStatusEnum.ERROR, JobLogStatusEnum.STOPPED)) {
+            Job job = createFlow(); int id = store.begin(job.getId()).log().getId(); var launch = store.claim(id);
+            store.markRunning(launch.node().getId()); persistWithoutCallback(launch, state);
+            Date ended = logs.selectById(launch.log().getId()).getEndTime();
+            store.recoverInterrupted(); var result = store.view(id);
+            assertEquals(state == JobLogStatusEnum.DONE ? 40 : state == JobLogStatusEnum.ERROR ? 50 : 70, result.nodes().get(0).getStatus());
+            assertEquals(ended, result.nodes().get(0).getEndTime());
+            assertEquals("已提交结果", result.nodes().get(0).getReason());
+            assertEquals(state, logs.selectById(launch.log().getId()).getStatus());
+            assertEquals(JobLogStatusEnum.ERROR, result.log().getStatus());
+            assertTrue(result.nodes().stream().skip(1).allMatch(n -> n.getStatus() == 60 && n.getJobLogId() == null));
+            store.recoverInterrupted(); assertEquals(2L, logs.selectCount(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<JobLog>().eq("id", id).or().eq("id", launch.log().getId())));
+            assertEquals(1L, jobs.selectById(job.getId()).getFailCount());
+        }
+    }
+
+    @Test void restartKeepsKnownResultsAlongsideUnknownWorkWithoutInventingEndTime() {
+        Job job = parallelFlow(); int id = store.begin(job.getId()).log().getId();
+        var known = store.claim(id); var unknown = store.claim(id);
+        store.markRunning(known.node().getId()); store.markRunning(unknown.node().getId());
+        persistWithoutCallback(known, JobLogStatusEnum.DONE);
+        // Simulate stale dispatch-era fields which must not become a real completion time.
+        jdbc.update("UPDATE base_job_log SET end_time=CURRENT_TIMESTAMP, duration_ms=123 WHERE id=?", unknown.log().getId());
+        store.recoverInterrupted(); var result = store.view(id);
+        assertEquals(List.of(40, 80, 60), result.nodes().stream().map(n -> n.getStatus()).toList());
+        assertEquals(JobLogStatusEnum.UNCONFIRMED, result.log().getStatus()); assertNull(result.log().getEndTime());
+        assertNull(logs.selectById(unknown.log().getId()).getEndTime()); assertNull(logs.selectById(unknown.log().getId()).getDurationMs());
+        assertNull(result.nodes().get(1).getEndTime()); assertNull(store.claim(id));
+        store.recoverInterrupted(); assertThrows(BuzzException.class, () -> store.begin(job.getId()));
+    }
+
+    @Test void restartFinishesKnownStoppedAndSuccessfulRunsExactlyOnce() {
+        Job stopped = createFlow(); int stoppedId = store.begin(stopped.getId()).log().getId(); var active = store.claim(stoppedId);
+        store.markRunning(active.node().getId()); store.stop(stoppedId, stopped.getId()); persistWithoutCallback(active, JobLogStatusEnum.DONE);
+        store.recoverInterrupted(); assertEquals(JobLogStatusEnum.STOPPED, store.view(stoppedId).log().getStatus());
+        assertEquals(0L, jobs.selectById(stopped.getId()).getSuccessCount()); assertEquals(0L, jobs.selectById(stopped.getId()).getFailCount());
+        Job success = createFlow(); int id = store.begin(success.getId()).log().getId();
+        for (int i = 0; i < 4; i++) complete(store.claim(id), JobLogStatusEnum.DONE);
+        store.recoverInterrupted(); store.recoverInterrupted();
+        assertEquals(JobLogStatusEnum.DONE, store.view(id).log().getStatus()); assertEquals(1L, jobs.selectById(success.getId()).getSuccessCount());
+        assertEquals(1L, jobs.selectById(success.getId()).getDurationSampleCount());
+    }
+
+    @Test void restartDoesNotTrustLegacyCompletionOrMissingBusinessRecords() {
+        for (int tracking : List.of(0, 2)) {
+            Job job = createFlow(); int id = store.begin(job.getId()).log().getId(); var launch = store.claim(id);
+            persistWithoutCallback(launch, JobLogStatusEnum.DONE);
+            jdbc.update("UPDATE base_job_log SET tracking_version=? WHERE id=?", tracking, launch.log().getId());
+            store.recoverInterrupted(); var result = store.view(id);
+            assertEquals(JobLogStatusEnum.UNCONFIRMED, result.log().getStatus());
+            assertEquals(80, result.nodes().get(0).getStatus()); assertNull(result.nodes().get(0).getEndTime());
+            assertEquals(JobLogStatusEnum.DONE, logs.selectById(launch.log().getId()).getStatus());
+            assertEquals(0L, jobs.selectById(job.getId()).getSuccessCount());
+        }
+        Job job = createFlow(); int id = store.begin(job.getId()).log().getId(); var launch = store.claim(id);
+        logs.deleteById(launch.log().getId());
+        store.recoverInterrupted();
+        assertEquals(JobLogStatusEnum.UNCONFIRMED, store.view(id).log().getStatus());
+        assertEquals(80, nodes.selectById(launch.node().getId()).getStatus());
+        assertThrows(BuzzException.class, () -> store.begin(job.getId()));
+    }
+
+    private void persistWithoutCallback(JobFlowRunStore.Launch launch, JobLogStatusEnum state) {
+        JobLog business = launch.log(); business.setStatus(state); business.setTrackingVersion(1);
+        business.setEndTime(new Date()); business.setDurationMs(1L); business.setErrMsg("已提交结果");
+        assertTrue(biz.finishExecution(business));
+    }
+
+    @Test void flowOriginUsesExactNodeAndHistoricalParentName() {
+        Job job = createFlow(); int flowId = store.begin(job.getId()).log().getId();
+        var first = store.claim(flowId); complete(first, JobLogStatusEnum.DONE); var second = store.claim(flowId);
+        jdbc.update("UPDATE base_job_flow_node_run SET clazz_path=? WHERE id=?", first.node().getClazzPath(), second.node().getId());
+        jdbc.update("UPDATE base_job SET job_name='修改后的名称' WHERE id=?", job.getId());
+        var origin = biz.flowOrigin(first.log().getId()); var other = biz.flowOrigin(second.log().getId());
+        assertEquals(job.getId(), origin.jobId()); assertEquals(flowId, origin.flowLogId());
+        assertEquals(first.node().getNodeId(), origin.nodeId()); assertEquals(first.node().getNodeName(), origin.nodeName());
+        assertEquals(store.view(flowId).log().getJobName(), origin.flowName());
+        assertNotEquals(origin.nodeId(), other.nodeId()); assertEquals(origin.flowLogId(), other.flowLogId());
+        assertNull(biz.flowOrigin(historyStatLog(job.getId(), 0, JobLogStatusEnum.DONE, 1, 1L)));
+        assertThrows(com.faber.core.exception.NoDataException.class, () -> biz.flowOrigin(Integer.MAX_VALUE));
+    }
+
+    @Test void flowOriginRejectsBrokenOrNonFlowParentAssociations() {
+        for (String mutation : List.of("DELETE FROM base_job_log WHERE id=?", "UPDATE base_job_log SET job_type=0 WHERE id=?", "UPDATE base_job_log SET job_id=NULL WHERE id=?")) {
+            Job job = createFlow(); int flowId = store.begin(job.getId()).log().getId(); var launch = store.claim(flowId);
+            jdbc.update(mutation, flowId);
+            assertThrows(com.faber.core.exception.NoDataException.class, () -> biz.flowOrigin(launch.log().getId()));
+        }
+    }
+
     private void createSchema() {
         jdbc.execute("""
             CREATE TABLE base_job_definition_version (

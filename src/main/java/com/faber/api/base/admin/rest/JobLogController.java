@@ -3,6 +3,7 @@ package com.faber.api.base.admin.rest;
 import com.faber.api.base.admin.biz.JobLogBiz;
 import com.faber.api.base.admin.entity.JobLog;
 import com.faber.api.base.admin.vo.ret.JobLogReadVo;
+import com.faber.api.base.admin.vo.ret.JobFlowLogOrigin;
 import com.faber.core.annotation.FaLogBiz;
 import com.faber.core.vo.msg.Ret;
 import com.faber.core.web.rest.BaseController;
@@ -22,6 +23,12 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/base/admin/jobLog")
 public class JobLogController extends BaseController<JobLogBiz, JobLog, Integer> {
+    @GetMapping("/flowOrigin/{id}")
+    public Ret<JobFlowLogOrigin> flowOrigin(@PathVariable Integer id, HttpServletResponse response) {
+        noLog(response);
+        return ok(baseBiz.flowOrigin(id));
+    }
+
     @GetMapping("/read/{id}")
     public Ret<JobLogReadVo> read(@PathVariable Integer id,
                                  @RequestParam(defaultValue = "0") long offset,

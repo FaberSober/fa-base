@@ -275,23 +275,40 @@ public class JobFlowRunStore {
     /** 重启不重跑任何可能产生副作用的节点；未确认结果继续占用该流程运行互斥。 */
     @Transactional(rollbackFor = Exception.class)
     public void recoverInterrupted() {
-        for (JobLog parent : logs.selectList(new QueryWrapper<JobLog>().eq("job_type", 1).in("status", 1, 3))) {
-            logs.selectOne(new QueryWrapper<JobLog>().eq("id", parent.getId()).last("FOR UPDATE"));
+        for (JobLog candidate : logs.selectList(new QueryWrapper<JobLog>().eq("job_type", 1).in("status", 1, 3))) {
+            JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", candidate.getId()).last("FOR UPDATE"));
+            if (parent == null || (parent.getStatus() != JobLogStatusEnum.DOING && parent.getStatus() != JobLogStatusEnum.STOPPING)) continue;
+            boolean stopping = parent.getStatus() == JobLogStatusEnum.STOPPING;
             for (JobFlowNodeRun run : nodeRuns(parent.getId())) {
                 if (run.getStatus() == 20 || run.getStatus() == 30) {
-                    if (run.getJobLogId() != null) {
-                        JobLog business = logs.selectById(run.getJobLogId());
+                    JobLog business = run.getJobLogId() == null ? null : logs.selectOne(new QueryWrapper<JobLog>()
+                            .eq("id", run.getJobLogId()).last("FOR UPDATE"));
+                    Integer known = business == null || business.getStatus() == null ? null : switch (business.getStatus()) {
+                        case DONE -> 40;
+                        case ERROR -> 50;
+                        case STOPPED -> 70;
+                        case UNCONFIRMED -> 80;
+                        default -> null;
+                    };
+                    boolean incomplete = known != null && known != 80 && !Integer.valueOf(1).equals(business.getTrackingVersion());
+                    if (known != null) {
+                        run.setStatus(incomplete ? 80 : known);
+                        run.setEndTime(incomplete || known == 80 ? null : business.getEndTime());
+                        run.setReason(incomplete ? "服务重启，业务记录不是完整跟踪口径，无法确认实际完成" : business.getErrMsg());
+                    } else {
                         if (business != null && business.getStatus() == JobLogStatusEnum.DOING) {
                             business.setStatus(JobLogStatusEnum.UNCONFIRMED); business.setTrackingVersion(2); business.setDuration(0L);
+                            business.setEndTime(null); business.setDurationMs(null);
                             business.setErrMsg("服务重启，无法确认节点业务结果"); logBiz.finishExecution(business);
                         }
+                        run.setStatus(80); run.setEndTime(null); run.setReason("服务重启，无法确认节点是否完成");
                     }
-                    run.setStatus(80); run.setReason("服务重启，无法确认节点是否完成");
-                } else if (run.getStatus() == 0 || run.getStatus() == 10) { run.setStatus(60); run.setReason("服务重启，后续节点不再启动"); }
+                } else if (run.getStatus() == 0 || run.getStatus() == 10) {
+                    run.setStatus(stopping ? 70 : 60); run.setReason("服务重启，后续节点不再启动");
+                }
                 run.setUpdTime(new Date()); nodes.updateById(run);
             }
-            parent.setStatus(JobLogStatusEnum.UNCONFIRMED); parent.setTrackingVersion(2); parent.setDuration(0L);
-            parent.setErrMsg("服务重启，整轮结果未确认，禁止自动重跑"); logBiz.finishExecution(parent);
+            finishParent(parent, nodeRuns(parent.getId()));
         }
     }
 }

@@ -8,6 +8,7 @@ import com.faber.api.base.admin.mapper.JobFlowNodeRunMapper;
 import com.faber.api.base.admin.entity.JobFlowNodeRun;
 import com.faber.api.base.admin.mapper.JobLogMapper;
 import com.faber.api.base.admin.vo.ret.JobLogReadVo;
+import com.faber.api.base.admin.vo.ret.JobFlowLogOrigin;
 import com.faber.config.quartz.logging.JobLogFileService;
 import com.faber.core.constant.FaSetting;
 import com.faber.core.exception.BuzzException;
@@ -101,6 +102,18 @@ public class JobLogBiz extends BaseBiz<JobLogMapper, JobLog> {
             log.error("初始化任务详细日志失败，执行记录：{}", record.getId(), e);
             return null;
         }
+    }
+
+    /** 归属只由服务端节点关联确定；同类任务的不同节点不得混淆。 */
+    public JobFlowLogOrigin flowOrigin(Integer id) {
+        requireRecord(id);
+        JobFlowNodeRun node = flowNodeRuns.selectOne(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<JobFlowNodeRun>()
+                .eq("job_log_id", id));
+        if (node == null) return null;
+        JobLog parent = getById(node.getFlowLogId());
+        if (parent == null || !Integer.valueOf(1).equals(parent.getJobType()) || parent.getJobId() == null)
+            throw new NoDataException();
+        return new JobFlowLogOrigin(parent.getJobId(), parent.getId(), node.getNodeId(), node.getNodeName(), parent.getJobName());
     }
 
     public JobLogReadVo readLog(Integer id, long offset, int maxBytes) {
