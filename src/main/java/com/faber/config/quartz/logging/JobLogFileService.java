@@ -33,6 +33,7 @@ public class JobLogFileService {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     private final FaSetting setting;
     private final Set<Path> activeFiles = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<String, Integer> pendingFlowEvents = new ConcurrentHashMap<>();
 
     public JobLogFileService(FaSetting setting) {
         this.setting = setting;
@@ -53,6 +54,37 @@ public class JobLogFileService {
         return new ExecutionLog(relativePath, path, output, maxBytes);
     }
 
+    /** 状态已提交而文件尚未追加的短窗口，读取方不能提前确认 EOF。 */
+    public Runnable retainFlowEvent(String relativePath) {
+        pendingFlowEvents.merge(relativePath, 1, Integer::sum);
+        return () -> pendingFlowEvents.computeIfPresent(relativePath, (key, count) -> count == 1 ? null : count - 1);
+    }
+
+    /** 编排事件不绑定业务线程上下文；短时追加后关闭，可在重启核查时继续已有文件。 */
+    public synchronized void appendFlowEvent(String relativePath, String message, boolean terminal) throws IOException {
+        if (relativePath == null || relativePath.isBlank()) return;
+        Path path = resolve(relativePath);
+        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) return; // 不补造已清理文件
+        long maxBytes = setting.getJobLog().getMaxFileSize().toBytes();
+        if (maxBytes < 1024) throw new BuzzException("任务日志文件上限不能小于 1 KiB");
+        long footerReserve = Math.min(8192, maxBytes / 4);
+        long bodyLimit = maxBytes - footerReserve - 256;
+        try (SeekableByteChannel channel = Files.newByteChannel(path, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)) {
+            long size = channel.size(), limit = terminal ? maxBytes : bodyLimit;
+            if (size >= limit) return;
+            byte[] bytes = format("INFO", message, null);
+            channel.position(size);
+            int length = completeUtf8Length(bytes, (int) Math.min(bytes.length, limit - size));
+            ByteBuffer buffer = ByteBuffer.wrap(bytes, 0, length);
+            while (buffer.hasRemaining()) channel.write(buffer);
+            if (!terminal && length < bytes.length) {
+                byte[] marker = format("WARN", "日志已达到大小上限，后续编排事件已省略。", null);
+                buffer = ByteBuffer.wrap(marker); // 与 ExecutionLog 相同的预留提示空间
+                while (buffer.hasRemaining()) channel.write(buffer);
+            }
+        }
+    }
+
     public JobLogReadVo read(String relativePath, long offset, int maxBytes, boolean finished) throws IOException {
         if (offset < 0) throw new BuzzException("日志读取位置不能为负数");
         JobLogReadVo result = new JobLogReadVo();
@@ -60,6 +92,7 @@ public class JobLogFileService {
             result.setMessage("本次执行未记录详细日志");
             return result;
         }
+        boolean pending = pendingFlowEvents.containsKey(relativePath);
         Path path = resolve(relativePath);
         if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
             result.setMessage("日志已清理或不可用");
@@ -74,11 +107,11 @@ public class JobLogFileService {
             while (buffer.hasRemaining() && channel.read(buffer) > 0) { }
             int length = completeUtf8Length(buffer.array(), buffer.position());
             // 已结束文件若存在不完整尾字符，消费并替换它，避免游标永久停滞。
-            if (finished && offset + buffer.position() == size) length = buffer.position();
+            if (finished && !pending && offset + buffer.position() == size) length = buffer.position();
             result.setAvailable(true);
             result.setContent(new String(buffer.array(), 0, length, StandardCharsets.UTF_8));
             result.setNextOffset(Long.toString(offset + length));
-            result.setHasMore(offset + length < size);
+            result.setHasMore(offset + length < size || pending);
             return result;
         }
     }

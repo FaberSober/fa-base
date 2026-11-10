@@ -45,6 +45,44 @@ class JobLogFileServiceTest {
     }
 
     @Test
+    void pendingCommittedEventsPreventPrematureEndOfFile() throws Exception {
+        String path;
+        try (var execution = files.open(record(1))) { path = execution.getRelativePath(); }
+        Runnable first = files.retainFlowEvent(path), second = files.retainFlowEvent(path);
+        assertTrue(files.read(path, 0, 1024, true).isHasMore());
+        first.run();
+        assertTrue(files.read(path, 0, 1024, true).isHasMore());
+        Files.write(files.resolve(path), new byte[]{(byte) 0xf0, (byte) 0x9f});
+        assertEquals("0", files.read(path, 0, 1024, true).getNextOffset());
+        Files.write(files.resolve(path), new byte[]{(byte) 0x98, (byte) 0x80}, StandardOpenOption.APPEND);
+        files.appendFlowEvent(path, "流程收尾", true);
+        second.run();
+        var result = files.read(path, 0, 1024, true);
+        assertFalse(result.isHasMore()); assertTrue(result.getContent().contains("流程收尾"));
+    }
+
+    @Test
+    void flowEventsAppendAcrossServiceRestartAndKeepTerminalReserve() throws Exception {
+        setting.getJobLog().setMaxFileSize(DataSize.ofBytes(1024));
+        String path;
+        try (var execution = files.open(record(1))) { path = execution.getRelativePath(); }
+        files.appendFlowEvent(path, "流程开始", false);
+        var restarted = new JobLogFileService(setting);
+        restarted.appendFlowEvent(path, "中文😀".repeat(5000), false);
+        restarted.appendFlowEvent(path, "正文不再追加", false);
+        restarted.appendFlowEvent(path, "流程收尾：失败", true);
+        String text = Files.readString(files.resolve(path));
+        assertTrue(text.contains("流程开始")); assertTrue(text.contains("后续编排事件已省略"));
+        assertTrue(text.contains("流程收尾：失败")); assertFalse(text.contains("正文不再追加"));
+        assertFalse(text.contains("\ufffd"));
+        assertTrue(Files.size(files.resolve(path)) <= 1024);
+        Files.delete(files.resolve(path));
+        restarted.appendFlowEvent(path, "不能补造已删除文件", false);
+        assertFalse(Files.exists(files.resolve(path)));
+        assertThrows(BuzzException.class, () -> restarted.appendFlowEvent("../escape.log", "拒绝越界", false));
+    }
+
+    @Test
     void readsUtf8IncludingEmojiAtSmallByteBoundariesWithoutLoss() throws Exception {
         String text = "开始😀中文\n".repeat(25);
         String relative;

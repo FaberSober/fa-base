@@ -83,6 +83,7 @@ class JobFlowSerialRunTest {
     @Test void repeatedCompletionCallbackCannotAdvanceTwice() {
         var store = new JobFlowRunStore(); var nodes = mock(JobFlowNodeRunMapper.class); var logs = mock(JobLogMapper.class);
         ReflectionTestUtils.setField(store, "nodes", nodes); ReflectionTestUtils.setField(store, "logs", logs);
+        ReflectionTestUtils.setField(store, "eventLog", mock(com.faber.api.base.admin.flow.JobFlowEventLog.class));
         var run = node("a", 30); run.setId(1); run.setFlowLogId(2); run.setJobLogId(3);
         when(nodes.selectOne(any(Wrapper.class))).thenReturn(run);
         when(nodes.update(isNull(), any(Wrapper.class))).thenReturn(1, 0);

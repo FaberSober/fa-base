@@ -26,6 +26,7 @@ public class JobFlowRunStore {
     @Resource private JobFlowNodeRunMapper nodes;
     @Resource private JobLogBiz logBiz;
     @Resource private JobDefinitionVersions definitionVersions;
+    @Resource private JobFlowEventLog eventLog;
     public record Launch(JobFlowNodeRun node, JobLog log, boolean detailLogEnabled) {}
 
     @Transactional(rollbackFor = Exception.class)
@@ -59,6 +60,11 @@ public class JobFlowRunStore {
         }
         parent.setDispatchEndTime(new Date()); parent.setDispatchDurationMs(Math.max(0, parent.getDispatchEndTime().getTime() - parent.getBeginTime().getTime()));
         logBiz.recordDispatch(parent);
+        eventLog.open(parent, definition.path("detailLogEnabled").asBoolean(false));
+        if (parent.getLogPath() != null && logs.update(null, new UpdateWrapper<JobLog>().eq("id", parent.getId()).set("log_path", parent.getLogPath())) != 1)
+            throw new IllegalStateException("登记流程编排日志路径失败");
+        eventLog.record(parent, "流程开始：" + parent.getJobName() + "，运行 #" + parent.getId() + "，版本 #" + version.getId()
+                + "，来源：" + (scheduled ? "定时" : "手动") + "，节点 " + definition.path("nodes").size() + "，并发上限 " + definition.path("maxConcurrency").asInt());
         return view(parent.getId());
     }
 
@@ -156,6 +162,7 @@ public class JobFlowRunStore {
         var decision = JobFlowPlanner.next(definition, runs);
         for (JobFlowNodeRun run : runs) if (decision.blocked().contains(run.getNodeId())) {
             run.setStatus(60); run.setReason(runs.stream().anyMatch(item -> item.getStatus() == 80) ? "存在未确认工作，暂停启动新节点" : "前驱失败或阻断，未启动"); run.setUpdTime(new Date()); nodes.updateById(run);
+            eventLog.record(parent, nodeEvent(run));
         }
         if (decision.next() == null) {
             if (runs.stream().noneMatch(run -> Set.of(0, 10, 20, 30).contains(run.getStatus()))) finishParent(parent, runs);
@@ -168,6 +175,7 @@ public class JobFlowRunStore {
         logBiz.beginExecution(business);
         run.setJobLogId(business.getId()); run.setBeginTime(business.getBeginTime()); run.setStatus(20); run.setUpdTime(new Date());
         if (nodes.updateById(run) != 1) throw new IllegalStateException("登记节点启动失败");
+        eventLog.record(parent, "节点待启动：" + run.getNodeName() + " [" + run.getNodeId() + "]，业务日志 #" + business.getId());
         return new Launch(run, business, definition.path("detailLogEnabled").asBoolean(false));
     }
 
@@ -189,8 +197,11 @@ public class JobFlowRunStore {
                 default -> null;
             };
             if (state == null) continue;
-            nodes.update(null, new UpdateWrapper<JobFlowNodeRun>().eq("id", run.getId()).in("status", 20, 30)
-                    .set("status", state).set("end_time", business.getEndTime()).set("reason", business.getErrMsg()).set("upd_time", new Date()));
+            if (nodes.update(null, new UpdateWrapper<JobFlowNodeRun>().eq("id", run.getId()).in("status", 20, 30)
+                    .set("status", state).set("end_time", business.getEndTime()).set("reason", business.getErrMsg()).set("upd_time", new Date())) == 1) {
+                run.setStatus(state); run.setReason(business.getErrMsg());
+                eventLog.record(parent, "状态核对：" + nodeEvent(run));
+            }
         }
         return view(logId, jobId);
     }
@@ -201,6 +212,7 @@ public class JobFlowRunStore {
         JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", logId).last("FOR UPDATE"));
         if (parent == null || !Integer.valueOf(1).equals(parent.getJobType()) || !Objects.equals(jobId, parent.getJobId())) throw new NoDataException();
         if (parent.getStatus() != JobLogStatusEnum.DOING && parent.getStatus() != JobLogStatusEnum.STOPPING) return view(logId, jobId);
+        if (parent.getStatus() == JobLogStatusEnum.DOING) eventLog.record(parent, "请求停止本轮：不再启动新节点，等待已运行任务收尾");
         logs.update(null, new UpdateWrapper<JobLog>().eq("id", logId).set("status", 3).set("err_msg", "已请求停止，等待已启动任务收尾"));
         parent.setStatus(JobLogStatusEnum.STOPPING);
         jobs.update(null, new UpdateWrapper<Job>().eq("id", jobId).eq("last_job_log_id", logId).set("last_status", 3));
@@ -211,6 +223,7 @@ public class JobFlowRunStore {
                 if (business.getStatus() != JobLogStatusEnum.DOING) {
                     run.setStatus(business.getStatus() == JobLogStatusEnum.DONE ? 40 : business.getStatus() == JobLogStatusEnum.ERROR ? 50 : business.getStatus() == JobLogStatusEnum.STOPPED ? 70 : 80);
                     run.setEndTime(business.getEndTime()); run.setReason(business.getErrMsg()); run.setUpdTime(now); nodes.updateById(run);
+                    eventLog.record(parent, nodeEvent(run));
                     continue;
                 }
                 business.setStatus(JobLogStatusEnum.STOPPED); business.setEndTime(now); business.setTrackingVersion(1);
@@ -219,6 +232,7 @@ public class JobFlowRunStore {
                 if (!logBiz.finishExecution(business)) throw new IllegalStateException("取消排队节点日志失败");
             }
             run.setStatus(70); run.setReason("人工停止，业务未启动"); run.setEndTime(now); run.setUpdTime(now); nodes.updateById(run);
+            eventLog.record(parent, nodeEvent(run));
         }
         List<JobFlowNodeRun> runs = nodeRuns(logId);
         if (runs.stream().noneMatch(run -> run.getStatus() == 30)) finishParent(parent, runs);
@@ -230,10 +244,15 @@ public class JobFlowRunStore {
         JobFlowNodeRun run = nodes.selectOne(new QueryWrapper<JobFlowNodeRun>().eq("job_log_id", business.getId()));
         if (run == null) return false;
         // 与领取、整体汇总使用相同的父锁顺序。
-        logs.selectOne(new QueryWrapper<JobLog>().eq("id", run.getFlowLogId()).last("FOR UPDATE"));
+        JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", run.getFlowLogId()).last("FOR UPDATE"));
         int state = business.getStatus() == JobLogStatusEnum.DONE ? 40 : business.getStatus() == JobLogStatusEnum.ERROR ? 50 : 80;
-        return nodes.update(null, new UpdateWrapper<JobFlowNodeRun>().eq("id", run.getId()).in("status", 20, 30)
+        boolean changed = nodes.update(null, new UpdateWrapper<JobFlowNodeRun>().eq("id", run.getId()).in("status", 20, 30)
                 .set("status", state).set("end_time", business.getEndTime()).set("reason", business.getErrMsg()).set("upd_time", new Date())) == 1;
+        if (changed) {
+            run.setStatus(state); run.setReason(business.getErrMsg());
+            eventLog.record(parent, nodeEvent(run));
+        }
+        return changed;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -242,7 +261,9 @@ public class JobFlowRunStore {
         if (run == null) return false;
         JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", run.getFlowLogId()).last("FOR UPDATE"));
         if (parent == null || parent.getStatus() != JobLogStatusEnum.DOING) return false;
-        return nodes.update(null, new UpdateWrapper<JobFlowNodeRun>().eq("id", id).eq("status", 20).set("status", 30).set("upd_time", new Date())) == 1;
+        boolean changed = nodes.update(null, new UpdateWrapper<JobFlowNodeRun>().eq("id", id).eq("status", 20).set("status", 30).set("upd_time", new Date())) == 1;
+        if (changed) eventLog.record(parent, "节点开始调用：" + run.getNodeName() + " [" + run.getNodeId() + "]，任务类 " + run.getClazzPath());
+        return changed;
     }
     @Transactional(rollbackFor = Exception.class)
     public void failSubmission(Integer logId, String reason) {
@@ -257,6 +278,7 @@ public class JobFlowRunStore {
         List<JobFlowNodeRun> runs = nodeRuns(logId);
         for (JobFlowNodeRun run : runs) if (run.getStatus() == 0 || run.getStatus() == 10) {
             run.setStatus(60); run.setReason(reason); run.setUpdTime(new Date()); nodes.updateById(run);
+            eventLog.record(parent, nodeEvent(run));
         }
         // 执行器拒绝后停止新领取；已接受的并行工作仍需等待真实终态再汇总。
         if (runs.stream().noneMatch(run -> run.getStatus() == 20 || run.getStatus() == 30)) finishParent(parent, runs);
@@ -270,7 +292,17 @@ public class JobFlowRunStore {
         parent.setDurationMs(unknown ? null : Math.max(0, parent.getEndTime().getTime() - parent.getBeginTime().getTime()));
         parent.setDuration(unknown ? 0L : parent.getDurationMs() / 1000);
         parent.setErrMsg(unknown ? "节点结果未确认，后续未放行" : failed ? "部分节点失败或被阻断，请查看节点记录" : stopped ? "人工停止本轮流程" : null);
-        logBiz.finishExecution(parent);
+        if (logBiz.finishExecution(parent)) eventLog.record(parent, "流程收尾：" + parent.getStatus().getDesc()
+                + "，耗时 " + (parent.getDurationMs() == null ? "未确认" : parent.getDurationMs() + " ms")
+                + (parent.getErrMsg() == null ? "" : "，原因：" + parent.getErrMsg()), true);
+    }
+    private static String nodeEvent(JobFlowNodeRun node) {
+        String state = switch (node.getStatus()) {
+            case 40 -> "成功"; case 50 -> "失败"; case 60 -> "阻断"; case 70 -> "已停止"; case 80 -> "未确认";
+            default -> String.valueOf(node.getStatus());
+        };
+        return "节点结果：" + node.getNodeName() + " [" + node.getNodeId() + "]，" + state
+                + (node.getReason() == null ? "" : "，原因：" + node.getReason());
     }
     /** 重启不重跑任何可能产生副作用的节点；未确认结果继续占用该流程运行互斥。 */
     @Transactional(rollbackFor = Exception.class)
@@ -279,7 +311,9 @@ public class JobFlowRunStore {
             JobLog parent = logs.selectOne(new QueryWrapper<JobLog>().eq("id", candidate.getId()).last("FOR UPDATE"));
             if (parent == null || (parent.getStatus() != JobLogStatusEnum.DOING && parent.getStatus() != JobLogStatusEnum.STOPPING)) continue;
             boolean stopping = parent.getStatus() == JobLogStatusEnum.STOPPING;
+            eventLog.record(parent, "服务重启核查：保留已提交业务终态，不重新执行业务");
             for (JobFlowNodeRun run : nodeRuns(parent.getId())) {
+                int previousState = run.getStatus();
                 if (run.getStatus() == 20 || run.getStatus() == 30) {
                     JobLog business = run.getJobLogId() == null ? null : logs.selectOne(new QueryWrapper<JobLog>()
                             .eq("id", run.getJobLogId()).last("FOR UPDATE"));
@@ -307,6 +341,7 @@ public class JobFlowRunStore {
                     run.setStatus(stopping ? 70 : 60); run.setReason("服务重启，后续节点不再启动");
                 }
                 run.setUpdTime(new Date()); nodes.updateById(run);
+                if (previousState != run.getStatus()) eventLog.record(parent, nodeEvent(run));
             }
             finishParent(parent, nodeRuns(parent.getId()));
         }

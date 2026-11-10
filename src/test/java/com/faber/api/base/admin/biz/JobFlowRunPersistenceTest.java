@@ -40,6 +40,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class JobFlowRunPersistenceTest {
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path logDirectory;
+    private com.faber.config.quartz.logging.JobLogFileService logFiles;
     private JdbcTemplate jdbc;
     private JobMapper jobs;
     private JobLogMapper logs;
@@ -95,7 +97,13 @@ class JobFlowRunPersistenceTest {
         jobs = sessions.getMapper(JobMapper.class);
         logs = sessions.getMapper(JobLogMapper.class);
 
+        FaSetting logSetting = new FaSetting();
+        logSetting.getJobLog().setRootPath(logDirectory.toString());
+        logFiles = new com.faber.config.quartz.logging.JobLogFileService(logSetting);
+        var events = new com.faber.api.base.admin.flow.JobFlowEventLog();
+        ReflectionTestUtils.setField(events, "files", logFiles);
         JobLogBiz target = new JobLogBiz();
+        ReflectionTestUtils.setField(target, "logFiles", logFiles);
         ReflectionTestUtils.setField(target, "baseMapper", logs);
         ReflectionTestUtils.setField(target, "jobMapper", jobs);
         ReflectionTestUtils.setField(target, "flowNodeRuns", sessions.getMapper(JobFlowNodeRunMapper.class));
@@ -114,6 +122,7 @@ class JobFlowRunPersistenceTest {
         ReflectionTestUtils.setField(storeTarget, "logs", logs);
         ReflectionTestUtils.setField(storeTarget, "nodes", nodes);
         ReflectionTestUtils.setField(storeTarget, "logBiz", biz);
+        ReflectionTestUtils.setField(storeTarget, "eventLog", events);
         ProxyFactory storeProxy = new ProxyFactory(storeTarget);
         storeProxy.setProxyTargetClass(true);
         storeProxy.addAdvice(new TransactionInterceptor(new DataSourceTransactionManager(dataSource), new AnnotationTransactionAttributeSource()));
@@ -139,6 +148,57 @@ class JobFlowRunPersistenceTest {
         log.setDurationMs(status == JobLogStatusEnum.UNCONFIRMED ? null : 1L); log.setEndTime(status == JobLogStatusEnum.UNCONFIRMED ? null : new Date());
         assertTrue(biz.finishExecution(log)); assertTrue(store.completeNode(log)); assertFalse(store.completeNode(log));
     }
+    @Test void unavailableEventLogDoesNotPreventExecution() throws Exception {
+        java.nio.file.Path invalidRoot = logDirectory.resolve("not-a-directory");
+        java.nio.file.Files.createFile(invalidRoot);
+        ((FaSetting) ReflectionTestUtils.getField(logFiles, "setting")).getJobLog().setRootPath(invalidRoot.toString());
+        Job job = createFlow(); job.setDetailLogEnabled(true); jobs.updateById(job);
+        var run = store.begin(job.getId());
+        assertNull(run.log().getLogPath());
+        var launch = store.claim(run.log().getId());
+        assertNotNull(launch);
+        assertTrue(store.markRunning(launch.node().getId()));
+        complete(launch, JobLogStatusEnum.DONE);
+    }
+
+    @Test void rolledBackFlowLeavesNoFileOrFictitiousEvents() throws Exception {
+        Job job = createFlow(); job.setDetailLogEnabled(true); jobs.updateById(job);
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
+        String path = transaction.execute(status -> {
+            var run = store.begin(job.getId());
+            String value = run.log().getLogPath();
+            assertNotNull(value);
+            try { assertEquals("", java.nio.file.Files.readString(logFiles.resolve(value))); }
+            catch (java.io.IOException error) { throw new RuntimeException(error); }
+            status.setRollbackOnly();
+            return value;
+        });
+        assertFalse(java.nio.file.Files.exists(logFiles.resolve(path)));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM base_job_log", Integer.class));
+    }
+
+    @Test void orchestrationLogUsesFrozenSwitchAndRecordsOnlyCommittedTransitions() throws Exception {
+        Job job = createFlow(); job.setDetailLogEnabled(true); jobs.updateById(job);
+        var view = store.begin(job.getId()); String path = view.log().getLogPath();
+        assertNotNull(path);
+        assertTrue(java.nio.file.Files.readString(logFiles.resolve(path)).contains("流程开始"));
+        job.setDetailLogEnabled(false); jobs.updateById(job); // 不影响已冻结的本轮
+        var launch = store.claim(view.log().getId());
+        assertTrue(store.markRunning(launch.node().getId()));
+        complete(launch, JobLogStatusEnum.ERROR);
+        store.claim(view.log().getId()); // 失败后代阻断，独立分支仍可运行
+        store.stop(view.log().getId(), job.getId());
+        String text = java.nio.file.Files.readString(logFiles.resolve(path));
+        assertTrue(text.contains("节点待启动：A [a]"));
+        assertTrue(text.contains("节点开始调用：A [a]"));
+        assertEquals(1, text.split(java.util.regex.Pattern.quote("节点结果：A [a]"), -1).length - 1);
+        assertTrue(text.contains("节点结果：B [b]，阻断"));
+        assertTrue(text.contains("请求停止本轮"));
+        assertTrue(text.contains("流程收尾"));
+        assertFalse(text.contains("任务开始：")); // 业务正文不串入父文件
+        assertNull(store.begin(job.getId()).log().getLogPath()); // 下轮遵守关闭后的开关
+    }
+
     @Test void serialClaimFreezesConfigurationAndCountsTheFlowOnce() {
         Job job = createFlow(); var view = store.begin(job.getId());
         assertEquals(4, view.nodes().size()); assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM base_job", Integer.class));
