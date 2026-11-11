@@ -23,12 +23,40 @@
           <if test="keyword != null">AND COALESCE(l.job_name, j.job_name, l.clazz_path) LIKE CONCAT('%', #{keyword}, '%') ESCAPE '!'</if>
     </sql>
 
+    <select id="timelineHeavyJobs" resultType="java.lang.Integer">
+        SELECT l.job_id
+        <include refid="timelineFrom"/>
+          AND l.job_id IS NOT NULL
+        GROUP BY l.job_id
+        HAVING COUNT(*) &gt; #{threshold}
+    </select>
+
     <select id="timeline" resultType="com.faber.api.base.admin.vo.ret.JobTimelineEntry">
         SELECT l.id, l.job_id AS jobId, COALESCE(l.job_name, j.job_name, l.clazz_path) AS jobName,
                l.begin_time AS beginTime, l.end_time AS endTime, l.duration_ms AS durationMs,
                l.duration, l.status, COALESCE(l.job_type, j.job_type) AS jobType, j.cron
         <include refid="timelineFrom"/>
+        <if test="excludeJobIds != null and excludeJobIds.size() &gt; 0">
+          AND (l.job_id IS NULL OR l.job_id NOT IN
+            <foreach collection="excludeJobIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+        </if>
         ORDER BY l.begin_time, l.id
+    </select>
+
+    <!-- 15 分钟桶序号；EXTRACT(... FROM ...) 在 MySQL、PostgreSQL 下写法一致 -->
+    <sql id="bucketExpr">FLOOR((EXTRACT(HOUR FROM l.begin_time) * 60 + EXTRACT(MINUTE FROM l.begin_time)) / 15)</sql>
+
+    <select id="timelineBuckets" resultType="com.faber.api.base.admin.vo.ret.JobTimelineBucket">
+        SELECT l.job_id AS jobId, MAX(COALESCE(l.job_name, j.job_name, l.clazz_path)) AS jobName,
+               MAX(COALESCE(l.job_type, j.job_type)) AS jobType, MAX(j.cron) AS cron,
+               <include refid="bucketExpr"/> AS bucket,
+               COUNT(*) AS total,
+               SUM(CASE WHEN l.status = 9 THEN 1 ELSE 0 END) AS failed
+        <include refid="timelineFrom"/>
+          AND l.job_id IN
+          <foreach collection="jobIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        GROUP BY l.job_id, <include refid="bucketExpr"/>
+        ORDER BY l.job_id, <include refid="bucketExpr"/>
     </select>
 
     <select id="timelineStats" resultType="com.faber.api.base.admin.vo.ret.JobTimelineStats">

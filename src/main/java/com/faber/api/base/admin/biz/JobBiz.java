@@ -62,7 +62,19 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         return jobLogMapper.calendar(value.atDay(1).atStartOfDay(), value.plusMonths(1).atDay(1).atStartOfDay());
     }
 
+    /** 窗口内同一任务超过该条数时，改为按 15 分钟分桶聚合。 */
+    static final int TIMELINE_AGGREGATE_THRESHOLD = 40;
+
     public com.faber.api.base.admin.vo.ret.JobTimeline visualTimeline(String date, Integer type, Integer status, String keyword) {
+        return visualTimeline(date, type, status, keyword, null, null);
+    }
+
+    /**
+     * @param windowStart 窗口起点（当天第几秒，含），为空表示 0
+     * @param windowEnd   窗口终点（当天第几秒，不含），为空表示 86400；明细与聚合只覆盖窗口，stats 始终按整天
+     */
+    public com.faber.api.base.admin.vo.ret.JobTimeline visualTimeline(String date, Integer type, Integer status, String keyword,
+            Integer windowStart, Integer windowEnd) {
         java.time.LocalDate day;
         try {
             if (date == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) throw new IllegalArgumentException();
@@ -75,9 +87,15 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
                 .noneMatch(value -> value.getValue().equals(status))) throw new BuzzException("执行结果无效");
         String like = keyword == null || keyword.isBlank() ? null
                 : keyword.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        int from = windowStart == null ? 0 : windowStart, to = windowEnd == null ? 86400 : windowEnd;
+        if (from < 0 || to > 86400 || from >= to) throw new BuzzException("时间窗口无效");
         java.time.LocalDateTime start = day.atStartOfDay(), end = day.plusDays(1).atStartOfDay();
+        java.time.LocalDateTime winStart = start.plusSeconds(from), winEnd = start.plusSeconds(to);
+        var heavyJobs = jobLogMapper.timelineHeavyJobs(winStart, winEnd, type, status, like, TIMELINE_AGGREGATE_THRESHOLD);
+        var buckets = heavyJobs.isEmpty() ? java.util.List.<com.faber.api.base.admin.vo.ret.JobTimelineBucket>of()
+                : jobLogMapper.timelineBuckets(winStart, winEnd, type, status, like, heavyJobs);
         return new com.faber.api.base.admin.vo.ret.JobTimeline(java.time.LocalDateTime.now(),
-                jobLogMapper.timeline(start, end, type, status, like),
+                jobLogMapper.timeline(winStart, winEnd, type, status, like, heavyJobs), buckets,
                 jobLogMapper.timelineStats(start, end, type, status, like));
     }
 

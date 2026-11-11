@@ -40,8 +40,9 @@ public class JobController extends BaseController<JobBiz, Job, Integer> {
     @GetMapping("/visual/timeline")
     @ResponseBody
     public Ret<com.faber.api.base.admin.vo.ret.JobTimeline> visualTimeline(@RequestParam String date, @RequestParam(required = false) Integer type,
-            @RequestParam(required = false) Integer status, @RequestParam(required = false) String keyword) {
-        return ok(baseBiz.visualTimeline(date, type, status, keyword));
+            @RequestParam(required = false) Integer status, @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer windowStart, @RequestParam(required = false) Integer windowEnd) {
+        return ok(baseBiz.visualTimeline(date, type, status, keyword, windowStart, windowEnd));
     }
 
     @GetMapping("/getRegisteredJobs")
