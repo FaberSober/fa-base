@@ -62,7 +62,7 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         return jobLogMapper.calendar(value.atDay(1).atStartOfDay(), value.plusMonths(1).atDay(1).atStartOfDay());
     }
 
-    public com.faber.api.base.admin.vo.ret.JobTimeline visualTimeline(String date) {
+    public com.faber.api.base.admin.vo.ret.JobTimeline visualTimeline(String date, Integer type, Integer status, String keyword) {
         java.time.LocalDate day;
         try {
             if (date == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) throw new IllegalArgumentException();
@@ -70,8 +70,15 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         } catch (java.time.DateTimeException | IllegalArgumentException e) {
             throw new BuzzException("日期格式应为 yyyy-MM-dd");
         }
+        if (type != null && type != 0 && type != 1) throw new BuzzException("任务类型无效");
+        if (status != null && java.util.Arrays.stream(com.faber.api.base.admin.enums.JobLogStatusEnum.values())
+                .noneMatch(value -> value.getValue().equals(status))) throw new BuzzException("执行结果无效");
+        String like = keyword == null || keyword.isBlank() ? null
+                : keyword.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        java.time.LocalDateTime start = day.atStartOfDay(), end = day.plusDays(1).atStartOfDay();
         return new com.faber.api.base.admin.vo.ret.JobTimeline(java.time.LocalDateTime.now(),
-                jobLogMapper.timeline(day.atStartOfDay(), day.plusDays(1).atStartOfDay()));
+                jobLogMapper.timeline(start, end, type, status, like),
+                jobLogMapper.timelineStats(start, end, type, status, like));
     }
 
     @Override
