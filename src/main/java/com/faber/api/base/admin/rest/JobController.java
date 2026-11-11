@@ -31,6 +31,12 @@ public class JobController extends BaseController<JobBiz, Job, Integer> {
 
     @Resource private JobFlowRunner flowRunner;
 
+    @GetMapping("/visual/calendar")
+    @ResponseBody
+    public Ret<List<com.faber.api.base.admin.vo.ret.JobCalendarDay>> visualCalendar(@RequestParam String month) {
+        return ok(baseBiz.visualCalendar(month));
+    }
+
     @GetMapping("/getRegisteredJobs")
     @ResponseBody
     public Ret<List<com.faber.api.base.admin.vo.ret.RegisteredJobVo>> getRegisteredJobs() {

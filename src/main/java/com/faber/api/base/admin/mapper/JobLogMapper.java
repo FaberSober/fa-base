@@ -12,6 +12,7 @@ import org.apache.ibatis.annotations.Param;
  * @date 2022-09-07 16:03:51
  */
 public interface JobLogMapper extends FaBaseMapper<JobLog> {
+    java.util.List<com.faber.api.base.admin.vo.ret.JobCalendarDay> calendar(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
     int publishDispatch(@Param("record") JobLog record);
     int finishExecution(@Param("record") JobLog record);
 }

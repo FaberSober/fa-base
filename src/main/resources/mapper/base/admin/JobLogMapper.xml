@@ -3,6 +3,17 @@
 
 <mapper namespace="com.faber.api.base.admin.mapper.JobLogMapper">
 
+    <select id="calendar" resultType="com.faber.api.base.admin.vo.ret.JobCalendarDay">
+        SELECT CAST(begin_time AS DATE) AS date, COUNT(*) AS total,
+               SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS success,
+               SUM(CASE WHEN status = 9 THEN 1 ELSE 0 END) AS failed
+        FROM base_job_log
+        WHERE begin_time &gt;= #{start} AND begin_time &lt; #{end}
+          AND (trigger_source IS NULL OR trigger_source != 3)
+        GROUP BY CAST(begin_time AS DATE)
+        ORDER BY CAST(begin_time AS DATE)
+    </select>
+
     <update id="publishDispatch">
         UPDATE base_job_log SET dispatch_end_time = #{record.dispatchEndTime},
             dispatch_duration_ms = #{record.dispatchDurationMs}

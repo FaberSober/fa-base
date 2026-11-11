@@ -51,6 +51,17 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
     @Autowired private JobDefinitionVersions definitionVersions;
     @Autowired private RegisteredJobService registeredJobs;
 
+    public java.util.List<com.faber.api.base.admin.vo.ret.JobCalendarDay> visualCalendar(String month) {
+        java.time.YearMonth value;
+        try {
+            if (month == null || !month.matches("\\d{4}-\\d{2}")) throw new IllegalArgumentException();
+            value = java.time.YearMonth.parse(month);
+        } catch (java.time.DateTimeException | IllegalArgumentException e) {
+            throw new BuzzException("月份格式应为 yyyy-MM");
+        }
+        return jobLogMapper.calendar(value.atDay(1).atStartOfDay(), value.plusMonths(1).atDay(1).atStartOfDay());
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean save(Job job) {
