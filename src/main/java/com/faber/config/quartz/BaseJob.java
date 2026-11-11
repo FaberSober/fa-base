@@ -40,7 +40,7 @@ public abstract class BaseJob implements Job {
         try {
             BaseContextHandler.useAdmin();
             int jobId = context.getJobDetail().getJobDataMap().getIntValue("jobId");
-            JobLog jobLog = createLog(jobId);
+            JobLog jobLog = createLog(jobId, context);
             JobLogFileService.ExecutionLog executionLog = jobLogBiz.openExecutionLog(jobLog);
             executeManaged(jobLog, executionLog, startedNanos, null);
         } finally {
@@ -136,9 +136,14 @@ public abstract class BaseJob implements Job {
 
     protected abstract void run();
 
-    protected JobLog createLog(int jobId) {
+    protected JobLog createLog(int jobId, JobExecutionContext context) {
         JobLog jobLog = new JobLog();
         jobLog.setJobId(jobId);
+        jobLog.setJobName(context.getJobDetail().getJobDataMap().getString("jobName"));
+        jobLog.setClazzPath(context.getJobDetail().getJobClass().getName());
+        jobLog.setJobType(0);
+        jobLog.setTriggerSource(context.getTrigger() instanceof org.quartz.CronTrigger ? 2
+                : context.getMergedJobDataMap().containsKey("triggerSource") ? context.getMergedJobDataMap().getIntValue("triggerSource") : 0);
         jobLog.setBeginTime(new Date());
         jobLog.setStatus(JobLogStatusEnum.DOING);
         jobLog.setDuration(0L);

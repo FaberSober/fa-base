@@ -58,6 +58,7 @@ public class JobTask {
             TriggerKey triggerKey = TriggerKey.triggerKey(jonKeyName, Scheduler.DEFAULT_GROUP);
             Trigger trigger = TriggerBuilder.newTrigger()
                     .withIdentity(triggerKey)
+                    .usingJobData("triggerSource", 1)
                     .startNow().build();
             scheduler.scheduleJob(jobDetail, trigger);
             // 启动
@@ -172,9 +173,10 @@ public class JobTask {
     private JobDetail getJobDetail(JobInfo job) throws ClassNotFoundException {
         Class<? extends org.quartz.Job> clazz = job instanceof com.faber.api.base.admin.entity.Job entity && Integer.valueOf(1).equals(entity.getJobType())
                 ? JobFlowQuartzJob.class : Class.forName(job.getClazzPath()).asSubclass(org.quartz.Job.class);
-        return JobBuilder.newJob(clazz)
-                .usingJobData("jobId", job.getId())
-                .build();
+        JobBuilder builder = JobBuilder.newJob(clazz).usingJobData("jobId", job.getId());
+        if (job instanceof com.faber.api.base.admin.entity.Job entity && entity.getJobName() != null)
+            builder.usingJobData("jobName", entity.getJobName());
+        return builder.build();
     }
 
 }

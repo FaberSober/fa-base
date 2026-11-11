@@ -65,7 +65,7 @@ class BaseJobExecutionLogTest {
             return true;
         });
         BaseJob job = new BaseJob() {
-            @Override protected JobLog createLog(int jobId) { return record; }
+            @Override protected JobLog createLog(int jobId, JobExecutionContext context) { return record; }
             @Override protected void run() {
                 assertEquals(JobLogStatusEnum.DOING, record.getStatus());
                 JobRunLogger.info("业务步骤已执行");

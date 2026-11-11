@@ -159,6 +159,7 @@ class BaseJobAsyncLifecycleTest {
         JobExecutionContext context = mock(JobExecutionContext.class);
         when(context.getJobDetail()).thenReturn(JobBuilder.newJob(com.faber.config.quartz.customer.JobDemo1.class)
                 .usingJobData("jobId", 12).build());
+        when(context.getMergedJobDataMap()).thenReturn(new org.quartz.JobDataMap());
         return context;
     }
 

@@ -47,6 +47,34 @@ class JobFlowCronTest {
         assertTrue(tasks.startJob(ordinary)); verify(scheduler).scheduleJob(details.capture(), any(Trigger.class));
         assertEquals(ordinary.getClazzPath(), details.getValue().getJobClass().getName());
     }
+    @Test void ordinaryExecutionsPersistSnapshotsAndTriggerSource() throws Exception {
+        var scheduler = mock(Scheduler.class); var factory = mock(SchedulerFactoryBean.class);
+        when(factory.getScheduler()).thenReturn(scheduler);
+        var tasks = new JobTask(); ReflectionTestUtils.setField(tasks, "schedulerFactoryBean", factory);
+        var job = new Job(); job.setId(43); job.setJobName("示例任务");
+        job.setClazzPath("com.faber.config.quartz.customer.JobDemo1"); job.setCron("0 * * * * ?");
+        var details = org.mockito.ArgumentCaptor.forClass(JobDetail.class);
+        var triggers = org.mockito.ArgumentCaptor.forClass(Trigger.class);
+        tasks.runTaskImmediately(job); tasks.startJob(job);
+        verify(scheduler, times(2)).scheduleJob(details.capture(), triggers.capture());
+        var biz = mock(com.faber.api.base.admin.biz.JobLogBiz.class);
+        var baseJob = new BaseJob() { @Override protected void run() {} };
+        ReflectionTestUtils.setField(baseJob, "jobLogBiz", biz);
+        for (int i = 0; i < 2; i++) {
+            var context = mock(JobExecutionContext.class);
+            when(context.getJobDetail()).thenReturn(details.getAllValues().get(i));
+            when(context.getTrigger()).thenReturn(triggers.getAllValues().get(i));
+            var merged = new JobDataMap(details.getAllValues().get(i).getJobDataMap());
+            merged.putAll(triggers.getAllValues().get(i).getJobDataMap());
+            when(context.getMergedJobDataMap()).thenReturn(merged);
+            var record = baseJob.createLog(43, context);
+            assertEquals("示例任务", record.getJobName());
+            assertEquals(job.getClazzPath(), record.getClazzPath());
+            assertEquals(0, record.getJobType());
+            assertEquals(i + 1, record.getTriggerSource());
+            verify(biz).beginExecution(record);
+        }
+    }
     @Test void failedSchedulerStartCleansOnlyTheNewRegistration() throws Exception {
         var scheduler = mock(Scheduler.class); var factory = mock(SchedulerFactoryBean.class);
         when(factory.getScheduler()).thenReturn(scheduler);
