@@ -30,6 +30,19 @@ import java.util.Map;
 public class JobController extends BaseController<JobBiz, Job, Integer> {
 
     @Resource private JobFlowRunner flowRunner;
+    @Resource private com.faber.api.base.admin.biz.JobVisualPlanService visualPlanService;
+
+    @GetMapping("/visual/plan")
+    @ResponseBody
+    public Ret<com.faber.api.base.admin.vo.ret.JobVisualPlan> visualPlan(@RequestParam String date, @RequestParam(required = false) Integer type, @RequestParam(required = false) String keyword) {
+        return ok(visualPlanService.plan(date, type, keyword));
+    }
+
+    @GetMapping("/visual/plan/calendar")
+    @ResponseBody
+    public Ret<List<java.time.LocalDate>> visualPlanCalendar(@RequestParam String month) {
+        return ok(visualPlanService.calendar(month));
+    }
 
     @GetMapping("/visual/calendar")
     @ResponseBody

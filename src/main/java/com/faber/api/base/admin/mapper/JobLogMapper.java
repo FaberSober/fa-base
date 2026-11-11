@@ -26,6 +26,7 @@ public interface JobLogMapper extends FaBaseMapper<JobLog> {
             @Param("jobIds") java.util.List<Integer> jobIds);
     com.faber.api.base.admin.vo.ret.JobTimelineStats timelineStats(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end,
             @Param("type") Integer type, @Param("status") Integer status, @Param("keyword") String keyword);
+    Long recentSuccessAverage(@Param("jobId") Integer jobId);
     int publishDispatch(@Param("record") JobLog record);
     int finishExecution(@Param("record") JobLog record);
 }
