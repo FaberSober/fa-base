@@ -15,4 +15,5 @@ public class JobTimelineEntry {
     private Long durationMs;
     private Long duration;
     private Integer status;
+    private boolean crossDay;
 }

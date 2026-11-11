@@ -23,10 +23,17 @@
           <if test="keyword != null">AND COALESCE(l.job_name, j.job_name, l.clazz_path) LIKE CONCAT('%', #{keyword}, '%') ESCAPE '!'</if>
     </sql>
 
+    <!-- 只聚合窗口内开始并结束的终态记录；跨窗口和运行中的记录保留明细。 -->
+    <sql id="aggregatable">
+        l.begin_time &gt;= #{start} AND COALESCE(l.status, 0) NOT IN (1, 3)
+        AND (l.end_time IS NULL OR l.end_time &lt; #{end})
+    </sql>
+
     <select id="timelineHeavyJobs" resultType="java.lang.Integer">
         SELECT l.job_id
         <include refid="timelineFrom"/>
           AND l.job_id IS NOT NULL
+          AND <include refid="aggregatable"/>
         GROUP BY l.job_id
         HAVING COUNT(*) &gt; #{threshold}
     </select>
@@ -35,10 +42,19 @@
         SELECT l.id, l.job_id AS jobId, COALESCE(l.job_name, j.job_name, l.clazz_path) AS jobName,
                l.begin_time AS beginTime, l.end_time AS endTime, l.duration_ms AS durationMs,
                l.duration, l.status, COALESCE(l.job_type, j.job_type) AS jobType, j.cron
-        <include refid="timelineFrom"/>
+        FROM base_job_log l LEFT JOIN base_job j ON j.id = l.job_id
+        WHERE l.begin_time &lt; #{end}
+          AND (l.begin_time &gt;= #{start}
+            OR (l.status IN (1, 3) AND #{now} &gt; #{start})
+            OR (COALESCE(l.status, 0) NOT IN (1, 3) AND l.end_time &gt; #{start}))
+          AND (l.trigger_source IS NULL OR l.trigger_source != 3)
+          <if test="type != null">AND COALESCE(l.job_type, j.job_type) = #{type}</if>
+          <if test="status != null">AND l.status = #{status}</if>
+          <if test="keyword != null">AND COALESCE(l.job_name, j.job_name, l.clazz_path) LIKE CONCAT('%', #{keyword}, '%') ESCAPE '!'</if>
         <if test="excludeJobIds != null and excludeJobIds.size() &gt; 0">
           AND (l.job_id IS NULL OR l.job_id NOT IN
-            <foreach collection="excludeJobIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+            <foreach collection="excludeJobIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            OR NOT (<include refid="aggregatable"/>))
         </if>
         ORDER BY l.begin_time, l.id
     </select>
@@ -53,6 +69,7 @@
                COUNT(*) AS total,
                SUM(CASE WHEN l.status = 9 THEN 1 ELSE 0 END) AS failed
         <include refid="timelineFrom"/>
+          AND <include refid="aggregatable"/>
           AND l.job_id IN
           <foreach collection="jobIds" item="id" open="(" separator="," close=")">#{id}</foreach>
         GROUP BY l.job_id, <include refid="bucketExpr"/>

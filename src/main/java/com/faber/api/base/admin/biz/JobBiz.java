@@ -91,11 +91,17 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         if (from < 0 || to > 86400 || from >= to) throw new BuzzException("时间窗口无效");
         java.time.LocalDateTime start = day.atStartOfDay(), end = day.plusDays(1).atStartOfDay();
         java.time.LocalDateTime winStart = start.plusSeconds(from), winEnd = start.plusSeconds(to);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
         var heavyJobs = jobLogMapper.timelineHeavyJobs(winStart, winEnd, type, status, like, TIMELINE_AGGREGATE_THRESHOLD);
         var buckets = heavyJobs.isEmpty() ? java.util.List.<com.faber.api.base.admin.vo.ret.JobTimelineBucket>of()
                 : jobLogMapper.timelineBuckets(winStart, winEnd, type, status, like, heavyJobs);
-        return new com.faber.api.base.admin.vo.ret.JobTimeline(java.time.LocalDateTime.now(),
-                jobLogMapper.timeline(winStart, winEnd, type, status, like, heavyJobs), buckets,
+        var entries = jobLogMapper.timeline(winStart, winEnd, type, status, like, heavyJobs, now);
+        for (var entry : entries) {
+            var effectiveEnd = java.util.Objects.equals(entry.getStatus(), 1) || java.util.Objects.equals(entry.getStatus(), 3)
+                    ? now : entry.getEndTime();
+            entry.setCrossDay(entry.getBeginTime().isBefore(start) || (effectiveEnd != null && effectiveEnd.isAfter(end)));
+        }
+        return new com.faber.api.base.admin.vo.ret.JobTimeline(now, entries, buckets,
                 jobLogMapper.timelineStats(start, end, type, status, like));
     }
 

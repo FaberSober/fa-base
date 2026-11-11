@@ -19,7 +19,7 @@ public interface JobLogMapper extends FaBaseMapper<JobLog> {
     /** 窗口内的执行明细，排除 excludeJobIds（这些任务改走 timelineBuckets）。 */
     java.util.List<com.faber.api.base.admin.vo.ret.JobTimelineEntry> timeline(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end,
             @Param("type") Integer type, @Param("status") Integer status, @Param("keyword") String keyword,
-            @Param("excludeJobIds") java.util.List<Integer> excludeJobIds);
+            @Param("excludeJobIds") java.util.List<Integer> excludeJobIds, @Param("now") java.time.LocalDateTime now);
     /** 高频任务按 15 分钟分桶的聚合结果；窗口须落在同一天内，bucket 为当天第几个 15 分钟。 */
     java.util.List<com.faber.api.base.admin.vo.ret.JobTimelineBucket> timelineBuckets(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end,
             @Param("type") Integer type, @Param("status") Integer status, @Param("keyword") String keyword,
