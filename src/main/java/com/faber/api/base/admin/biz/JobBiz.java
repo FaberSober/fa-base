@@ -62,6 +62,18 @@ public class JobBiz extends BaseBiz<JobMapper, Job> {
         return jobLogMapper.calendar(value.atDay(1).atStartOfDay(), value.plusMonths(1).atDay(1).atStartOfDay());
     }
 
+    public com.faber.api.base.admin.vo.ret.JobTimeline visualTimeline(String date) {
+        java.time.LocalDate day;
+        try {
+            if (date == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) throw new IllegalArgumentException();
+            day = java.time.LocalDate.parse(date);
+        } catch (java.time.DateTimeException | IllegalArgumentException e) {
+            throw new BuzzException("日期格式应为 yyyy-MM-dd");
+        }
+        return new com.faber.api.base.admin.vo.ret.JobTimeline(java.time.LocalDateTime.now(),
+                jobLogMapper.timeline(day.atStartOfDay(), day.plusDays(1).atStartOfDay()));
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean save(Job job) {

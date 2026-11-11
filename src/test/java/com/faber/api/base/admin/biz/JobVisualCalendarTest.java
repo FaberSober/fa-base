@@ -25,13 +25,18 @@ class JobVisualCalendarTest {
         verify(mapper).calendar(LocalDateTime.of(2024, 2, 1, 0, 0), LocalDateTime.of(2024, 3, 1, 0, 0));
         assertThrows(BuzzException.class, () -> biz.visualCalendar("2024-13"));
         assertThrows(BuzzException.class, () -> biz.visualCalendar("2024-2"));
+        biz.visualTimeline("2024-02-29");
+        verify(mapper).timeline(LocalDateTime.of(2024, 2, 29, 0, 0), LocalDateTime.of(2024, 3, 1, 0, 0));
+        assertThrows(BuzzException.class, () -> biz.visualTimeline("2024-02-30"));
     }
 
     @Test void groupsRealLogsAndExcludesNodes() throws Exception {
         var ds = new JdbcDataSource(); ds.setURL("jdbc:h2:mem:calendar;DB_CLOSE_DELAY=-1");
         try (var connection = ds.getConnection(); var sql = connection.createStatement()) {
-            sql.execute("CREATE TABLE base_job_log (begin_time TIMESTAMP, status INT, trigger_source INT)");
-            sql.execute("INSERT INTO base_job_log VALUES ('2024-02-01 01:00:00',2,1),('2024-02-01 02:00:00',9,2),('2024-02-01 03:00:00',9,3),('2024-02-02 00:00:00',1,0),('2024-03-01 00:00:00',9,1)");
+            sql.execute("CREATE TABLE base_job (id INT, job_name VARCHAR(255), job_type INT, cron VARCHAR(255))");
+            sql.execute("CREATE TABLE base_job_log (id INT, job_id INT, job_type INT, job_name VARCHAR(255), clazz_path VARCHAR(255), begin_time TIMESTAMP, end_time TIMESTAMP, duration_ms BIGINT, duration BIGINT, status INT, trigger_source INT)");
+            sql.execute("INSERT INTO base_job VALUES (1, '任务', 1, '0 * * * * ?')");
+            sql.execute("INSERT INTO base_job_log (id,job_id,begin_time,status,trigger_source) VALUES (1,1,'2024-02-01 01:00:00',2,1),(2,1,'2024-02-01 02:00:00',9,2),(3,1,'2024-02-01 03:00:00',9,3),(4,1,'2024-02-02 00:00:00',1,0),(5,1,'2024-03-01 00:00:00',9,1)");
         }
         var config = new Configuration(new Environment("test", new JdbcTransactionFactory(), ds));
         try (var xml = getClass().getClassLoader().getResourceAsStream("mapper/base/admin/JobLogMapper.xml")) {
@@ -44,6 +49,14 @@ class JobVisualCalendarTest {
             assertEquals(LocalDate.of(2024, 2, 1), days.get(0).getDate());
             assertEquals(2, days.get(0).getTotal()); assertEquals(1, days.get(0).getSuccess()); assertEquals(1, days.get(0).getFailed());
             assertEquals(1, days.get(1).getTotal()); assertEquals(0, days.get(1).getSuccess());
+            var timeline = session.getMapper(JobLogMapper.class).timeline(LocalDateTime.of(2024, 2, 1, 0, 0), LocalDateTime.of(2024, 2, 2, 0, 0));
+            assertEquals(2, timeline.size());
+            assertEquals("任务", timeline.get(0).getJobName());
+            assertEquals(1, timeline.get(0).getJobId());
+            assertEquals(1, timeline.get(0).getJobType());
+            assertEquals("0 * * * * ?", timeline.get(0).getCron());
+            assertEquals(LocalDateTime.of(2024, 2, 1, 1, 0), timeline.get(0).getBeginTime());
+            assertEquals(9, timeline.get(1).getStatus());
         }
     }
 }

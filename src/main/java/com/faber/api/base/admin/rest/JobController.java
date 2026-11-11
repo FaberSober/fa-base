@@ -37,6 +37,12 @@ public class JobController extends BaseController<JobBiz, Job, Integer> {
         return ok(baseBiz.visualCalendar(month));
     }
 
+    @GetMapping("/visual/timeline")
+    @ResponseBody
+    public Ret<com.faber.api.base.admin.vo.ret.JobTimeline> visualTimeline(@RequestParam String date) {
+        return ok(baseBiz.visualTimeline(date));
+    }
+
     @GetMapping("/getRegisteredJobs")
     @ResponseBody
     public Ret<List<com.faber.api.base.admin.vo.ret.RegisteredJobVo>> getRegisteredJobs() {

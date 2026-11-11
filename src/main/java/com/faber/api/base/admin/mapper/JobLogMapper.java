@@ -13,6 +13,7 @@ import org.apache.ibatis.annotations.Param;
  */
 public interface JobLogMapper extends FaBaseMapper<JobLog> {
     java.util.List<com.faber.api.base.admin.vo.ret.JobCalendarDay> calendar(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+    java.util.List<com.faber.api.base.admin.vo.ret.JobTimelineEntry> timeline(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
     int publishDispatch(@Param("record") JobLog record);
     int finishExecution(@Param("record") JobLog record);
 }
