@@ -183,4 +183,27 @@ class JobVisualCalendarTest {
             assertTrue(mapper.timeline(third, third.plusDays(1), null, null, null, List.of(), second.plusHours(13)).isEmpty());
         }
     }
+
+    @Test void aggregatesTenThousandLogsWithoutLosingCounts() throws Exception {
+        var ds = new JdbcDataSource(); ds.setURL("jdbc:h2:mem:timelineTenThousand;DB_CLOSE_DELAY=-1");
+        try (var connection = ds.getConnection(); var sql = connection.createStatement()) {
+            sql.execute("CREATE TABLE base_job (id INT, job_name VARCHAR(255), job_type INT, cron VARCHAR(255))");
+            sql.execute("CREATE TABLE base_job_log (id INT, job_id INT, job_type INT, job_name VARCHAR(255), clazz_path VARCHAR(255), begin_time TIMESTAMP, end_time TIMESTAMP, duration_ms BIGINT, duration BIGINT, status INT, trigger_source INT)");
+            sql.execute("INSERT INTO base_job SELECT X, CONCAT('任务', X), 0, NULL FROM SYSTEM_RANGE(1, 100)");
+            sql.execute("INSERT INTO base_job_log (id,job_id,begin_time,status,trigger_source) SELECT X, MOD(X, 100) + 1, DATEADD('SECOND', X, TIMESTAMP '2024-02-01 00:00:00'), 2, 1 FROM SYSTEM_RANGE(1, 10000)");
+        }
+        var config = new Configuration(new Environment("test", new JdbcTransactionFactory(), ds));
+        try (var xml = getClass().getClassLoader().getResourceAsStream("mapper/base/admin/JobLogMapper.xml")) {
+            new XMLMapperBuilder(xml, config, "mapper/base/admin/JobLogMapper.xml", config.getSqlFragments()).parse();
+        }
+        var start = LocalDateTime.of(2024, 2, 1, 0, 0); var end = start.plusDays(1);
+        try (var session = new SqlSessionFactoryBuilder().build(config).openSession()) {
+            var mapper = session.getMapper(JobLogMapper.class);
+            var heavy = mapper.timelineHeavyJobs(start, end, null, null, null, 40);
+            assertEquals(100, heavy.size());
+            assertEquals(10000, mapper.timelineBuckets(start, end, null, null, null, heavy).stream().mapToLong(b -> b.getTotal()).sum());
+            assertEquals(10000, mapper.timelineStats(start, end, null, null, null).getTotal());
+            assertTrue(mapper.timeline(start, end, null, null, null, heavy, end).isEmpty());
+        }
+    }
 }
